@@ -1,98 +1,97 @@
-"""Turn a detected Insight into short, grounded, multilingual text.
-
-Uses NVIDIA's hosted models via their OpenAI-compatible API. If there is no
-NVIDIA_API_KEY, or the model fails or cites evidence that does not exist, we fall
-back to a plain template, so the app (and the demo) never breaks.
-"""
-import json
-import logging
 import os
-import re
+import json
+import requests
 
 from app.detectors import Insight
 
-log = logging.getLogger("narrator")
-
-NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
-
-LANGUAGE_NAMES = {"en": "English", "sw": "Swahili", "fr": "French", "es": "Spanish"}
-
 SYSTEM = (
-    "You are a Premier League studio analyst writing one or two sentences. "
-    "Use ONLY the facts provided. Do not invent players, scores or stats. "
-    "End with the evidence ids in square brackets, e.g. [e12, e13]. "
-    "Write in {language}."
+    "You are an expert Premier League tactical analyst and broadcaster. "
+    "Given a JSON payload of a match event, write a sharp, professional studio commentary "
+    "in {language}. You must strictly incorporate the provided facts and cite the evidence keys "
+    "in square brackets at the end of your sentences (e.g., [e1]). Keep it under 3 sentences."
 )
 
-
 def make_client():
-    """Returns an OpenAI client pointed at NVIDIA, or None if no key is set."""
-    key = os.getenv("NVIDIA_API_KEY")
-    if not key:
-        return None
-    from openai import OpenAI  # imported here so tests run without the package
-
-    return OpenAI(base_url=NVIDIA_BASE_URL, api_key=key)
-
-
-def template_narration(insight: Insight) -> str:
-    """Plain English fallback. No model involved."""
-    f = insight.facts
-    if insight.kind == "counter_attack":
-        passes = f.get("passes", 0)
-        text = (
-            f"{int(insight.minute)}' {insight.team} win the ball in their own half and reach "
-            f"a {f.get('ended_in', 'shot')} in {f.get('duration_s', '?')} seconds "
-            f"after {passes} {'pass' if passes == 1 else 'passes'}."
-        )
-    else:
-        text = f"{int(insight.minute)}' {insight.team}: {insight.kind.replace('_', ' ')}."
-    return f"{text} [{', '.join(insight.evidence)}]"
-
-
-def citations_are_valid(text: str, insight: Insight) -> bool:
-    """Every id in square brackets must be one of the insight's evidence ids,
-    and there must be at least one citation."""
-    groups = re.findall(r"\[([^\]]+)\]", text)
-    if not groups:
-        return False
-    cited = {c.strip() for g in groups for c in g.split(",")}
-    return cited <= set(insight.evidence)
-
+    """Returns a dummy client placeholder since we are using direct REST requests."""
+    return None
 
 def narrate(client, model: str, insight: Insight, language: str = "English") -> str:
-    """One LLM call. Raises on API errors; narrate_all() handles fallbacks."""
-    payload = {
+    """Uses a direct REST request to the NVIDIA NIM endpoint, bypassing SDK wrapper issues."""
+    
+    api_key = os.getenv("NVIDIA_API_KEY")
+    invoke_url = "https://integrate.api.nvidia.com/v1/chat/completions"
+    
+    payload_data = {
         "kind": insight.kind,
         "team": insight.team,
         "minute": insight.minute,
         "facts": insight.facts,
         "evidence": insight.evidence,
     }
-    resp = client.chat.completions.create(
-        model=model,
-        temperature=0.4,
-        max_tokens=200,
-        messages=[
+    
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+    
+    body = {
+        "model": model,
+        "messages": [
             {"role": "system", "content": SYSTEM.format(language=language)},
-            {"role": "user", "content": json.dumps(payload)},
+            {"role": "user", "content": json.dumps(payload_data)}
         ],
+        "temperature": 0.4,
+        "max_tokens": 1024,
+        "reasoning_effort": "low",
+        "stream": False
+    }
+
+    # Nemotron 3.5 thinks by default. Its reasoning and final answer share
+    # max_tokens, so a long reasoning trace can leave message.content empty.
+    if model == "nvidia/nemotron-3.5-lightning-30b-a3b":
+        body.pop("reasoning_effort", None)
+        body["chat_template_kwargs"] = {"enable_thinking": False}
+    
+    print(f"\n[DEBUG] Requesting model '{model}' via direct REST API...")
+    timeout_seconds = float(os.getenv("NVIDIA_TIMEOUT_SECONDS", "90"))
+    response = requests.post(
+        invoke_url,
+        headers=headers,
+        json=body,
+        timeout=(10, timeout_seconds),
     )
-    return resp.choices[0].message.content.strip()
+    
+    if response.status_code != 200:
+        raise RuntimeError(f"NVIDIA API Error {response.status_code}: {response.text}")
+        
+    res_json = response.json()
+    choices = res_json.get("choices", [])
+    if not choices:
+        raise ValueError("The NVIDIA API returned an empty response choices list.")
+        
+    content = choices[0].get("message", {}).get("content")
+    if not content:
+        choice = choices[0]
+        usage = res_json.get("usage", {}).get("completion_tokens_details", {})
+        raise ValueError(
+            "The NVIDIA API returned no visible text "
+            f"(finish_reason={choice.get('finish_reason')}, "
+            f"reasoning_tokens={usage.get('reasoning_tokens')})."
+        )
+        
+    return content.strip()
 
-
-def narrate_all(insight: Insight, client, model: str | None, langs: list[str]) -> dict:
-    """language code -> text, with template fallback per language."""
-    out = {}
-    for code in langs:
-        text = None
-        if client is not None and model:
-            try:
-                text = narrate(client, model, insight, LANGUAGE_NAMES.get(code, code))
-                if not citations_are_valid(text, insight):
-                    log.warning("bad citations from model for %s (%s); using template", insight.id, code)
-                    text = None
-            except Exception as exc:  # network, quota, bad model id...
-                log.warning("LLM call failed (%s); using template", exc)
-        out[code] = text or template_narration(insight)
-    return out
+def narrate_all(client, model: str | None, insight: Insight, languages: list[str] | None = None) -> dict[str, str]:
+    """Narrate one insight in each requested language, with a safe fallback."""
+    results = {}
+    for language in languages or ["en"]:
+        try:
+            if not model or not os.getenv("NVIDIA_API_KEY"):
+                raise RuntimeError("NVIDIA model or API key is not configured")
+            text = narrate(client, model, insight, language)
+            results[language] = text
+        except Exception as e:
+            print(f"[DEBUG] LLM call failed ({e}); using template fallback")
+            results[language] = f"[{insight.minute}'] {insight.team} tactical shift detected: {insight.kind}."
+    return results

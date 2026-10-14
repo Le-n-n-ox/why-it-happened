@@ -1,6 +1,6 @@
 """Rule-based pattern detection. Deterministic, testable, explainable.
 
-To add a detector: write a function  list[MatchEvent] -> list[Insight]  and
+To add a detector: write a function list[MatchEvent] -> list[Insight] and
 add it to DETECTORS at the bottom.
 """
 from dataclasses import asdict, dataclass, field
@@ -10,7 +10,7 @@ from app.events import EventType, MatchEvent
 
 @dataclass
 class Insight:
-    kind: str                                   # e.g. "counter_attack"
+    kind: str                                   # e.g. "counter_attack", "turnover_shot"
     team: str
     minute: float
     evidence: list[str]                         # ids of the events that prove it
@@ -57,7 +57,39 @@ def detect_counter_attacks(events: list[MatchEvent], window_min: float = 0.25) -
     return found
 
 
-DETECTORS = [detect_counter_attacks]
+def detect_turnover_shots(events: list[MatchEvent], window_min: float = 0.60) -> list[Insight]:
+    """Defensive recovery leading to a shot within ~35 seconds (for slower build-up transitions)."""
+    found = []
+    for i, start in enumerate(events):
+        won_ball = start.type in (EventType.INTERCEPTION, EventType.TACKLE)
+        if not won_ball:
+            continue
+        chain = [start]
+        for nxt in events[i + 1:]:
+            if nxt.minute - start.minute > window_min or nxt.team != start.team:
+                break
+            chain.append(nxt)
+            if nxt.type in (EventType.SHOT, EventType.GOAL):
+                duration_s = round((nxt.minute - start.minute) * 60)
+                # Ignore fast sequences under 15s so counter_attack remains distinct
+                if duration_s > 15:
+                    found.append(Insight(
+                        kind="turnover_shot",
+                        team=start.team,
+                        minute=start.minute,
+                        evidence=[e.id for e in chain],
+                        facts={
+                            "duration_s": duration_s,
+                            "start_x": start.x,
+                            "end_x": nxt.x,
+                            "ended_in": nxt.type.value,
+                        },
+                    ))
+                break
+    return found
+
+
+DETECTORS = [detect_counter_attacks, detect_turnover_shots]
 
 
 def detect_all(events: list[MatchEvent]) -> list[Insight]:
