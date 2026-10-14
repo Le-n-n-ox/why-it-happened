@@ -5,4 +5,8 @@ openai
 python-dotenv
 pytest
 httpx
+<<<<<<< HEAD
 azure-cosmos
+=======
+pytest
+>>>>>>> feature/lennox

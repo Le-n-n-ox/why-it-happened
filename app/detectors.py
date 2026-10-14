@@ -10,7 +10,7 @@ from app.events import EventType, MatchEvent
 
 @dataclass
 class Insight:
-    kind: str                                   # e.g. "counter_attack", "turnover_shot"
+    kind: str                                   # e.g. "counter_attack", "turnover_shot", "high_press_turnover"
     team: str
     minute: float
     evidence: list[str]                         # ids of the events that prove it
@@ -89,7 +89,37 @@ def detect_turnover_shots(events: list[MatchEvent], window_min: float = 0.60) ->
     return found
 
 
-DETECTORS = [detect_counter_attacks, detect_turnover_shots]
+def detect_high_press(events: list[MatchEvent], window_min: float = 0.35) -> list[Insight]:
+    """Won possession high up the pitch (x >= 60) leading to an attacking threat within ~20s."""
+    found = []
+    for i, start in enumerate(events):
+        won_ball = start.type in (EventType.INTERCEPTION, EventType.TACKLE)
+        if not won_ball or start.x < 60:
+            continue
+        chain = [start]
+        for nxt in events[i + 1:]:
+            if nxt.minute - start.minute > window_min or nxt.team != start.team:
+                break
+            chain.append(nxt)
+            if nxt.type in (EventType.SHOT, EventType.GOAL):
+                found.append(Insight(
+                    kind="high_press_turnover",
+                    team=start.team,
+                    minute=start.minute,
+                    evidence=[e.id for e in chain],
+                    facts={
+                        "duration_s": round((nxt.minute - start.minute) * 60),
+                        "recovery_x": start.x,
+                        "end_x": nxt.x,
+                        "passes": sum(e.type == EventType.PASS for e in chain),
+                        "ended_in": nxt.type.value,
+                    },
+                ))
+                break
+    return found
+
+
+DETECTORS = [detect_counter_attacks, detect_turnover_shots, detect_high_press]
 
 
 def detect_all(events: list[MatchEvent]) -> list[Insight]:

@@ -16,3 +16,6 @@ web/dist/
 .DS_Store
 .vscode/
 .idea/
+.insights.db-shm
+.insights.db-wal
+insights.db
