@@ -1,7 +1,9 @@
 import os
 import json
 import requests
+import time
 
+from .db import get_existing_narration, save_insight
 from app.detectors import Insight
 
 SYSTEM = (
@@ -83,15 +85,29 @@ def narrate(client, model: str, insight: Insight, language: str = "English") -> 
     return content.strip()
 
 def narrate_all(client, model: str | None, insight: Insight, languages: list[str] | None = None) -> dict[str, str]:
-    """Narrate one insight in each requested language, with a safe fallback."""
+    """Narrate one insight in each requested language and persist each result."""
     results = {}
-    for language in languages or ["en"]:
+    requested_languages = languages or ["en"]
+    for language in requested_languages:
+        cached = get_existing_narration(insight.id, language)
+        if cached:
+            print(f"[DEBUG] Served insight '{insight.id}' ({language}) from DB cache.")
+            results[language] = cached
+            continue
+
+        failed = False
         try:
             if not model or not os.getenv("NVIDIA_API_KEY"):
                 raise RuntimeError("NVIDIA model or API key is not configured")
             text = narrate(client, model, insight, language)
-            results[language] = text
         except Exception as e:
             print(f"[DEBUG] LLM call failed ({e}); using template fallback")
-            results[language] = f"[{insight.minute}'] {insight.team} tactical shift detected: {insight.kind}."
+            text = f"[{insight.minute}'] {insight.team} tactical shift detected: {insight.kind}."
+            failed = True
+
+        # Persist both generated narration and its fallback immediately.
+        save_insight(insight, text, language=language, cache_result=not failed)
+        results[language] = text
+        if not failed:
+            time.sleep(1.5)  # Respect NVIDIA rate limits.
     return results

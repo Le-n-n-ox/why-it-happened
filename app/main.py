@@ -15,9 +15,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from .db import init_db, get_insights
+from .events import MatchEvent
 
 from app.detectors import detect_all
-from app.events import load_events, MatchEvent
+from app.events import load_events
 from app.narrator import make_client, narrate_all
 from app.simulate import replay
 from app.store import OmniPitchStore
@@ -41,7 +43,12 @@ app.add_middleware(
 # 1. Swap InsightStore for OmniPitchStore to handle both insights and raw events
 store = OmniPitchStore(os.getenv("DB_PATH", ":memory:"))
 client = make_client()
+live_match_events: list[MatchEvent] = []
 
+@app.on_event("startup")
+def on_startup():
+    print("[DEBUG] Initializing database...")
+    init_db()
 
 @app.get("/health")
 def health():
@@ -55,6 +62,13 @@ def health():
 @app.get("/events")
 def events():
     return [e.model_dump(mode="json") for e in load_events(EVENTS_FILE)]
+
+
+@app.post("/events")
+def ingest_event(event: MatchEvent):
+    """Webhook to ingest live match data via POST."""
+    live_match_events.append(event)
+    return {"status": "success", "event_id": event.id, "queue_size": len(live_match_events)}
 
 
 @app.get("/insights")
@@ -101,3 +115,15 @@ async def stream(delay: float = REPLAY_DELAY):
 
 if Path("web/dist").exists():
     app.mount("/", StaticFiles(directory="web/dist", html=True), name="web")
+
+@app.get("/insights")
+def fetch_historical_insights(team: str = None, limit: int = 20):
+    """
+    REST endpoint for querying past insights.
+    Example: /insights?team=Arsenal&limit=5
+    """
+    try:
+        data = get_insights(team=team, limit=limit)
+        return {"status": "success", "count": len(data), "data": data}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
