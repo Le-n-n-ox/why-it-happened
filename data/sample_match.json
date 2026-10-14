@@ -1,0 +1,17 @@
+[
+  {"id": "e1",  "minute": 10.00, "team": "Reds",  "type": "interception", "x": 30, "y": 40},
+  {"id": "e2",  "minute": 10.05, "team": "Reds",  "type": "pass",         "x": 45, "y": 42},
+  {"id": "e3",  "minute": 10.12, "team": "Reds",  "type": "pass",         "x": 70, "y": 30},
+  {"id": "e4",  "minute": 10.20, "team": "Reds",  "type": "shot",         "x": 88, "y": 35, "outcome": "saved"},
+  {"id": "e5",  "minute": 14.00, "team": "Blues", "type": "pass",         "x": 40, "y": 50},
+  {"id": "e6",  "minute": 14.10, "team": "Blues", "type": "carry",        "x": 60, "y": 55},
+  {"id": "e7",  "minute": 14.20, "team": "Reds",  "type": "tackle",       "x": 40, "y": 50},
+  {"id": "e8",  "minute": 14.25, "team": "Reds",  "type": "carry",        "x": 60, "y": 48},
+  {"id": "e9",  "minute": 14.30, "team": "Reds",  "type": "pass",         "x": 78, "y": 40},
+  {"id": "e10", "minute": 14.38, "team": "Reds",  "type": "goal",         "x": 92, "y": 45},
+  {"id": "e11", "minute": 20.00, "team": "Blues", "type": "tackle",       "x": 35, "y": 60},
+  {"id": "e12", "minute": 20.50, "team": "Blues", "type": "shot",         "x": 85, "y": 50, "outcome": "blocked"},
+  {"id": "e13", "minute": 30.00, "team": "Blues", "type": "interception", "x": 28, "y": 55},
+  {"id": "e14", "minute": 30.06, "team": "Blues", "type": "pass",         "x": 50, "y": 60},
+  {"id": "e15", "minute": 30.15, "team": "Blues", "type": "shot",         "x": 80, "y": 52, "outcome": "off target"}
+]
