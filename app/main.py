@@ -4,9 +4,6 @@
   GET /events     the match events we replay
   GET /insights   insights stored so far
   GET /stream     Server-Sent Events: replays the match and pushes insights live
-
-Run:  uvicorn app.main:app --reload --port 8000
-Docs: http://localhost:8000/docs
 """
 import asyncio
 import json
@@ -20,10 +17,10 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.detectors import detect_all
-from app.events import load_events
+from app.events import load_events, MatchEvent
 from app.narrator import make_client, narrate_all
 from app.simulate import replay
-from app.store import InsightStore
+from app.store import OmniPitchStore
 
 load_dotenv()
 
@@ -35,18 +32,24 @@ MODEL = os.getenv("NVIDIA_MODEL")
 app = FastAPI(title="Why It Happened")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],   # Vite dev server
+    allow_origins=["http://localhost:5173", 
+                    "http://localhost:5174"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-store = InsightStore(os.getenv("DB_PATH", ":memory:"))
-client = make_client()          # None when NVIDIA_API_KEY is not set -> template narration
+# 1. Swap InsightStore for OmniPitchStore to handle both insights and raw events
+store = OmniPitchStore(os.getenv("DB_PATH", ":memory:"))
+client = make_client()
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "llm_configured": client is not None and bool(MODEL), "languages": LANGS}
+    return {
+        "status": "ok",
+        "llm_configured": bool(os.getenv("NVIDIA_API_KEY") and MODEL),
+        "languages": LANGS,
+    }
 
 
 @app.get("/events")
@@ -56,23 +59,33 @@ def events():
 
 @app.get("/insights")
 def insights():
-    return store.list()
+    # Use the renamed list_insights() method
+    return store.list_insights()
 
 
 async def _event_source(delay: float):
     seen: set[str] = set()
-    buffer = []
     async for event in replay(load_events(EVENTS_FILE), delay):
-        buffer.append(event)
-        for insight in detect_all(buffer):
+        # 2. Save the incoming raw event to SQLite immediately
+        store.add_event(event.model_dump(mode="json"))
+        
+        # 3. Query the store for the last 5 minutes of match action
+        recent_dicts = store.get_recent_events(event.minute, window_minutes=5.0)
+        recent_events = [MatchEvent(**r) for r in recent_dicts]
+        
+        # 4. Pass only the recent events to the detectors instead of an endlessly growing in-memory buffer
+        for insight in detect_all(recent_events):
             if insight.id in seen:
                 continue
             seen.add(insight.id)
-            # the LLM call blocks, so keep it off the event loop
-            insight.narration = await asyncio.to_thread(narrate_all, insight, client, MODEL, LANGS)
+            
+            insight.narration = await asyncio.to_thread(narrate_all, client, MODEL, insight, LANGS)
             data = insight.to_dict()
-            store.add(data)
+            
+            # 5. Save the generated AI narrative to SQLite
+            store.add_insight(data)
             yield f"data: {json.dumps(data)}\n\n"
+            
     yield "event: done\ndata: {}\n\n"
 
 
@@ -86,7 +99,5 @@ async def stream(delay: float = REPLAY_DELAY):
     )
 
 
-# Serve the built frontend (web/dist) when it exists, e.g. inside the Docker image.
-# Must stay LAST so it does not shadow the API routes above.
 if Path("web/dist").exists():
     app.mount("/", StaticFiles(directory="web/dist", html=True), name="web")

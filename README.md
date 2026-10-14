@@ -58,3 +58,55 @@ web/            Vite + React + TypeScript app (created by you, see above)
 ## Status
 
 Backbone only. Next: official data adapter (`app/events.py: from_official`), second detector, dashboard, deploy.
+
+```
+why-it-happened
+├─ app
+│  ├─ detectors.py
+│  ├─ events.py
+│  ├─ main.py
+│  ├─ narrator.py
+│  ├─ simulate.py
+│  ├─ store.py
+│  └─ __init__.py
+├─ data
+│  └─ sample_match.json
+├─ Dockerfile
+├─ frontend-starter
+│  ├─ App.tsx
+│  ├─ types.ts
+│  └─ useInsightStream.ts
+├─ pytest.ini
+├─ README.md
+├─ requirements.txt
+├─ scripts
+│  └─ smoke_nvidia.py
+├─ tests
+│  ├─ test_api.py
+│  └─ test_backbone.py
+└─ web
+   ├─ .oxlintrc.json
+   ├─ index.html
+   ├─ package-lock.json
+   ├─ package.json
+   ├─ public
+   │  ├─ favicon.svg
+   │  └─ icons.svg
+   ├─ README.md
+   ├─ src
+   │  ├─ App.css
+   │  ├─ App.tsx
+   │  ├─ assets
+   │  │  ├─ hero.png
+   │  │  ├─ react.svg
+   │  │  └─ vite.svg
+   │  ├─ index.css
+   │  ├─ main.tsx
+   │  ├─ types.ts
+   │  └─ useInsightStream.ts
+   ├─ tsconfig.app.json
+   ├─ tsconfig.json
+   ├─ tsconfig.node.json
+   └─ vite.config.ts
+
+```
