@@ -48,12 +48,12 @@ web/            Vite + React + TypeScript app (created by you, see above)
 
 ## Endpoints
 
-| Path | What |
-|------|------|
-| `GET /health` | status, whether an LLM is configured |
-| `GET /events` | the events being replayed |
-| `GET /insights` | insights stored so far |
-| `GET /stream` | Server-Sent Events: replays the match, pushes insights live |
+| Path              | What                                                        |
+| ----------------- | ----------------------------------------------------------- |
+| `GET /health`   | status, whether an LLM is configured                        |
+| `GET /events`   | the events being replayed                                   |
+| `GET /insights` | insights stored so far                                      |
+| `GET /stream`   | Server-Sent Events: replays the match, pushes insights live |
 
 ## Status
 
@@ -62,12 +62,14 @@ Backbone only. Next: official data adapter (`app/events.py: from_official`), sec
 ```
 why-it-happened
 ├─ app
+│  ├─ db.py
 │  ├─ detectors.py
 │  ├─ events.py
 │  ├─ main.py
 │  ├─ narrator.py
 │  ├─ simulate.py
 │  ├─ store.py
+│  ├─ test_db.py
 │  └─ __init__.py
 ├─ data
 │  └─ sample_match.json
@@ -76,16 +78,20 @@ why-it-happened
 │  ├─ App.tsx
 │  ├─ types.ts
 │  └─ useInsightStream.ts
+├─ list_models.py
 ├─ pytest.ini
 ├─ README.md
 ├─ requirements.txt
 ├─ scripts
 │  └─ smoke_nvidia.py
+├─ simulate_match.py
 ├─ tests
 │  ├─ test_api.py
-│  └─ test_backbone.py
+│  ├─ test_backbone.py
+│  └─ test_detectors.py
 └─ web
    ├─ .oxlintrc.json
+   ├─ components.json
    ├─ index.html
    ├─ package-lock.json
    ├─ package.json
@@ -94,16 +100,20 @@ why-it-happened
    │  └─ icons.svg
    ├─ README.md
    ├─ src
-   │  ├─ App.css
+   │  ├─ api.ts
    │  ├─ App.tsx
-   │  ├─ assets
-   │  │  ├─ hero.png
-   │  │  ├─ react.svg
-   │  │  └─ vite.svg
    │  ├─ index.css
+   │  ├─ InsightCard.tsx
+   │  ├─ lib
+   │  │  └─ utils.ts
    │  ├─ main.tsx
+   │  ├─ match.ts
+   │  ├─ Pitch.tsx
+   │  ├─ Recap.tsx
    │  ├─ types.ts
-   │  └─ useInsightStream.ts
+   │  ├─ useInsightStream.ts
+   │  ├─ useMatchStream.ts
+   │  └─ vite-env.d.ts
    ├─ tsconfig.app.json
    ├─ tsconfig.json
    ├─ tsconfig.node.json

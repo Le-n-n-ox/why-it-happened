@@ -1,4 +1,4 @@
-"""FastAPI service.
+"""FastAPI service for Why It Happened.
 
   GET /health     liveness + whether an LLM is configured
   GET /events     the match events we replay
@@ -31,19 +31,41 @@ REPLAY_DELAY = float(os.getenv("REPLAY_DELAY", "0.5"))
 LANGS = [c.strip() for c in os.getenv("NARRATION_LANGS", "en").split(",") if c.strip()]
 MODEL = os.getenv("NVIDIA_MODEL")
 
+# Allowed origins for CORS (supports Vite dev server on any localhost/127.0.0.1 port or env override)
+DEFAULT_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+]
+ENV_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+ALLOW_ORIGINS = ENV_ORIGINS if ENV_ORIGINS else DEFAULT_ORIGINS
+
 app = FastAPI(title="Why It Happened")
+
 app.add_middleware(
     CORSMiddleware,
+
     allow_origins=["http://localhost:5173", 
                     "http://localhost:5174"],
+
+    allow_origins=ALLOW_ORIGINS,
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:[0-9]+)?",
+    allow_credentials=True,
+
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # 1. Swap InsightStore for OmniPitchStore to handle both insights and raw events
 store = OmniPitchStore(os.getenv("DB_PATH", ":memory:"))
 client = make_client()
 live_match_events: list[MatchEvent] = []
+
+store = InsightStore(os.getenv("DB_PATH", ":memory:"))
+client = make_client()  # None when NVIDIA_API_KEY is not set -> template narration
+
 
 @app.on_event("startup")
 def on_startup():
@@ -54,7 +76,11 @@ def on_startup():
 def health():
     return {
         "status": "ok",
+
         "llm_configured": bool(os.getenv("NVIDIA_API_KEY") and MODEL),
+
+        "llm_configured": client is not None and bool(MODEL),
+
         "languages": LANGS,
     }
 
@@ -92,8 +118,15 @@ async def _event_source(delay: float):
             if insight.id in seen:
                 continue
             seen.add(insight.id)
+
             
             insight.narration = await asyncio.to_thread(narrate_all, client, MODEL, insight, LANGS)
+
+            # The LLM call blocks, so run off the main event loop thread
+            insight.narration = await asyncio.to_thread(
+                narrate_all, insight, client, MODEL, LANGS
+            )
+
             data = insight.to_dict()
             
             # 5. Save the generated AI narrative to SQLite
@@ -109,8 +142,13 @@ async def stream(delay: float = REPLAY_DELAY):
     return StreamingResponse(
         _event_source(delay),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
+
 
 
 if Path("web/dist").exists():
@@ -127,3 +165,10 @@ def fetch_historical_insights(team: str = None, limit: int = 20):
         return {"status": "success", "count": len(data), "data": data}
     except Exception as e:
         return {"status": "error", "detail": str(e)}
+
+# Serve built React frontend (web/dist) when present (e.g. inside Docker container)[cite: 4]
+# Must stay LAST so it does not shadow API routes above
+dist_path = Path("web/dist")
+if dist_path.exists():
+    app.mount("/", StaticFiles(directory=str(dist_path), html=True), name="web")
+
