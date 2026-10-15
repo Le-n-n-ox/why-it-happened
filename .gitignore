@@ -19,3 +19,8 @@ web/dist/
 .insights.db-shm
 .insights.db-wal
 insights.db
+
+*.db
+*.db-shm
+*.db-wal
+

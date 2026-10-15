@@ -1,89 +1,50 @@
+// web/src/App.tsx - shell: header, navigation, banners and the current page.
+import { formatMinute, languageName, teamColor } from "./match";
+import { MatchProvider } from "./MatchProvider";
+import { useMatch } from "./matchContext";
+import { AboutPage } from "./pages/AboutPage";
+import { AnnouncersPage } from "./pages/AnnouncersPage";
+import { FansPage } from "./pages/FansPage";
+import { InsightPage } from "./pages/InsightPage";
+import { LivePage } from "./pages/LivePage";
+import { RecapPage } from "./pages/RecapPage";
+import { useHashRoute } from "./useHashRoute";
 
-// web/src/App.tsx - wires everything together.
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { getEvents, getHealth } from "./api";
-import { InsightCard } from "./InsightCard";
-import { Pitch } from "./Pitch";
-import { Recap } from "./Recap";
-import {
-  clockFromInsights, evidenceEvents, formatMinute, languageName, languagesFrom,
-  scoreFrom, teamColor, teamsFrom,
-} from "./match";
-import type { MatchEvent } from "./types";
-import { useMatchStream } from "./useMatchStream";
+const INSIGHT_PREFIX = "/insight/";
 
-// Demo mode: open /?speed=0.3&lang=sw (speed is ignored until the backend supports it)
-const params = new URLSearchParams(window.location.search);
-const speedParam = Number(params.get("speed"));
-const speed = params.has("speed") && Number.isFinite(speedParam) ? speedParam : undefined;
-
-function initialLang(): string {
-  const fromUrl = params.get("lang");
-  if (fromUrl) return fromUrl;
+function safeDecode(s: string): string {
   try {
-    return localStorage.getItem("lang") ?? "en";
+    return decodeURIComponent(s);
   } catch {
-    return "en"; // storage can be blocked
+    return s;
   }
 }
 
-export default function App() {
-  const { insights, ticks, status, replay } = useMatchStream(speed);
-  const [allEvents, setAllEvents] = useState<MatchEvent[]>([]);
-  const [eventsFailed, setEventsFailed] = useState(false);
-  const [healthLangs, setHealthLangs] = useState<string[]>([]);
-  const [lang, setLang] = useState(initialLang);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [follow, setFollow] = useState(true); // auto-select the newest insight
+function Page({ path }: { path: string }) {
+  if (path === "/recap") return <RecapPage />;
+  if (path === "/announcers") return <AnnouncersPage />;
+  if (path === "/fans") return <FansPage />;
+  if (path === "/about") return <AboutPage />;
+  if (path.startsWith(INSIGHT_PREFIX)) {
+    return <InsightPage id={safeDecode(path.slice(INSIGHT_PREFIX.length))} />;
+  }
+  return <LivePage />;
+}
 
-  useEffect(() => {
-    // all events: used for the pitch and the evidence drill-down
-    getEvents()
-      .then((e) => { setAllEvents(e); setEventsFailed(false); })
-      .catch(() => { setAllEvents([]); setEventsFailed(true); });
-    getHealth().then((h) => setHealthLangs(h.languages)).catch(() => setHealthLangs([]));
-  }, []);
+const NAV = [
+  { href: "#/", path: "/", label: "Live" },
+  { href: "#/recap", path: "/recap", label: "Timeline" },
+  { href: "#/announcers", path: "/announcers", label: "Announcers" },
+  { href: "#/fans", path: "/fans", label: "Fans" },
+  { href: "#/about", path: "/about", label: "How it works" },
+];
 
-  const teams = useMemo(() => teamsFrom(allEvents), [allEvents]);
-  const byId = useMemo(() => new Map(allEvents.map((e) => [e.id, e])), [allEvents]);
-  const languages = useMemo(
-    () => languagesFrom(insights, [...healthLangs, lang]),
-    [insights, healthLangs, lang],
-  );
-
-  const ended = status === "ended";
-  const lastMinute = allEvents.length ? allEvents[allEvents.length - 1].minute : 0;
-
-  // Live "tick" events if the backend sends them, otherwise a clock driven by the insights.
-  const clock = ticks.length
-    ? ticks[ticks.length - 1].minute
-    : ended ? lastMinute : clockFromInsights(insights, byId);
-  const shown = ticks.length ? ticks : allEvents.filter((e) => e.minute <= clock);
-  const score = scoreFrom(shown, teams);
-
-  const latestId = insights[0]?.id ?? null;
-  useEffect(() => {
-    if (follow && latestId) setSelectedId(latestId);
-  }, [follow, latestId]);
-
-  const selected = evidenceEvents(insights.find((i) => i.id === selectedId), byId);
-
-  const handleSelect = useCallback((id: string) => {
-    setFollow(false); // a manual choice stops auto-follow
-    setSelectedId(id);
-  }, []);
-
-  const changeLang = (code: string) => {
-    setLang(code);
-    try { localStorage.setItem("lang", code); } catch { /* storage blocked: ignore */ }
-  };
-
-  const restart = () => {
-    setSelectedId(null);
-    setFollow(true);
-    replay();
-  };
-
+function Shell() {
+  const path = useHashRoute();
+  const {
+    teams, score, clock, ended, status, lang, languages, changeLang,
+    follow, toggleFollow, restart, eventsFailed,
+  } = useMatch();
   const [home, away] = teams;
 
   return (
@@ -107,11 +68,24 @@ export default function App() {
             <option key={code} value={code}>{languageName(code)}</option>
           ))}
         </select>
-        <button type="button" aria-pressed={follow} onClick={() => setFollow((f) => !f)}>
+        <button type="button" aria-pressed={follow} onClick={toggleFollow}>
           Follow live: {follow ? "on" : "off"}
         </button>
         <button type="button" onClick={restart}>Replay</button>
       </header>
+
+      <nav className="nav" aria-label="Pages">
+        {NAV.map((n) => (
+          <a
+            key={n.href}
+            href={n.href}
+            className="nav__link"
+            aria-current={n.path === path ? "page" : undefined}
+          >
+            {n.label}
+          </a>
+        ))}
+      </nav>
 
       {status === "error" && (
         <p role="alert" className="banner">
@@ -126,27 +100,15 @@ export default function App() {
         </p>
       )}
 
-      {teams.length > 0 && <Pitch events={shown} selected={selected} teams={teams} />}
-
-      <section className="feed-panel" aria-live="polite" aria-label="Live insights">
-        {insights.length === 0 && status !== "error" && (
-          <p className="empty">Waiting for the first insight...</p>
-        )}
-        <ul className="feed">
-          {insights.map((i) => (
-            <InsightCard
-              key={i.id}
-              insight={i}
-              lang={lang}
-              color={teamColor(i.team, teams)}
-              selected={i.id === selectedId}
-              onSelect={handleSelect}
-            />
-          ))}
-        </ul>
-      </section>
-
-      <Recap insights={insights} lang={lang} ended={ended} />
+      <Page path={path} />
     </main>
+  );
+}
+
+export default function App() {
+  return (
+    <MatchProvider>
+      <Shell />
+    </MatchProvider>
   );
 }
