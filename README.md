@@ -58,3 +58,78 @@ web/            Vite + React + TypeScript app (created by you, see above)
 ## Status
 
 Backbone only. Next: official data adapter (`app/events.py: from_official`), second detector, dashboard, deploy.
+
+```
+why-it-happened
+├─ app
+│  ├─ detectors.py
+│  ├─ events.py
+│  ├─ main.py
+│  ├─ narrator.py
+│  ├─ simulate.py
+│  ├─ store.py
+│  └─ __init__.py
+├─ data
+│  └─ sample_match.json
+├─ Dockerfile
+├─ frontend-starter
+│  ├─ App.tsx
+│  ├─ types.ts
+│  └─ useInsightStream.ts
+├─ pytest.ini
+├─ README.md
+├─ requirements.txt
+├─ scripts
+│  └─ smoke_nvidia.py
+├─ tests
+│  ├─ test_api.py
+│  └─ test_backbone.py
+└─ web
+   ├─ .oxlintrc.json
+   ├─ components.json
+   ├─ index.html
+   ├─ package-lock.json
+   ├─ package.json
+   ├─ public
+   │  ├─ favicon.svg
+   │  └─ icons.svg
+   ├─ README.md
+   ├─ src
+   │  ├─ api.ts
+   │  ├─ App.css
+   │  ├─ App.tsx
+   │  ├─ assets
+   │  │  ├─ hero.png
+   │  │  ├─ react.svg
+   │  │  └─ vite.svg
+   │  ├─ components
+   │  │  ├─ Header.tsx
+   │  │  ├─ InsightDetail.tsx
+   │  │  ├─ InsightTimeline.tsx
+   │  │  ├─ PitchMap.tsx
+   │  │  ├─ TacticalAnalytics.tsx
+   │  │  └─ ui
+   │  │     ├─ badge.tsx
+   │  │     ├─ button.tsx
+   │  │     ├─ card.tsx
+   │  │     ├─ select.tsx
+   │  │     └─ tabs.tsx
+   │  ├─ index.css
+   │  ├─ InsightCard.tsx
+   │  ├─ lib
+   │  │  └─ utils.ts
+   │  ├─ main.tsx
+   │  ├─ match.ts
+   │  ├─ Pitch.tsx
+   │  ├─ Recap.tsx
+   │  ├─ types.ts
+   │  ├─ useInsightStream.ts
+   │  ├─ useMatchEvents.ts
+   │  ├─ useMatchStream.ts
+   │  └─ vite-env.d.ts
+   ├─ tsconfig.app.json
+   ├─ tsconfig.json
+   ├─ tsconfig.node.json
+   └─ vite.config.ts
+
+```
