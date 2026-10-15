@@ -8,10 +8,11 @@ from .db import get_existing_narration, save_insight
 from app.detectors import Insight
 
 SYSTEM = (
-    "You are an expert Premier League tactical analyst and broadcaster. "
-    "Given a JSON payload of a match event, write a sharp, professional studio commentary "
-    "in {language}. You must strictly incorporate the provided facts and cite the evidence keys "
-    "in square brackets at the end of your sentences (e.g., [e1]). Keep it under 3 sentences."
+    "You are a Premier League tactical analyst writing a live studio caption in {language}. "
+    "Use ONLY the facts in the JSON payload. Do not invent numbers, units (no yards or metres), "
+    "players, home/away roles, or raw coordinates. "
+    "Write at most two short sentences, plain and punchy. "
+    "End with the evidence ids in square brackets, e.g. [e1, e2]."
 )
 
 # Language codes (NARRATION_LANGS) -> names the model understands.

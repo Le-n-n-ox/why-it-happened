@@ -31,8 +31,10 @@ const KIND_LABELS: Record<string, string> = {
   counter_attack: "Counter-attack",
   high_press: "High press",
   player_standout: "Standout player",
+  turnover_shot: "Turnover shot",
 };
-export const kindLabel = (kind: string): string => KIND_LABELS[kind] ?? kind.replace(/_/g, " ");
+export const kindLabel = (kind: string): string =>
+  KIND_LABELS[kind] ?? kind.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 
 /** Text in the chosen language, else English, else whatever exists. */
 export function pickText(insight: Insight, lang: string): string {
@@ -84,7 +86,9 @@ export function factChips(insight: Insight): string[] {
   const f = insight.facts;
   const out: string[] = [];
   if (typeof f["duration_s"] === "number") out.push(`${f["duration_s"]}s`);
-  if (typeof f["passes"] === "number") out.push(`${f["passes"]} passes`);
+    if (typeof f["passes"] === "number") {
+    out.push(`${f["passes"]} ${f["passes"] === 1 ? "pass" : "passes"}`);
+  }
   if (f["ended_in"] !== undefined) out.push(`ends in ${String(f["ended_in"]).replace(/_/g, " ")}`);
   return out;
 }
