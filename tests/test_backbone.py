@@ -6,7 +6,7 @@ os.environ["DB_PATH"] = ":memory:"
 from app import db, narrator  # noqa: E402
 from app.detectors import detect_all  # noqa: E402
 from app.events import load_events  # noqa: E402
-from app.narrator import ensure_citations, narrate_all, template_narration  # noqa: E402
+from app.narrator import ensure_citations, narrate_all, numbers_are_grounded, template_narration  # noqa: E402
 from app.store import OmniPitchStore  # noqa: E402
 
 EVENTS = load_events("data/sample_match.json")
@@ -75,3 +75,9 @@ def test_store_roundtrip():
     assert len(store.list_insights()) == 1
     store.clear()
     assert store.list_insights() == []
+
+
+def test_numbers_must_come_from_the_facts():
+    insight = detect_all(EVENTS)[0]      # minute 10, 12 seconds, 2 passes
+    assert numbers_are_grounded("At 10' Reds reached a shot in 12 seconds after 2 passes [e1]", insight)
+    assert not numbers_are_grounded("They ran from 30 metres to 88 [e1]", insight)

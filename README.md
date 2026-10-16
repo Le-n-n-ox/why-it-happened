@@ -4642,3 +4642,77 @@ why-it-happened
    └─ vite.config.ts
 
 ```
+```
+why-it-happened
+├─ app
+│  ├─ db.py
+│  ├─ detectors.py
+│  ├─ events.py
+│  ├─ main.py
+│  ├─ matchinfo.py
+│  ├─ narrator.py
+│  ├─ simulate.py
+│  ├─ store.py
+│  └─ __init__.py
+├─ data
+│  └─ sample_match.json
+├─ Dockerfile
+├─ frontend-starter
+│  ├─ App.tsx
+│  ├─ types.ts
+│  └─ useInsightStream.ts
+├─ list_models.py
+├─ pytest.ini
+├─ README.md
+├─ requirements.txt
+├─ scripts
+│  ├─ check_db.py
+│  └─ smoke_nvidia.py
+├─ simulate_match.py
+├─ tests
+│  ├─ conftest.py
+│  ├─ test_api.py
+│  ├─ test_backbone.py
+│  └─ test_detectors.py
+└─ web
+   ├─ .oxlintrc.json
+   ├─ components.json
+   ├─ index.html
+   ├─ package-lock.json
+   ├─ package.json
+   ├─ public
+   │  ├─ favicon.svg
+   │  └─ icons.svg
+   ├─ README.md
+   ├─ src
+   │  ├─ Actions.tsx
+   │  ├─ api.ts
+   │  ├─ App.tsx
+   │  ├─ index.css
+   │  ├─ InsightCard.tsx
+   │  ├─ lib
+   │  │  └─ utils.ts
+   │  ├─ main.tsx
+   │  ├─ match.ts
+   │  ├─ matchContext.ts
+   │  ├─ MatchProvider.tsx
+   │  ├─ pages
+   │  │  ├─ AboutPage.tsx
+   │  │  ├─ AnnouncersPage.tsx
+   │  │  ├─ FansPage.tsx
+   │  │  ├─ InsightPage.tsx
+   │  │  ├─ LivePage.tsx
+   │  │  └─ RecapPage.tsx
+   │  ├─ Pitch.tsx
+   │  ├─ Recap.tsx
+   │  ├─ share.ts
+   │  ├─ types.ts
+   │  ├─ useHashRoute.ts
+   │  ├─ useMatchStream.ts
+   │  └─ vite-env.d.ts
+   ├─ tsconfig.app.json
+   ├─ tsconfig.json
+   ├─ tsconfig.node.json
+   └─ vite.config.ts
+
+```
