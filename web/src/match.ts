@@ -32,6 +32,7 @@ const KIND_LABELS: Record<string, string> = {
   high_press: "High press",
   player_standout: "Standout player",
   turnover_shot: "Turnover shot",
+  high_press_turnover: "High-press turnover",
 };
 export const kindLabel = (kind: string): string =>
   KIND_LABELS[kind] ?? kind.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
