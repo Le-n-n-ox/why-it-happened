@@ -10,13 +10,24 @@ from .db import get_existing_narration, save_insight
 SYSTEM = (
     "You are an expert Premier League tactical analyst and broadcaster. "
     "Given a JSON payload of a match event, write a sharp, professional studio commentary "
-    "in {language}. You must strictly incorporate the provided facts and cite the evidence keys "
-    "in square brackets at the end of your sentences (e.g., [e1]). Keep it under 3 sentences."
+    "in {language}. Use only the facts in the JSON payload. "
+    "Stay strictly on what the JSON says: say nothing about defenders, goalkeepers, momentum or how the opposition reacted. "
+    "Never write coordinates or distances. Write natural, simple {language}, not a word-for-word translation. "
+    "End with the evidence ids in square brackets (e.g., [e1]). Keep it under 3 sentences."
 )
 
 LANGUAGE_NAMES = {
     "en": "English", "sw": "Swahili", "fr": "French", "es": "Spanish",
     "pt": "Portuguese", "de": "German", "ar": "Arabic",
+}
+
+# Raw positions are deliberately withheld so models cannot turn coordinates into distances.
+MODEL_FACT_KEYS = ("duration_s", "passes", "ended_in")
+
+KIND_MEANING = {
+    "counter_attack": "won the ball in their own half and reached a shot or goal within seconds",
+    "turnover_shot": "won the ball back and worked it into a shot, a little more slowly",
+    "high_press_turnover": "won the ball high up the pitch by pressing, then reached a shot or goal quickly",
 }
 
 def make_client():
@@ -34,6 +45,17 @@ def ensure_citations(text: str, insight: Insight) -> str:
     if unknown:
         raise ValueError(f"model cited ids that are not evidence: {sorted(unknown)}")
     return text
+
+
+def numbers_are_grounded(text: str, insight: Insight) -> bool:
+    """Every number in the text must be the minute or one of the facts shown to the model."""
+    allowed = {int(insight.minute)}
+    for key in MODEL_FACT_KEYS:
+        value = insight.facts.get(key)
+        if isinstance(value, (int, float)):
+            allowed.add(int(value))
+    body = re.sub(r"\[[^\]]*\]", "", text)
+    return {int(n) for n in re.findall(r"\d+", body)} <= allowed
 
 
 def template_narration(insight: Insight) -> str:
@@ -80,7 +102,8 @@ def narrate(client, model: str, insight: Insight, language: str = "English") -> 
         "kind": insight.kind,
         "team": insight.team,
         "minute": insight.minute,
-        "facts": insight.facts,
+        "meaning": KIND_MEANING.get(insight.kind, ""),
+        "facts": {k: v for k, v in insight.facts.items() if k in MODEL_FACT_KEYS},
         "evidence": insight.evidence,
     }
 
@@ -155,6 +178,8 @@ def narrate_all(client, model: str | None, insight: Insight, languages: list[str
             text = ensure_citations(
                 narrate(client, model, insight, LANGUAGE_NAMES.get(code, code)), insight
             )
+            if not numbers_are_grounded(text, insight):
+                raise ValueError("model used a number that is not in the facts")
             _record_model_result(True)
         except Exception as e:
             if not paused:
