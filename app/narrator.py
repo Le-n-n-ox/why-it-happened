@@ -13,7 +13,8 @@ SYSTEM = (
     "in {language}. Use only the facts in the JSON payload. "
     "Stay strictly on what the JSON says: say nothing about defenders, goalkeepers, momentum or how the opposition reacted. "
     "Never write coordinates or distances. Write natural, simple {language}, not a word-for-word translation. "
-    "End with the evidence ids in square brackets (e.g., [e1]). Keep it under 3 sentences."
+    "End with the evidence ids in square brackets, e.g. [e1, e2]. "
+    "An earlier exchange shows the style only: describe the new insight, never copy its numbers or ids."
 )
 
 LANGUAGE_NAMES = {
@@ -22,12 +23,36 @@ LANGUAGE_NAMES = {
 }
 
 # Raw positions are deliberately withheld so models cannot turn coordinates into distances.
-MODEL_FACT_KEYS = ("duration_s", "passes", "ended_in")
+MODEL_FACT_KEYS = ("duration_s", "passes", "ended_in", "shots", "goals", "span_min")
 
 KIND_MEANING = {
     "counter_attack": "won the ball in their own half and reached a shot or goal within seconds",
     "turnover_shot": "won the ball back and worked it into a shot, a little more slowly",
     "high_press_turnover": "won the ball high up the pitch by pressing, then reached a shot or goal quickly",
+    "goal_buildup": "kept the ball through a patient passing move and scored",
+    "shot_pressure": "kept attacking and had several shots within a few minutes",
+}
+
+# One worked example per language, shown to the model as an earlier exchange. It teaches tone and
+# length only: the numbers and ids are made up and must differ from the real insight's.
+EXAMPLE_PAYLOAD = {
+    "kind": "counter_attack",
+    "team": "Reds",
+    "minute": 33.0,
+    "meaning": KIND_MEANING["counter_attack"],
+    "facts": {"duration_s": 14, "passes": 3, "ended_in": "shot"},
+    "evidence": ["e901", "e902", "e903", "e904"],
+}
+
+FEW_SHOT_BY_LANGUAGE = {
+    "English": "33' Reds win the ball in their own half and are shooting 14 seconds later, "
+               "after just 3 passes. [e901, e902, e903, e904]",
+    "French": "33e minute : les Reds récupèrent le ballon dans leur moitié de terrain et tirent "
+              "14 secondes plus tard, après seulement 3 passes. [e901, e902, e903, e904]",
+    "Spanish": "Minuto 33: los Reds recuperan el balón en su propio campo y rematan 14 segundos "
+               "después, tras solo 3 pases. [e901, e902, e903, e904]",
+    "Swahili": "Dakika ya 33: Reds wanaupata mpira katika nusu yao ya uwanja na kupiga shuti "
+               "sekunde 14 baadaye, baada ya pasi 3 tu. [e901, e902, e903, e904]",
 }
 
 def make_client():
@@ -72,6 +97,17 @@ def template_narration(insight: Insight) -> str:
     elif insight.kind == "high_press_turnover" and {"duration_s", "ended_in"} <= facts.keys():
         body = (f"{insight.team} win the ball high up the pitch and reach a "
                 f"{str(facts['ended_in']).replace('_', ' ')} in {facts['duration_s']} seconds.")
+    elif insight.kind == "shot_pressure" and {"shots", "span_min"} <= facts.keys():
+        minutes = facts["span_min"]
+        body = (
+            f"{insight.team} keep the pressure on with {facts['shots']} shots in "
+            f"{minutes} {'minute' if minutes == 1 else 'minutes'}."
+        )
+    elif insight.kind == "goal_buildup" and {"duration_s", "passes"} <= facts.keys():
+        body = (
+            f"{insight.team} string together {facts['passes']} passes over "
+            f"{facts['duration_s']} seconds and score."
+        )
     else:
         body = f"{insight.team}: {insight.kind.replace('_', ' ')} detected."
     return f"{int(insight.minute)}' {body} [{cites}]"
@@ -79,34 +115,31 @@ def template_narration(insight: Insight) -> str:
 
 _failures = 0
 _pause_until = 0.0
+_last_error: str | None = None      # shown by /health, so problems are visible without reading logs
+_last_error_at: float | None = None
+_calls_ok = 0
+_calls_failed = 0
 
 
-def _record_model_result(ok: bool) -> None:
-    """Pause model calls for 60 seconds after two consecutive failures."""
-    global _failures, _pause_until
+def _record_model_result(ok: bool, error: Exception | str | None = None) -> None:
+    """Two failures in a row pause the model for 60 s, so a slow NVIDIA cannot stall the demo."""
+    global _failures, _pause_until, _last_error, _last_error_at, _calls_ok, _calls_failed
     if ok:
         _failures = 0
+        _calls_ok += 1
         return
+    _calls_failed += 1
+    _last_error = (str(error) or type(error).__name__)[:200] if error is not None else "unknown error"
+    _last_error_at = time.time()
     _failures += 1
     if _failures >= 2:
         _pause_until = time.time() + 60
         _failures = 0
 
-def narrate(client, model: str, insight: Insight, language: str = "English") -> str:
-    """Uses a direct REST request to the NVIDIA NIM endpoint, bypassing SDK wrapper issues."""
-
+def _chat(model: str, messages: list[dict], label: str, max_tokens: int = 1024) -> str:
+    """One chat request to NVIDIA over REST. Returns clean text; raises on any problem."""
     api_key = os.getenv("NVIDIA_API_KEY")
     invoke_url = "https://integrate.api.nvidia.com/v1/chat/completions"
-
-    payload_data = {
-        "kind": insight.kind,
-        "team": insight.team,
-        "minute": insight.minute,
-        "meaning": KIND_MEANING.get(insight.kind, ""),
-        "facts": {k: v for k, v in insight.facts.items() if k in MODEL_FACT_KEYS},
-        "evidence": insight.evidence,
-    }
-
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Accept": "application/json",
@@ -115,12 +148,9 @@ def narrate(client, model: str, insight: Insight, language: str = "English") -> 
 
     body = {
         "model": model,
-        "messages": [
-            {"role": "system", "content": SYSTEM.format(language=language)},
-            {"role": "user", "content": json.dumps(payload_data)}
-        ],
+        "messages": messages,
         "temperature": 0.4,
-        "max_tokens": 1024,
+        "max_tokens": max_tokens,
         "reasoning_effort": "low",
         "stream": False
     }
@@ -131,8 +161,8 @@ def narrate(client, model: str, insight: Insight, language: str = "English") -> 
         body.pop("reasoning_effort", None)
         body["chat_template_kwargs"] = {"enable_thinking": False}
 
-    print(f"\n[DEBUG] Requesting model '{model}' via direct REST API...")
-    timeout_seconds = float(os.getenv("NVIDIA_TIMEOUT_SECONDS", "15"))
+    print(f"\n[DEBUG] Requesting model '{model}' ({label}) via direct REST API...")
+    timeout_seconds = float(os.getenv("NVIDIA_TIMEOUT_SECONDS", "20"))
     response = requests.post(
         invoke_url,
         headers=headers,
@@ -158,7 +188,34 @@ def narrate(client, model: str, insight: Insight, language: str = "English") -> 
             f"reasoning_tokens={usage.get('reasoning_tokens')})."
         )
 
+    text = _clean(content)
+    if not text:
+        raise ValueError("The NVIDIA API returned only reasoning text.")
+    return text
+
+
+def _clean(content: str) -> str:
     return content.strip()
+
+
+def narrate(client, model: str, insight: Insight, language: str = "English") -> str:
+    """One insight in one language."""
+    payload_data = {
+        "kind": insight.kind,
+        "team": insight.team,
+        "minute": insight.minute,
+        "meaning": KIND_MEANING.get(insight.kind, ""),
+        "facts": {k: v for k, v in insight.facts.items() if k in MODEL_FACT_KEYS},
+        "evidence": insight.evidence,
+    }
+    messages = [{"role": "system", "content": SYSTEM.format(language=language)}]
+    if language in FEW_SHOT_BY_LANGUAGE:
+        messages += [
+            {"role": "user", "content": json.dumps(EXAMPLE_PAYLOAD)},
+            {"role": "assistant", "content": FEW_SHOT_BY_LANGUAGE[language]},
+        ]
+    messages.append({"role": "user", "content": json.dumps(payload_data)})
+    return _chat(model, messages, language)
 
 def narrate_all(client, model: str | None, insight: Insight, languages: list[str] | None = None) -> dict[str, str]:
     """Narrate one insight in each requested language and persist each result."""
@@ -182,8 +239,8 @@ def narrate_all(client, model: str | None, insight: Insight, languages: list[str
                 raise ValueError("model used a number that is not in the facts")
             _record_model_result(True)
         except Exception as e:
-            if not paused:
-                _record_model_result(False)
+            if not paused and model and os.getenv("NVIDIA_API_KEY"):
+                _record_model_result(False, e)  # only real model failures count, not a missing key
             print(f"[DEBUG] LLM call failed for '{code}' ({e}); using template fallback")
             if code != "en":
                 continue
@@ -198,3 +255,54 @@ def narrate_all(client, model: str | None, insight: Insight, languages: list[str
         save_insight(insight, text, language="en", cache_result=False)
         results["en"] = text
     return results
+
+
+RECAP_SYSTEM = (
+    "You are a Premier League studio analyst writing a full-time summary in {language}. "
+    "Write at most three short sentences. Use ONLY the facts in the JSON. "
+    "Do not invent players, goals, scores or stats, and never write coordinates or distances. "
+    "Do not use square brackets."
+)
+
+
+def model_available() -> bool:
+    """False while the model is paused after repeated failures."""
+    return time.time() >= _pause_until
+
+
+def model_status() -> dict:
+    """What /health reports about the model. Reads state only; never calls NVIDIA."""
+    now = time.time()
+    paused = now < _pause_until
+    return {
+        "paused": paused,
+        "paused_for_s": max(0, round(_pause_until - now)) if paused else 0,
+        "consecutive_failures": _failures,
+        "calls_ok": _calls_ok,
+        "calls_failed": _calls_failed,
+        "last_error": _last_error,
+        "last_error_s_ago": round(now - _last_error_at) if _last_error_at else None,
+    }
+
+
+def write_recap(model: str, language_code: str, score: dict, moments: list[dict]) -> str:
+    """AI full-time summary; reject numbers not grounded in the supplied facts."""
+    allowed = set(score.values()) | {len(moments)}
+    for m in moments:
+        allowed.add(int(m["minute"]))
+        allowed.update(int(n) for n in re.findall(r"\d+", m["what"]))
+    language = LANGUAGE_NAMES.get(language_code, language_code)
+    messages = [
+        {"role": "system", "content": RECAP_SYSTEM.format(language=language)},
+        {"role": "user", "content": json.dumps({"score": score, "moments": moments})},
+    ]
+    try:
+        text = _chat(model, messages, f"recap {language_code}", max_tokens=400)
+        text = re.sub(r"\s*\[[^\]]*\]", "", text)
+        if not {int(n) for n in re.findall(r"\d+", text)} <= allowed:
+            raise ValueError("recap used a number that is not in the facts")
+    except Exception as exc:
+        _record_model_result(False, exc)
+        raise
+    _record_model_result(True)
+    return text

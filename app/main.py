@@ -24,7 +24,7 @@ from app.db import get_insights, init_db
 from app.detectors import detect_all
 from app.events import MatchEvent, load_events
 from app.matchinfo import match_info
-from app.narrator import make_client, narrate_all
+from app.narrator import make_client, model_available, model_status, narrate_all, write_recap
 from app.simulate import replay
 from app.store import OmniPitchStore
 
@@ -68,10 +68,20 @@ store.clear()    # start clean once per server start (not on every /stream)
 
 @app.get("/health")
 def health():
+    configured = bool(os.getenv("NVIDIA_API_KEY") and MODEL)
+    status = model_status()
     return {
         "status": "ok",
-        "llm_configured": bool(os.getenv("NVIDIA_API_KEY") and MODEL),
+        "llm_configured": configured,
         "languages": LANGS,
+        "model": MODEL,
+        "narration": (
+            "templates only" if not configured
+            else "paused" if status["paused"]
+            else "degraded" if status["last_error"] and status["consecutive_failures"]
+            else "model"
+        ),
+        "model_status": status,
     }
 
 
@@ -103,33 +113,49 @@ def insights_history(team: str | None = None, limit: int = 20):
     return get_insights(team=team, limit=limit)
 
 
+_recap_cache: dict[tuple, dict] = {}     # (language, insight ids) -> finished AI recap
+
+
 @app.get("/recap")
 def recap(lang: str = "en"):
-    """Plain join of the narrations in match order (not an AI-written recap).
-
-    Falls back to English, then to any language, per insight. The frontend shows
-    its own key-moments list when `text` is empty.
-    """
+    """Return a grounded AI summary when available, otherwise join plain narrations."""
     items = sorted(store.list_insights(), key=lambda i: i.get("minute", 0))
     parts: list[str] = []
     ids: list[str] = []
+    moments: list[dict] = []
     for i in items:
         narration = i.get("narration") or {}
         if not isinstance(narration, dict):
             continue
         text = narration.get(lang) or narration.get("en") or next(iter(narration.values()), "")
         if text:
-            parts.append(re.sub(r"\s*\[[^\]]*\]", "", text))
+            plain = re.sub(r"\s*\[[^\]]*\]", "", text)
+            parts.append(plain)
             ids.append(i.get("id", ""))
+            english = re.sub(r"\s*\[[^\]]*\]", "", narration.get("en") or text)
+            moments.append({"minute": int(i.get("minute", 0)), "team": i.get("team", ""), "what": english})
     info = match_info(load_events(EVENTS_FILE))
+    headline = ""
     if info["home"] and info["away"]:
         s = info["score"]
-        parts.insert(0, f"Full time: {info['home']} {s[info['home']]}-{s[info['away']]} {info['away']}.")
-    return {"lang": lang, "text": " ".join(parts), "insight_ids": ids}
+        headline = f"Full time: {info['home']} {s[info['home']]}-{s[info['away']]} {info['away']}."
+
+    key = (lang, tuple(ids))
+    if key in _recap_cache:
+        return _recap_cache[key]
+    if ids and MODEL and os.getenv("NVIDIA_API_KEY") and model_available():
+        try:
+            summary = write_recap(MODEL, lang, info["score"], moments)
+            result = {"lang": lang, "text": f"{headline} {summary}".strip(), "insight_ids": ids}
+            _recap_cache[key] = result
+            return result
+        except Exception as exc:
+            print(f"[DEBUG] AI recap failed ({exc}); using the plain join")
+    return {"lang": lang, "text": " ".join(([headline] if headline else []) + parts), "insight_ids": ids}
 
 
 async def _event_source(delay: float, seconds_per_minute: float | None):
-    seen: set[str] = set()
+    claimed: dict[tuple[str, str], set[str]] = {}    # (kind, team) -> evidence ids already reported
     buffer: list[MatchEvent] = []
     async for event in replay(load_events(EVENTS_FILE), delay, seconds_per_minute):
         buffer.append(event)
@@ -141,9 +167,12 @@ async def _event_source(delay: float, seconds_per_minute: float | None):
         recent_events = [e for e in buffer if e.minute >= event.minute - 5.0]
 
         for insight in detect_all(recent_events):
-            if insight.id in seen:
+            # Report each stretch of play once per kind and team. A later pass over the same events
+            # (the 5-minute window trims the start, or a spell grows by one shot) shares evidence.
+            used = claimed.setdefault((insight.kind, insight.team), set())
+            if used & set(insight.evidence):
                 continue
-            seen.add(insight.id)
+            used.update(insight.evidence)
 
             # The LLM call blocks, so run it off the event loop thread
             insight.narration = await asyncio.to_thread(
