@@ -24,3 +24,8 @@ insights.db
 *.db-shm
 *.db-wal
 
+
+*.py
+*.ps1
+labels.txt
+
