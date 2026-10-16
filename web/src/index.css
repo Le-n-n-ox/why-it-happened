@@ -303,3 +303,16 @@ th { color: var(--muted); font-weight: 600; }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important;
     transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+/* Attack zones, player ranking */
+.live__tools { display: flex; justify-content: flex-end; }
+.pitch__zone { stroke: rgba(255, 255, 255, .25); stroke-width: .2; transition: fill-opacity .4s; }
+.pitch__zone--best { stroke: #fff; stroke-width: .5; stroke-dasharray: 1 .8; }
+.pitch__zonecount { fill: #fff; font-size: 3.4px; font-weight: 700; pointer-events: none; }
+.pitch__zonetag { fill: #fff; font-size: 1.9px; font-weight: 600; text-transform: uppercase; letter-spacing: .1px;
+  pointer-events: none; }
+.attack-list { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.attack-leader { margin: 0; font-weight: 700; }
+.cell-meter { display: flex; align-items: center; gap: 8px; min-width: 130px; }
+.cell-meter__num { min-width: 3.5ch; text-align: right; font-variant-numeric: tabular-nums; }
+.cell-meter .meter { flex: 1; height: 8px; }
