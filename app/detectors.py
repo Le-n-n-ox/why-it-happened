@@ -71,8 +71,8 @@ def detect_turnover_shots(events: list[MatchEvent], window_min: float = 0.60) ->
             chain.append(nxt)
             if nxt.type in (EventType.SHOT, EventType.GOAL):
                 duration_s = round((nxt.minute - start.minute) * 60)
-                # Ignore fast sequences under 15s so counter_attack remains distinct
-                if duration_s > 15:
+                high_press_owns_it = start.x >= 60 and duration_s <= 21
+                if duration_s > 15 and not high_press_owns_it:
                     found.append(Insight(
                         kind="turnover_shot",
                         team=start.team,

@@ -11,6 +11,7 @@
 import asyncio
 import json
 import os
+import re
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -22,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from app.db import get_insights, init_db
 from app.detectors import detect_all
 from app.events import MatchEvent, load_events
+from app.matchinfo import match_info
 from app.narrator import make_client, narrate_all
 from app.simulate import replay
 from app.store import OmniPitchStore
@@ -60,10 +62,8 @@ client = make_client()  # always None: narrator calls the NVIDIA REST API direct
 live_match_events: list[MatchEvent] = []
 
 
-@app.on_event("startup")
-def on_startup():
-    print("[DEBUG] Initializing database...")
-    init_db()
+init_db()        # at import, so it also runs under TestClient
+store.clear()    # start clean once per server start (not on every /stream)
 
 
 @app.get("/health")
@@ -78,6 +78,11 @@ def health():
 @app.get("/events")
 def events():
     return [e.model_dump(mode="json") for e in load_events(EVENTS_FILE)]
+
+
+@app.get("/match")
+def match():
+    return match_info(load_events(EVENTS_FILE))
 
 
 @app.post("/events")
@@ -114,20 +119,26 @@ def recap(lang: str = "en"):
             continue
         text = narration.get(lang) or narration.get("en") or next(iter(narration.values()), "")
         if text:
-            parts.append(text)
+            parts.append(re.sub(r"\s*\[[^\]]*\]", "", text))
             ids.append(i.get("id", ""))
+    info = match_info(load_events(EVENTS_FILE))
+    if info["home"] and info["away"]:
+        s = info["score"]
+        parts.insert(0, f"Full time: {info['home']} {s[info['home']]}-{s[info['away']]} {info['away']}.")
     return {"lang": lang, "text": " ".join(parts), "insight_ids": ids}
 
 
-async def _event_source(delay: float):
+async def _event_source(delay: float, seconds_per_minute: float | None):
     seen: set[str] = set()
-    async for event in replay(load_events(EVENTS_FILE), delay):
-        # Save the incoming raw event
-        store.add_event(event.model_dump(mode="json"))
+    buffer: list[MatchEvent] = []
+    async for event in replay(load_events(EVENTS_FILE), delay, seconds_per_minute):
+        buffer.append(event)
+        payload = event.model_dump(mode="json")
+        store.add_event(payload)
+        yield f"event: tick\ndata: {json.dumps(payload)}\n\n"
 
         # Only the last 5 minutes of action go to the detectors
-        recent_dicts = store.get_recent_events(event.minute, window_minutes=5.0)
-        recent_events = [MatchEvent(**r) for r in recent_dicts]
+        recent_events = [e for e in buffer if e.minute >= event.minute - 5.0]
 
         for insight in detect_all(recent_events):
             if insight.id in seen:
@@ -147,10 +158,11 @@ async def _event_source(delay: float):
 
 
 @app.get("/stream")
-async def stream(delay: float = REPLAY_DELAY):
-    store.clear()
+async def stream(speed: float | None = None, delay: float = REPLAY_DELAY):
+    if speed is not None:
+        speed = min(max(speed, 0.0), 5.0)
     return StreamingResponse(
-        _event_source(delay),
+        _event_source(delay, speed),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

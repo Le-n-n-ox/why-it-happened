@@ -23,7 +23,7 @@ def get_connection():
     return _connection
 
 def init_db():
-    """Creates the narration history and per-language cache tables."""
+    """Creates the insights table if it doesn't already exist."""
     conn = get_connection()
     with _connection_lock:
         conn.execute("""
@@ -47,23 +47,10 @@ def init_db():
         """)
         conn.commit()
 
-def save_insight(
-    insight: Insight,
-    narration: str,
-    language: str = "en",
-    cache_result: bool = True,
-):
+def save_insight(insight: Insight, narration: str, language: str = "en", cache_result: bool = True):
     """Save narration history and optionally cache generated text by language."""
     conn = get_connection()
     with _connection_lock:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS narration_cache (
-                insight_id TEXT NOT NULL,
-                language TEXT NOT NULL,
-                narration TEXT NOT NULL,
-                PRIMARY KEY (insight_id, language)
-            )
-        """)
         conn.execute("""
             INSERT OR REPLACE INTO saved_insights (id, kind, team, minute, evidence, facts, narration)
             VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -84,17 +71,8 @@ def save_insight(
         conn.commit()
 
 def get_existing_narration(insight_id: str, language: str = "en") -> str | None:
-    """Return cached narration for an insight and language, if present."""
     conn = get_connection()
     with _connection_lock:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS narration_cache (
-                insight_id TEXT NOT NULL,
-                language TEXT NOT NULL,
-                narration TEXT NOT NULL,
-                PRIMARY KEY (insight_id, language)
-            )
-        """)
         row = conn.execute(
             "SELECT narration FROM narration_cache WHERE insight_id = ? AND language = ?",
             (insight_id, language),
@@ -115,13 +93,14 @@ def get_insights(team: str = None, limit: int = 10) -> list[dict]:
         query += " ORDER BY minute DESC LIMIT ?"
         params.append(limit)
         rows = conn.execute(query, params).fetchall()
-    
-    # Parse the JSON strings back into Python lists/dicts before returning
+
+
+# Parse the JSON strings back into Python lists/dicts before returning
     results = []
     for row in rows:
         d = dict(row)
         d["evidence"] = json.loads(d["evidence"])
         d["facts"] = json.loads(d["facts"])
         results.append(d)
-        
+
     return results
