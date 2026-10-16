@@ -27,6 +27,13 @@ export function Pitch({ events, selected, teams }: Props) {
         </marker>
       </defs>
       <rect width={PITCH_W} height={PITCH_H} className="pitch__grass" />
+      <g className="pitch__stripes">
+        {Array.from({ length: 10 }, (_, i) =>
+          i % 2 === 0 ? (
+            <rect key={i} x={(i * PITCH_W) / 10} y="0" width={PITCH_W / 10} height={PITCH_H} />
+          ) : null,
+        )}
+      </g>
       <g className="pitch__lines">
         <rect x="0.3" y="0.3" width={PITCH_W - 0.6} height={PITCH_H - 0.6} />
         <line x1={PITCH_W / 2} y1="0" x2={PITCH_W / 2} y2={PITCH_H} />
@@ -65,6 +72,7 @@ export function Pitch({ events, selected, teams }: Props) {
         const { px, py } = toPitch(e, leftTeam);
         return (
           <g key={e.id}>
+            <circle cx={px} cy={py} r="2" className="pitch__pulse" style={{ stroke: teamColor(e.team, teams) }} />
             <circle cx={px} cy={py} r="2" className="pitch__dot pitch__dot--selected"
               style={{ fill: teamColor(e.team, teams) }}>
               <title>{`${e.id}: ${e.team} ${e.type} (${Math.floor(e.minute)}')`}</title>

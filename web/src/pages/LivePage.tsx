@@ -24,7 +24,13 @@ export function LivePage() {
 
       <section className="live__feed" aria-live="polite" aria-label="Live insights">
         {insights.length === 0 && status !== "error" && (
-          <p className="empty">Waiting for the first insight...</p>
+          <>
+            <p className="empty">Waiting for the first insight...</p>
+            <div className="skeletons" aria-hidden="true">
+              <div className="skeleton" />
+              <div className="skeleton" />
+            </div>
+          </>
         )}
         <ul className="feed">
           {insights.map((i) => (
