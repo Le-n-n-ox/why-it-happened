@@ -2,7 +2,7 @@
 import type { ReactNode } from "react";
 
 export type IconName =
-  | "live" | "timeline" | "analytics" | "mic" | "fans" | "info"
+  | "live" | "timeline" | "analytics" | "players" | "mic" | "fans" | "info"
   | "menu" | "close" | "sun" | "moon" | "chevrons" | "replay";
 
 const PATHS: Record<IconName, ReactNode> = {
@@ -21,6 +21,12 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   analytics: <path d="M3 20h18M6 20v-6M11 20V6M16 20v-9M20 20v-4" />,
+  players: (
+    <>
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3 20a6 6 0 0 1 12 0M16 5.2a3.2 3.2 0 0 1 0 5.6M21 20a6 6 0 0 0-4-5.6" />
+    </>
+  ),
   mic: (
     <>
       <rect x="9" y="3" width="6" height="11" rx="3" />
