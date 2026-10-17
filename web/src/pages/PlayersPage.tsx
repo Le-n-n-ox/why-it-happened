@@ -1,6 +1,7 @@
 // web/src/pages/PlayersPage.tsx - every player, best rated first.
 import { useState } from "react";
 import { getPlayers } from "../api";
+import { Loader } from "../Loader";
 import { teamColor } from "../match";
 import { useMatch } from "../matchContext";
 import { formatRating, normalizePlayers, prettyKey } from "../players";
@@ -50,11 +51,7 @@ export function PlayersPage() {
       <p className="empty">Ratings come from the match backend. Select a player for the breakdown and review.</p>
 
       {loading && (
-        <div className="skeletons" aria-hidden="true">
-          <div className="skeleton" />
-          <div className="skeleton" />
-          <div className="skeleton" />
-        </div>
+        <Loader label="Loading players" />
       )}
 
       {error !== null && (

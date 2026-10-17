@@ -15,6 +15,7 @@ import { PlayerPage } from "./pages/PlayerPage";
 import { PlayersPage } from "./pages/PlayersPage";
 import { RecapPage } from "./pages/RecapPage";
 import { Sidebar } from "./Sidebar";
+import { PowerSwitch } from "./PowerSwitch";
 import { useHashRoute } from "./useHashRoute";
 import { useTheme } from "./useTheme";
 
@@ -136,9 +137,7 @@ function Shell() {
                 <option key={code} value={code}>{languageName(code)}</option>
               ))}
             </select>
-            <button type="button" aria-pressed={follow} onClick={toggleFollow}>
-              Follow live: {follow ? "on" : "off"}
-            </button>
+            <PowerSwitch checked={follow} onChange={toggleFollow} label="Follow live" />
             <button type="button" onClick={restart}>
               <Icon name="replay" /> Replay
             </button>

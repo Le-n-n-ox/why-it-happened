@@ -1,6 +1,7 @@
 // web/src/ReviewPanel.tsx - the player's written review in the selected language.
 import { useEffect, useState } from "react";
 import { getPlayerReview } from "./api";
+import { Loader } from "./Loader";
 import { stripCitations } from "./match";
 import { formatRating, normalizeReview } from "./players";
 import type { PlayerReview } from "./types";
@@ -38,9 +39,7 @@ export function ReviewPanel({ id, lang, onShow }: Props) {
     <section className="panel" aria-label="Player review">
       <h3>Review</h3>
       {state.status === "loading" && (
-        <div className="skeletons" aria-hidden="true">
-          <div className="skeleton" />
-        </div>
+        <Loader label="Loading review" />
       )}
       {state.status === "error" && <p className="empty">The review isn't available right now.</p>}
       {state.status === "ok" && state.review === null && <p className="empty">No review for this player yet.</p>}

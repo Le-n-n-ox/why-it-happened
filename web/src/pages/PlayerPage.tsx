@@ -1,6 +1,7 @@
 // web/src/pages/PlayerPage.tsx - one player: rating, breakdown, review, moments and actions with proof.
 import { useState } from "react";
 import { getPlayer } from "../api";
+import { Loader } from "../Loader";
 import { eventsByIds, formatMinute, stripCitations, teamColor } from "../match";
 import { useMatch } from "../matchContext";
 import { Pitch } from "../Pitch";
@@ -37,10 +38,7 @@ export function PlayerPage({ id }: { id: string }) {
     return (
       <section className="page">
         <a className="link" href="#/players">← All players</a>
-        <div className="skeletons" aria-hidden="true">
-          <div className="skeleton" />
-          <div className="skeleton" />
-        </div>
+        <Loader label="Loading player" />
       </section>
     );
   }

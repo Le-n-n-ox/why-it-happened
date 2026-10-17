@@ -1,5 +1,6 @@
 // web/src/Sidebar.tsx - desktop sidebar (collapsible) and mobile drawer.
 import { Icon, type IconName } from "./icons";
+import { Switch } from "./Switch";
 import type { Theme } from "./useTheme";
 
 const NAV: { href: string; path: string; label: string; icon: IconName; prefixes?: string[] }[] = [
@@ -60,11 +61,15 @@ export function Sidebar({
       </nav>
 
       <div className="sidebar__foot">
-        <button type="button" className="nav__link nav__btn" onClick={onToggleTheme}
-          title={collapsed ? "Switch theme" : undefined}>
+        <div className="theme-control">
           <Icon name={theme === "dark" ? "sun" : "moon"} />
           <span className="nav__label">{theme === "dark" ? "Light theme" : "Dark theme"}</span>
-        </button>
+          <Switch
+            checked={theme === "light"}
+            onChange={onToggleTheme}
+            label={theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
+          />
+        </div>
         <button type="button" className="nav__link nav__btn sidebar__collapse" onClick={onToggleCollapse}
           aria-expanded={!collapsed} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={collapsed ? "Expand sidebar" : undefined}>
