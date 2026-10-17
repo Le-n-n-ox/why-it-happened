@@ -4716,3 +4716,78 @@ why-it-happened
    └─ vite.config.ts
 
 ```
+```
+why-it-happened
+├─ .dockerignore
+├─ app
+├─ data
+│  ├─ demo_match.json
+│  └─ sample_match.json
+├─ Dockerfile
+├─ frontend-starter
+│  ├─ App.tsx
+│  ├─ types.ts
+│  └─ useInsightStream.ts
+├─ pytest.ini
+├─ README.md
+├─ requirements.txt
+├─ scripts
+├─ tests
+└─ web
+   ├─ .oxlintrc.json
+   ├─ components.json
+   ├─ index.html
+   ├─ package-lock.json
+   ├─ package.json
+   ├─ public
+   │  ├─ favicon.svg
+   │  └─ icons.svg
+   ├─ README.md
+   ├─ src
+   │  ├─ Actions.tsx
+   │  ├─ analytics.ts
+   │  ├─ AnimatedNumber.tsx
+   │  ├─ api.ts
+   │  ├─ App.tsx
+   │  ├─ charts.tsx
+   │  ├─ icons.tsx
+   │  ├─ index.css
+   │  ├─ InsightCard.tsx
+   │  ├─ lib
+   │  │  └─ utils.ts
+   │  ├─ Loader.tsx
+   │  ├─ main.tsx
+   │  ├─ match.ts
+   │  ├─ matchContext.ts
+   │  ├─ MatchProvider.tsx
+   │  ├─ pages
+   │  │  ├─ AboutPage.tsx
+   │  │  ├─ AnalyticsPage.tsx
+   │  │  ├─ AnnouncersPage.tsx
+   │  │  ├─ FansPage.tsx
+   │  │  ├─ InsightPage.tsx
+   │  │  ├─ LivePage.tsx
+   │  │  ├─ PlayerPage.tsx
+   │  │  ├─ PlayersPage.tsx
+   │  │  └─ RecapPage.tsx
+   │  ├─ Pitch.tsx
+   │  ├─ PlayerName.tsx
+   │  ├─ players.ts
+   │  ├─ PowerSwitch.tsx
+   │  ├─ Recap.tsx
+   │  ├─ ReviewPanel.tsx
+   │  ├─ share.ts
+   │  ├─ Sidebar.tsx
+   │  ├─ Switch.tsx
+   │  ├─ types.ts
+   │  ├─ useApi.ts
+   │  ├─ useHashRoute.ts
+   │  ├─ useMatchStream.ts
+   │  ├─ useTheme.ts
+   │  └─ vite-env.d.ts
+   ├─ tsconfig.app.json
+   ├─ tsconfig.json
+   ├─ tsconfig.node.json
+   └─ vite.config.ts
+
+```

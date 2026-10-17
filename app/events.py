@@ -20,6 +20,9 @@ class EventType(str, Enum):
     FOUL = "foul"
 
 
+from app.adapter import TYPE_MAP, normalise_xy
+
+
 class MatchEvent(BaseModel):
     id: str                  # unique; used as evidence in every insight
     minute: float            # match clock in minutes, e.g. 12.5 = 12m30s
@@ -32,11 +35,26 @@ class MatchEvent(BaseModel):
 
 
 def from_official(raw: dict) -> MatchEvent:
-    """TODO: map one record of the official synthetic feed to a MatchEvent.
+    """Maps one record of the official feed to a MatchEvent using the adapter."""
+    team = raw["team"]
+    period = raw.get("period", 1)
 
-    Until the official format is known this assumes our own field names.
-    """
-    return MatchEvent(**raw)
+    # Reds attack right (0 -> 120) in Period 1. Blues attack right in Period 2.
+    attacks_right = (period == 1 and team == "Reds") or (period == 2 and team == "Blues")
+
+    # Scale from 120x80 and flip if attacking left
+    x, y = normalise_xy(raw["x"], raw["y"], 120.0, 80.0, attacks_right)
+
+    return MatchEvent(
+        id=str(raw["id"]),
+        minute=float(raw["minute"]),
+        team=team,
+        player=raw.get("player"),
+        type=TYPE_MAP.get(raw["type"], EventType(raw["type"])),
+        x=x,
+        y=y,
+        outcome=raw.get("outcome")
+    )
 
 
 def load_events(path: str | Path) -> list[MatchEvent]:
