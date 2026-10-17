@@ -26,6 +26,6 @@ insights.db
 
 
 *.py
+!app/adapter.py
 *.ps1
 labels.txt
-

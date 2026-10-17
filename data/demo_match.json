@@ -1889,7 +1889,7 @@
     "y": 45.0,
     "outcome": "saved",
     "period": 2
-  }
+  },
 
   {"id": "d1", "minute": 0.10, "team": "Reds", "player": "Elias Thorne", "type": "pass", "x": 50, "y": 50},
   {"id": "d2", "minute": 0.60, "team": "Blues", "player": "Marek Holt", "type": "pass", "x": 18, "y": 24},
