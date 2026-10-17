@@ -3,6 +3,8 @@ import json
 import re
 import requests
 import time
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 from app.detectors import Insight
 from app.players import join_names, player_review_text
@@ -170,8 +172,16 @@ _calls_ok = 0
 _calls_failed = 0
 
 
+_state_lock = threading.Lock()
+
+
 def _record_model_result(ok: bool, error: Exception | str | None = None) -> None:
     """Two failures in a row pause the model for 60 s, so a slow NVIDIA cannot stall the demo."""
+    with _state_lock:
+        _record_locked(ok, error)
+
+
+def _record_locked(ok: bool, error: Exception | str | None) -> None:
     global _failures, _pause_until, _last_error, _last_error_at, _calls_ok, _calls_failed
     if ok:
         _failures = 0
@@ -184,6 +194,29 @@ def _record_model_result(ok: bool, error: Exception | str | None = None) -> None
     if _failures >= 2:
         _pause_until = time.time() + 60
         _failures = 0
+
+
+_session = requests.Session()
+
+
+def _post(url: str, headers: dict, body: dict, timeout_seconds: float):
+    """Reuse the HTTP connection and retry only transient server responses."""
+    def send():
+        return _session.post(url, headers=headers, json=body, timeout=(10, timeout_seconds))
+
+    response = send()
+    if response.status_code in (429, 500, 502, 503, 504):
+        try:
+            wait = min(float(response.headers.get("Retry-After", 2)), 5.0)
+        except (TypeError, ValueError):
+            wait = 2.0
+        time.sleep(wait)
+        response = send()
+    if (response.status_code in (400, 422) and "reasoning_effort" in body
+            and "reasoning_effort" in response.text):
+        body.pop("reasoning_effort")
+        response = send()
+    return response
 
 def _chat(model: str, messages: list[dict], label: str, max_tokens: int = 1024) -> str:
     """One chat request to NVIDIA over REST. Returns clean text; raises on any problem."""
@@ -212,12 +245,7 @@ def _chat(model: str, messages: list[dict], label: str, max_tokens: int = 1024) 
 
     print(f"\n[DEBUG] Requesting model '{model}' ({label}) via direct REST API...")
     timeout_seconds = float(os.getenv("NVIDIA_TIMEOUT_SECONDS", "20"))
-    response = requests.post(
-        invoke_url,
-        headers=headers,
-        json=body,
-        timeout=(10, timeout_seconds),
-    )
+    response = _post(invoke_url, headers, body, timeout_seconds)
 
     if response.status_code != 200:
         raise RuntimeError(f"NVIDIA API Error {response.status_code}: {response.text}")
@@ -265,41 +293,49 @@ def narrate(client, model: str, insight: Insight, language: str = "English") -> 
             {"role": "assistant", "content": FEW_SHOT_BY_LANGUAGE[language]},
         ]
     messages.append({"role": "user", "content": json.dumps(payload_data)})
-    return _chat(model, messages, language)
+    return _chat(model, messages, language, max_tokens=300)
+
+def _narrate_language(client, model: str | None, insight: Insight, code: str) -> tuple[str | None, str]:
+    """Narrate one language; return text and whether it came from cache, model, or fallback."""
+    cached = get_existing_narration(insight.id, code)
+    if cached:
+        print(f"[DEBUG] Served insight '{insight.id}' ({code}) from DB cache.")
+        return cached, "cached"
+
+    paused = time.time() < _pause_until
+    try:
+        if not model or not os.getenv("NVIDIA_API_KEY"):
+            raise RuntimeError("NVIDIA model or API key is not configured")
+        if paused:
+            raise RuntimeError("model paused for 60 s after repeated failures")
+        text = ensure_citations(narrate(client, model, insight, LANGUAGE_NAMES.get(code, code)), insight)
+        if not numbers_are_grounded(text, insight):
+            raise ValueError("model used a number that is not in the facts")
+        _record_model_result(True)
+    except Exception as exc:
+        if not paused and model and os.getenv("NVIDIA_API_KEY"):
+            _record_model_result(False, exc)
+        print(f"[DEBUG] LLM call failed for '{code}' ({exc}); using template fallback")
+        if code != "en":
+            return None, "skipped"
+        text = template_narration(insight)
+        save_insight(insight, text, language=code, cache_result=False)
+        return text, "template"
+
+    save_insight(insight, text, language=code, cache_result=True)
+    return text, "model"
+
 
 def narrate_all(client, model: str | None, insight: Insight, languages: list[str] | None = None) -> dict[str, str]:
-    """Narrate one insight in each requested language and persist each result."""
-    results: dict[str, str] = {}
-    for code in languages or ["en"]:
-        cached = get_existing_narration(insight.id, code)
-        if cached:
-            results[code] = cached
-            continue
-        failed = False
-        paused = time.time() < _pause_until
-        try:
-            if not model or not os.getenv("NVIDIA_API_KEY"):
-                raise RuntimeError("NVIDIA model or API key is not configured")
-            if paused:
-                raise RuntimeError("model paused for 60 s after repeated failures")
-            text = ensure_citations(
-                narrate(client, model, insight, LANGUAGE_NAMES.get(code, code)), insight
-            )
-            if not numbers_are_grounded(text, insight):
-                raise ValueError("model used a number that is not in the facts")
-            _record_model_result(True)
-        except Exception as e:
-            if not paused and model and os.getenv("NVIDIA_API_KEY"):
-                _record_model_result(False, e)  # only real model failures count, not a missing key
-            print(f"[DEBUG] LLM call failed for '{code}' ({e}); using template fallback")
-            if code != "en":
-                continue
-            text = template_narration(insight)
-            failed = True
-        save_insight(insight, text, language=code, cache_result=not failed)
-        results[code] = text
-        if not failed:
-            time.sleep(1.5)
+    """Narrate requested languages concurrently and persist each result."""
+    requested = languages or ["en"]
+    with ThreadPoolExecutor(max_workers=len(requested)) as pool:
+        outcomes = list(pool.map(
+            lambda code: _narrate_language(client, model, insight, code), requested
+        ))
+    results = {code: text for code, (text, _) in zip(requested, outcomes) if text}
+    if any(how == "model" for _, how in outcomes):
+        time.sleep(1.5)
     if not results:
         text = template_narration(insight)
         save_insight(insight, text, language="en", cache_result=False)
