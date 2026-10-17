@@ -1,10 +1,10 @@
 // web/src/ReviewPanel.tsx - the player's written review in the selected language.
 import { useEffect, useState } from "react";
-import { getPlayerReview } from "./api";
-import { Loader } from "./Loader";
-import { stripCitations } from "./match";
-import { formatRating, normalizeReview } from "./players";
-import type { PlayerReview } from "./types";
+import { getPlayerReview } from "@/lib/api";
+import { Loader } from "@/components/Loader";
+import { stripCitations } from "@/lib/match";
+import { formatRating, normalizeReview } from "@/lib/players";
+import type { PlayerReview } from "@/types/types";
 
 type ReviewState =
   | { status: "loading" }

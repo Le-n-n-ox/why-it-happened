@@ -1,13 +1,13 @@
 // web/src/pages/LivePage.tsx - the live dashboard: pitch + insight feed.
 import { useState } from "react";
-import { attackZones } from "../analytics";
-import { InsightCard } from "../InsightCard";
-import { Loader } from "../Loader";
-import { evidenceEvents, teamColor } from "../match";
-import { useMatch } from "../matchContext";
-import { Pitch } from "../Pitch";
-import { PowerSwitch } from "../PowerSwitch";
-import { Recap } from "../Recap";
+import { attackZones } from "@/lib/analytics";
+import { InsightCard } from "@/components/InsightCard";
+import { Loader } from "@/components/Loader";
+import { evidenceEvents, teamColor } from "@/lib/match";
+import { useMatch } from "@/types/matchContext";
+import { Pitch } from "@/components/Pitch";
+import { PowerSwitch } from "@/components/PowerSwitch";
+import { Recap } from "@/components/Recap";
 
 export function LivePage() {
   const { insights, status, teams, shown, byId, lang, ended, selectedId, select } = useMatch();

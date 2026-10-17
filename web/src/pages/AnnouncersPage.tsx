@@ -1,11 +1,11 @@
 // web/src/pages/AnnouncersPage.tsx - booth view: the line to read, a cue sheet, and proof to fact-check.
 import { useState } from "react";
-import { CopyButton } from "../Actions";
+import { CopyButton } from "@/components/Actions";
 import {
   factChips, formatMinute, kindLabel, lacksLang, pickText, stripCitations, teamColor,
-} from "../match";
-import { useMatch } from "../matchContext";
-import type { Insight } from "../types";
+} from "@/lib/match";
+import { useMatch } from "@/types/matchContext";
+import type { Insight } from "@/types/types";
 
 type Size = "m" | "l" | "xl";
 const SIZES: { id: Size; label: string }[] = [

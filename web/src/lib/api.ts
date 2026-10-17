@@ -1,4 +1,4 @@
-import type { Health, MatchEvent, Recap } from "./types";
+import type { Health, MatchEvent, Recap } from "@/types/types";
 
 export const API: string = import.meta.env.VITE_API_URL ?? "";
 

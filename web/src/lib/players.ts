@@ -1,7 +1,7 @@
 // web/src/players.ts - turns /players responses into UI types. Reads loosely: unknown shapes are skipped.
 import type {
   PlayerAction, PlayerDetail, PlayerMoment, PlayerReview, PlayerSummary, RatingPart, Stat,
-} from "./types";
+} from "@/types/types";
 
 const isObj = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);

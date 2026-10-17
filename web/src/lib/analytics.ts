@@ -1,6 +1,6 @@
 // web/src/analytics.ts - pure chart data, computed from events and insights only.
-import { PITCH_H, PITCH_W, toPitch } from "./match";
-import type { Insight, MatchEvent } from "./types";
+import { PITCH_H, PITCH_W, toPitch } from "@/lib/match";
+import type { Insight, MatchEvent } from "@/types/types";
 
 export const sum = (xs: number[]): number => xs.reduce((a, b) => a + b, 0);
 

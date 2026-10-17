@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { getRecap } from "./api";
-import { formatMinute, keyMoments, pickText, stripCitations } from "./match";
-import type { Insight, Recap as RecapData } from "./types";
+import { getRecap } from "@/lib/api";
+import { formatMinute, keyMoments, pickText, stripCitations } from "@/lib/match";
+import type { Insight, Recap as RecapData } from "@/types/types";
 
 interface Props {
   insights: Insight[];

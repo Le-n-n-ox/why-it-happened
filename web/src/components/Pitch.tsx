@@ -1,7 +1,7 @@
 // web/src/Pitch.tsx - top-down pitch drawn as SVG (105 x 68, the real pitch size in metres).
-import type { ZoneCell } from "./analytics";
-import type { MatchEvent } from "./types";
-import { PITCH_H, PITCH_W, teamColor, toPitch } from "./match";
+import type { ZoneCell } from "@/lib/analytics";
+import type { MatchEvent } from "@/types/types";
+import { PITCH_H, PITCH_W, teamColor, toPitch } from "@/lib/match";
 
 interface Props {
   events: MatchEvent[]; // everything that has happened so far (drawn faintly)

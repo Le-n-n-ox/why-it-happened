@@ -1,10 +1,10 @@
 // web/src/pages/FansPage.tsx - fan view: pick a team, follow its moments, share them.
 import { useState } from "react";
-import { ShareButton } from "../Actions";
+import { ShareButton } from "@/components/Actions";
 import {
   formatMinute, kindLabel, lacksLang, pickText, stripCitations, teamColor,
-} from "../match";
-import { useMatch } from "../matchContext";
+} from "@/lib/match";
+import { useMatch } from "@/types/matchContext";
 
 function initialFav(): string {
   try {
