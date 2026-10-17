@@ -2,9 +2,11 @@
 import { useState } from "react";
 import { attackZones } from "../analytics";
 import { InsightCard } from "../InsightCard";
+import { Loader } from "../Loader";
 import { evidenceEvents, teamColor } from "../match";
 import { useMatch } from "../matchContext";
 import { Pitch } from "../Pitch";
+import { PowerSwitch } from "../PowerSwitch";
 import { Recap } from "../Recap";
 
 export function LivePage() {
@@ -17,9 +19,7 @@ export function LivePage() {
       {teams.length > 0 && (
         <div className="live__pitch">
           <div className="live__tools">
-            <button type="button" aria-pressed={showZones} onClick={() => setShowZones((v) => !v)}>
-              Attack zones: {showZones ? "on" : "off"}
-            </button>
+            <PowerSwitch checked={showZones} onChange={() => setShowZones((v) => !v)} label="Attack zones" />
           </div>
           <Pitch
             events={shown}
@@ -39,10 +39,7 @@ export function LivePage() {
         {insights.length === 0 && status !== "error" && (
           <>
             <p className="empty">Waiting for the first insight...</p>
-            <div className="skeletons" aria-hidden="true">
-              <div className="skeleton" />
-              <div className="skeleton" />
-            </div>
+            <Loader label="Loading insights" />
           </>
         )}
         <ul className="feed">
