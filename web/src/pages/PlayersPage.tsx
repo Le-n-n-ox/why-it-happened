@@ -37,8 +37,16 @@ export function PlayersPage() {
   const scaleMax = top <= 10 ? 10 : 100;
 
   return (
-    <section className="page">
-      <h2>Players</h2>
+    <section className="page page--wide players-page">
+      <div className="players-page__header">
+        <div>
+          <p className="eyebrow">Match squad</p>
+          <h2>Players</h2>
+        </div>
+        {!loading && error === null && players.length > 0 && (
+          <span className="players-page__count">{players.length} players</span>
+        )}
+      </div>
       <p className="empty">Ratings come from the match backend. Select a player for the breakdown and review.</p>
 
       {loading && (
@@ -63,7 +71,7 @@ export function PlayersPage() {
       {players.length > 0 && (
         <>
           <div className="sortbar">
-            <span className="empty">Sort by</span>
+            <span className="sortbar__label">Sort by</span>
             <div className="fav" role="group" aria-label="Sort players">
               {SORTS.map((s) => (
                 <button key={s.id} type="button" aria-pressed={sort === s.id} onClick={() => setSort(s.id)}>
@@ -73,21 +81,24 @@ export function PlayersPage() {
             </div>
           </div>
           {playerTeams.length > 1 && (
-            <div className="fav" role="group" aria-label="Filter by team">
-              <button type="button" aria-pressed={activeTeam === "all"} onClick={() => setTeam("all")}>
-                Both teams
-              </button>
-              {playerTeams.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  aria-pressed={activeTeam === t}
-                  onClick={() => setTeam(t)}
-                  style={{ borderColor: teamColor(t, teams) }}
-                >
-                  {t}
+            <div className="team-filter">
+              <span className="sortbar__label">Team</span>
+              <div className="fav" role="group" aria-label="Filter by team">
+                <button type="button" aria-pressed={activeTeam === "all"} onClick={() => setTeam("all")}>
+                  Both teams
                 </button>
-              ))}
+                {playerTeams.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    aria-pressed={activeTeam === t}
+                    onClick={() => setTeam(t)}
+                    style={{ borderColor: teamColor(t, teams) }}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 

@@ -25,6 +25,12 @@ def test_events():
     assert len(r.json()) == 15
 
 
+def test_players():
+    r = client.get("/players")
+    assert r.status_code == 200
+    assert r.json() == []
+
+
 def test_stream_emits_insights_then_done():
     with client.stream("GET", "/stream?delay=0") as r:
         body = "".join(r.iter_text())
