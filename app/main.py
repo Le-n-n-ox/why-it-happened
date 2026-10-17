@@ -29,7 +29,6 @@ from app.events import MatchEvent, load_events
 from app.matchinfo import match_info
 from app.players import explain_action, involvement, player_actions, player_stats, player_table, rating, review_insight
 from app.narrator import make_client, model_available, model_status, narrate_all, write_recap
-from app.players import list_players, player_detail
 from app.simulate import replay
 from app.store import OmniPitchStore
 
@@ -155,32 +154,6 @@ def health():
 @app.get("/events")
 def events():
     return [e.model_dump(mode="json") for e in load_events(EVENTS_FILE)]
-
-
-@app.get("/players")
-def players():
-    return list_players(load_events(EVENTS_FILE))
-
-
-@app.get("/players/{player_id}")
-def player(player_id: str):
-    result = player_detail(load_events(EVENTS_FILE), player_id)
-    if result is None:
-        raise HTTPException(status_code=404, detail="Player not found")
-    return result
-
-
-@app.get("/players/{player_id}/review")
-def player_review(player_id: str, lang: str = "en"):
-    result = player_detail(load_events(EVENTS_FILE), player_id)
-    if result is None:
-        raise HTTPException(status_code=404, detail="Player not found")
-    return {
-        "text": "No generated review is available for this player yet.",
-        "lang": lang,
-        "rating": result["rating"],
-        "evidence": [],
-    }
 
 
 @app.get("/match")
