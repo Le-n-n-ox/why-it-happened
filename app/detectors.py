@@ -190,8 +190,117 @@ def detect_shot_pressure(
     return found
 
 
+def detect_foul_turning_point(events: list[MatchEvent], window_min: float = 2.0) -> list[Insight]:
+    """A foul committed by the opposition, punished by a goal within 2 minutes."""
+    found = []
+    teams = list(dict.fromkeys(e.team for e in events))
+    if len(teams) < 2:
+        return found
+
+    for i, start in enumerate(events):
+        if start.type != EventType.FOUL:
+            continue
+
+        fouled_team = teams[1] if start.team == teams[0] else teams[0]
+        chain = [start]
+
+        for nxt in events[i + 1:]:
+            if nxt.minute - start.minute > window_min:
+                break
+            chain.append(nxt)
+            if nxt.type == EventType.GOAL and nxt.team == fouled_team:
+                found.append(Insight(
+                    kind="foul_turning_point",
+                    team=fouled_team,
+                    minute=start.minute,
+                    evidence=[e.id for e in chain],
+                    facts={"duration_s": round((nxt.minute - start.minute) * 60)},
+                ))
+                break
+    return found
+
+
+def detect_player_standout(
+    events: list[MatchEvent], window_min: float = 5.0, min_events: int = 4
+) -> list[Insight]:
+    """One player heavily involved (4+ events) in a 5-minute window."""
+    found = []
+    for team in dict.fromkeys(e.team for e in events):
+        team_events = [e for e in events if e.team == team and e.player]
+        players = dict.fromkeys(e.player for e in team_events)
+        for player in players:
+            p_events = [e for e in team_events if e.player == player]
+            i = 0
+            while i < len(p_events):
+                j = i
+                while j + 1 < len(p_events) and p_events[j + 1].minute - p_events[i].minute <= window_min:
+                    j += 1
+                if j - i + 1 >= min_events:
+                    spell = p_events[i:j + 1]
+                    found.append(Insight(
+                        kind="player_standout",
+                        team=team,
+                        minute=spell[0].minute,
+                        evidence=[e.id for e in spell],
+                        facts={
+                            "name": player,
+                            "touches": len(spell),
+                            "span_min": max(1, round(spell[-1].minute - spell[0].minute)),
+                        },
+                    ))
+                    i = j + 1
+                else:
+                    i += 1
+    return found
+
+
+def detect_momentum_swing(events: list[MatchEvent], window_min: float = 5.0) -> list[Insight]:
+    """Possession flips from <40% to >60% between two 5-minute windows."""
+    found = []
+    poss_types = {EventType.PASS, EventType.CARRY, EventType.SHOT, EventType.GOAL}
+    poss_events = [e for e in events if e.type in poss_types]
+    teams = list(dict.fromkeys(e.team for e in poss_events))
+    if len(teams) < 2:
+        return found
+
+    last_reported = {team: -99.0 for team in teams}
+    for event in poss_events:
+        if event.minute < window_min * 2:
+            continue
+        team = event.team
+        if event.minute - last_reported[team] < window_min:
+            continue
+
+        curr_window = [e for e in poss_events if event.minute - window_min <= e.minute <= event.minute]
+        prev_window = [e for e in poss_events if event.minute - window_min * 2 <= e.minute < event.minute - window_min]
+        if not prev_window or not curr_window:
+            continue
+
+        prev_share = sum(e.team == team for e in prev_window) / len(prev_window)
+        curr_share = sum(e.team == team for e in curr_window) / len(curr_window)
+        if prev_share < 0.40 and curr_share > 0.60:
+            evidence = [e.id for e in curr_window if e.team == team][-4:]
+            if not evidence:
+                continue
+            found.append(Insight(
+                kind="momentum_swing",
+                team=team,
+                minute=event.minute,
+                evidence=evidence,
+                facts={
+                    "prev_share_pct": round(prev_share * 100),
+                    "curr_share_pct": round(curr_share * 100),
+                    "span_min": round(window_min),
+                },
+            ))
+            last_reported[team] = event.minute
+    return found
+
+
 DETECTORS = [
-    detect_counter_attacks, detect_turnover_shots, detect_high_press, detect_goal_buildups, detect_shot_pressure,
+    detect_counter_attacks, detect_turnover_shots, detect_high_press,
+    detect_goal_buildups, detect_shot_pressure, detect_foul_turning_point,
+    detect_player_standout, detect_momentum_swing,
 ]
 
 

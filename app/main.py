@@ -184,7 +184,8 @@ _recap_cache: dict[tuple, dict] = {}     # (language, insight ids) -> finished A
 
 @app.get("/recap")
 def recap(lang: str = "en"):
-    """Return a grounded AI summary when available, otherwise join plain narrations."""
+    """Return a grounded AI summary including the standout player when available."""
+    events, found = _match_data()
     items = sorted(store.list_insights(), key=lambda i: i.get("minute", 0))
     parts: list[str] = []
     ids: list[str] = []
@@ -200,18 +201,22 @@ def recap(lang: str = "en"):
             ids.append(i.get("id", ""))
             english = re.sub(r"\s*\[[^\]]*\]", "", narration.get("en") or text)
             moments.append({"minute": int(i.get("minute", 0)), "team": i.get("team", ""), "what": english})
-    info = match_info(load_events(EVENTS_FILE))
+    info = match_info(events)
     headline = ""
     if info["home"] and info["away"]:
         s = info["score"]
         headline = f"Full time: {info['home']} {s[info['home']]}-{s[info['away']]} {info['away']}."
 
-    key = (lang, tuple(ids))
+    players = player_table(events, found)
+    top_player = players[0] if players else None
+
+    standout_key = tuple(top_player.get(key) for key in ("name", "team", "goals", "rating")) if top_player else None
+    key = (lang, tuple(ids), standout_key)
     if key in _recap_cache:
         return _recap_cache[key]
     if ids and MODEL and os.getenv("NVIDIA_API_KEY") and model_available():
         try:
-            summary = write_recap(MODEL, lang, info["score"], moments)
+            summary = write_recap(MODEL, lang, info["score"], moments, top_player=top_player)
             result = {"lang": lang, "text": f"{headline} {summary}".strip(), "insight_ids": ids}
             _recap_cache[key] = result
             return result
