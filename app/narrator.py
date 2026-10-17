@@ -5,6 +5,7 @@ import requests
 import time
 
 from app.detectors import Insight
+from app.players import join_names, player_review_text
 from .db import get_existing_narration, save_insight
 
 SYSTEM = (
@@ -12,9 +13,19 @@ SYSTEM = (
     "Given a JSON payload of a match event, write a sharp, professional studio commentary "
     "in {language}. Use only the facts in the JSON payload. "
     "Stay strictly on what the JSON says: say nothing about defenders, goalkeepers, momentum or how the opposition reacted. "
+    "When the facts name players (starter, finisher, players), use those names exactly as written "
+    "and never add any other name. "
     "Never write coordinates or distances. Write natural, simple {language}, not a word-for-word translation. "
     "End with the evidence ids in square brackets, e.g. [e1, e2]. "
     "An earlier exchange shows the style only: describe the new insight, never copy its numbers or ids."
+)
+
+PLAYER_SYSTEM = (
+    "You are a Premier League analyst writing a short end-of-match player review in {language}. "
+    "Use ONLY the facts in the JSON payload. Write at most three short sentences about this "
+    "player's game, using the counts and goal_minutes provided. "
+    "Do not invent numbers, events, positions, injuries, feelings or reasons for what the player did, "
+    "and do not mention a rating. End with the evidence ids in square brackets, e.g. [e1, e2]."
 )
 
 LANGUAGE_NAMES = {
@@ -23,7 +34,12 @@ LANGUAGE_NAMES = {
 }
 
 # Raw positions are deliberately withheld so models cannot turn coordinates into distances.
-MODEL_FACT_KEYS = ("duration_s", "passes", "ended_in", "shots", "goals", "span_min")
+MODEL_FACT_KEYS = (
+    "duration_s", "passes", "ended_in", "shots", "goals", "span_min",
+    "players", "starter", "finisher", "name", "touches", "carries", "tackles",
+    "interceptions", "fouls", "progressive", "key_moments", "goal_minutes", "highlight",
+)
+DETECTOR_KINDS = ("counter_attack", "turnover_shot", "high_press_turnover", "goal_buildup", "shot_pressure")
 
 KIND_MEANING = {
     "counter_attack": "won the ball in their own half and reached a shot or goal within seconds",
@@ -31,6 +47,7 @@ KIND_MEANING = {
     "high_press_turnover": "won the ball high up the pitch by pressing, then reached a shot or goal quickly",
     "goal_buildup": "kept the ball through a patient passing move and scored",
     "shot_pressure": "kept attacking and had several shots within a few minutes",
+    "player_review": "a short end-of-match review of one player's game",
 }
 
 # One worked example per language, shown to the model as an earlier exchange. It teaches tone and
@@ -40,19 +57,20 @@ EXAMPLE_PAYLOAD = {
     "team": "Reds",
     "minute": 33.0,
     "meaning": KIND_MEANING["counter_attack"],
-    "facts": {"duration_s": 14, "passes": 3, "ended_in": "shot"},
+    "facts": {"duration_s": 14, "passes": 3, "ended_in": "shot",
+              "players": ["Okoro", "Lindqvist", "Varga"], "starter": "Okoro", "finisher": "Varga"},
     "evidence": ["e901", "e902", "e903", "e904"],
 }
 
 FEW_SHOT_BY_LANGUAGE = {
-    "English": "33' Reds win the ball in their own half and are shooting 14 seconds later, "
+    "English": "33' Okoro wins the ball for Reds in their own half and Varga shoots 14 seconds later, "
                "after just 3 passes. [e901, e902, e903, e904]",
-    "French": "33e minute : les Reds récupèrent le ballon dans leur moitié de terrain et tirent "
-              "14 secondes plus tard, après seulement 3 passes. [e901, e902, e903, e904]",
-    "Spanish": "Minuto 33: los Reds recuperan el balón en su propio campo y rematan 14 segundos "
-               "después, tras solo 3 pases. [e901, e902, e903, e904]",
-    "Swahili": "Dakika ya 33: Reds wanaupata mpira katika nusu yao ya uwanja na kupiga shuti "
-               "sekunde 14 baadaye, baada ya pasi 3 tu. [e901, e902, e903, e904]",
+    "French": "33e minute : Okoro récupère le ballon pour les Reds dans leur moitié de terrain, "
+              "et Varga tire 14 secondes plus tard, après seulement 3 passes. [e901, e902, e903, e904]",
+    "Spanish": "Minuto 33: Okoro recupera el balón para los Reds en su propio campo y Varga remata "
+               "14 segundos después, tras solo 3 pases. [e901, e902, e903, e904]",
+    "Swahili": "Dakika ya 33: Okoro anaupata mpira kwa Reds katika nusu yao ya uwanja, na Varga "
+               "anapiga shuti sekunde 14 baadaye, baada ya pasi 3 tu. [e901, e902, e903, e904]",
 }
 
 def make_client():
@@ -77,8 +95,9 @@ def numbers_are_grounded(text: str, insight: Insight) -> bool:
     allowed = {int(insight.minute)}
     for key in MODEL_FACT_KEYS:
         value = insight.facts.get(key)
-        if isinstance(value, (int, float)):
-            allowed.add(int(value))
+        for value_item in (value if isinstance(value, list) else [value]):
+            if isinstance(value_item, (int, float)) and not isinstance(value_item, bool):
+                allowed.add(int(value_item))
     body = re.sub(r"\[[^\]]*\]", "", text)
     return {int(n) for n in re.findall(r"\d+", body)} <= allowed
 
@@ -86,6 +105,11 @@ def numbers_are_grounded(text: str, insight: Insight) -> bool:
 def template_narration(insight: Insight) -> str:
     facts = insight.facts or {}
     cites = ", ".join(insight.evidence)
+    if insight.kind == "player_review" and "name" in facts:
+        return f"{player_review_text(facts, insight.team)} [{cites}]"
+    named = _named_sentence(insight)
+    if named:
+        return f"{int(insight.minute)}' {named} [{cites}]"
     if insight.kind == "counter_attack" and {"duration_s", "passes", "ended_in"} <= facts.keys():
         ended = str(facts["ended_in"]).replace("_", " ")
         n = facts["passes"]
@@ -111,6 +135,31 @@ def template_narration(insight: Insight) -> str:
     else:
         body = f"{insight.team}: {insight.kind.replace('_', ' ')} detected."
     return f"{int(insight.minute)}' {body} [{cites}]"
+
+
+def _named_sentence(insight: Insight) -> str | None:
+    """Build a detector sentence using player names carried by its evidence."""
+    f = insight.facts or {}
+    team, starter, finisher = insight.team, f.get("starter"), f.get("finisher")
+    seconds = f.get("duration_s")
+    verb = "scores" if f.get("ended_in") == "goal" else "shoots"
+    second = verb if starter == finisher else f"{finisher} {verb}"
+    if insight.kind == "counter_attack" and starter and finisher and seconds is not None:
+        n = f.get("passes", 0)
+        return (f"{starter} wins the ball for {team} and {second} {seconds} seconds later, "
+                f"after {n} {'pass' if n == 1 else 'passes'}.")
+    if insight.kind == "turnover_shot" and starter and finisher and seconds is not None:
+        return f"{starter} wins the ball back for {team}, and {second} {seconds} seconds later."
+    if insight.kind == "high_press_turnover" and starter and finisher and seconds is not None:
+        return f"{starter} wins the ball high up the pitch for {team} and {second} {seconds} seconds later."
+    if insight.kind == "goal_buildup" and starter and finisher and seconds is not None and "passes" in f:
+        return (f"{team} string together {f['passes']} passes over {seconds} seconds, "
+                f"from {starter} to {finisher}, who scores.")
+    if insight.kind == "shot_pressure" and f.get("players") and {"shots", "span_min"} <= f.keys():
+        m = f["span_min"]
+        return (f"{team} keep the pressure on with {f['shots']} shots in "
+                f"{m} {'minute' if m == 1 else 'minutes'}, from {join_names(f['players'])}.")
+    return None
 
 
 _failures = 0
@@ -208,8 +257,9 @@ def narrate(client, model: str, insight: Insight, language: str = "English") -> 
         "facts": {k: v for k, v in insight.facts.items() if k in MODEL_FACT_KEYS},
         "evidence": insight.evidence,
     }
-    messages = [{"role": "system", "content": SYSTEM.format(language=language)}]
-    if language in FEW_SHOT_BY_LANGUAGE:
+    system = PLAYER_SYSTEM if insight.kind == "player_review" else SYSTEM
+    messages = [{"role": "system", "content": system.format(language=language)}]
+    if insight.kind in DETECTOR_KINDS and language in FEW_SHOT_BY_LANGUAGE:
         messages += [
             {"role": "user", "content": json.dumps(EXAMPLE_PAYLOAD)},
             {"role": "assistant", "content": FEW_SHOT_BY_LANGUAGE[language]},
