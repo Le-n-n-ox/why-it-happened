@@ -195,6 +195,22 @@ DETECTORS = [
 ]
 
 
+def add_players(insights: list[Insight], events: list[MatchEvent]) -> None:
+    """Attach named participants from each insight's evidence chain, when available."""
+    by_id = {e.id: e for e in events}
+    for insight in insights:
+        chain = [by_id[event_id] for event_id in insight.evidence if event_id in by_id]
+        names = list(dict.fromkeys(event.player for event in chain if event.player))
+        if not names:
+            continue
+        insight.facts["players"] = names
+        if insight.kind != "shot_pressure":
+            if chain and chain[0].player:
+                insight.facts["starter"] = chain[0].player
+            if chain and chain[-1].player:
+                insight.facts["finisher"] = chain[-1].player
+
+
 def detect_all(events: list[MatchEvent]) -> list[Insight]:
     insights: list[Insight] = []
     for detector in DETECTORS:
@@ -202,4 +218,5 @@ def detect_all(events: list[MatchEvent]) -> list[Insight]:
     # A goal another detector already explains (counter-attack, press...) is not shown twice.
     explained = {i.evidence[-1] for i in insights if i.kind != "goal_buildup"}
     insights = [i for i in insights if i.kind != "goal_buildup" or i.evidence[-1] not in explained]
+    add_players(insights, events)
     return sorted(insights, key=lambda i: i.minute)
