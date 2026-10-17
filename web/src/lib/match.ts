@@ -1,7 +1,5 @@
-// web/src/match.ts - small pure helpers. No React in here, so they are easy to test.
-import { playerNames } from "./players";
-import type { Insight, MatchEvent } from "./types";
-
+import { playerNames } from "@/lib/players";
+import type { Insight, MatchEvent } from "@/types/types";
 export const PITCH_W = 105;
 export const PITCH_H = 68;
 

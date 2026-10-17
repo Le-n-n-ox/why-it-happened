@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { API } from "./api";
-import type { Insight, MatchEvent } from "./types";
+import { API } from "@/lib/api";
+import type { Insight, MatchEvent } from "@/types/types";
 
 export type StreamStatus = "connecting" | "live" | "ended" | "error";
 

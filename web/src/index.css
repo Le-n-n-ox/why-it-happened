@@ -3,7 +3,7 @@
   --border: rgba(255, 255, 255, .09);
   --text: #f4eefa; --muted: #b9a7c9;
   --accent: #00ff85; --accent-ink: #06210f; --accent-2: #ff2d87; --live: #e0126f; --warn: #ffb300;
-  --grass: #14532d;
+  --grass: #14532d; --heat: #ffb300;
   --c1: #00ff85; --c2: #ff2d87; --c3: #4cc9f0; --c4: #ffb300; --c5: #b388ff;
   --radius: 14px; --gap: 16px;
   --shadow: 0 8px 30px rgba(0, 0, 0, .35);
@@ -35,6 +35,7 @@ a { color: var(--accent); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8;
   stroke-linecap: round; stroke-linejoin: round; }
+
 
 /* Controls */
 button, select { font: inherit; color: inherit; background: var(--surface-2); border: 1px solid var(--border);

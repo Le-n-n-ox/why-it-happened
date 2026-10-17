@@ -1,6 +1,6 @@
 // web/src/Actions.tsx - small buttons that give feedback for a moment, then reset.
 import { useEffect, useState } from "react";
-import { copyText, shareText, type ShareResult } from "./share";
+import { copyText, shareText, type ShareResult } from "@/lib/share";
 
 function useReset<T extends string>(idle: T): [T, (v: T) => void] {
   const [value, setValue] = useState<T>(idle);

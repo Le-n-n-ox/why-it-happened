@@ -1,10 +1,10 @@
 // web/src/MatchProvider.tsx - owns the stream, events, language and selection.
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { getEvents, getHealth } from "./api";
-import { clockFromInsights, languagesFrom, scoreFrom, teamsFrom } from "./match";
-import { MatchContext, type MatchState } from "./matchContext";
-import type { MatchEvent } from "./types";
-import { useMatchStream } from "./useMatchStream";
+import { getEvents, getHealth } from "@/lib/api";
+import { clockFromInsights, languagesFrom, scoreFrom, teamsFrom } from "@/lib/match";
+import { MatchContext, type MatchState } from "@/types/matchContext";
+import type { MatchEvent } from "@/types/types";
+import { useMatchStream } from "@/hooks/useMatchStream";
 
 // Demo mode: open /?speed=0.3&lang=sw (speed is ignored until the backend supports it)
 const params = new URLSearchParams(window.location.search);

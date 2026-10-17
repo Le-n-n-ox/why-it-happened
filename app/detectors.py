@@ -190,6 +190,7 @@ def detect_shot_pressure(
     return found
 
 
+<<<<<<< HEAD
 def detect_foul_turning_point(events: list[MatchEvent], window_min: float = 2.0) -> list[Insight]:
     """A foul committed by the opposition, punished by a goal within 2 minutes."""
     found = []
@@ -301,6 +302,10 @@ DETECTORS = [
     detect_counter_attacks, detect_turnover_shots, detect_high_press,
     detect_goal_buildups, detect_shot_pressure, detect_foul_turning_point,
     detect_player_standout, detect_momentum_swing,
+=======
+DETECTORS = [
+    detect_counter_attacks, detect_turnover_shots, detect_high_press, detect_goal_buildups, detect_shot_pressure,
+>>>>>>> feature/steve
 ]
 
 

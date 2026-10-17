@@ -1,7 +1,11 @@
 """Warm the demo: stream the whole match once so every narration is generated and cached,
 then ask for each language's recap. Works against any running copy of the app.
 
+
     python scripts/warm_demo.py                              # http://localhost:8000
+
+    python scripts/warm_demo.py                              # http://localhost:8001
+
     python scripts/warm_demo.py --url https://your-app.example --retries 3
 
 Narrations that fail are not cached by the server, so a retry only redoes the missing ones.
@@ -74,13 +78,18 @@ def warm_reviews(base: str, languages: list[str], top: int, timeout: float) -> l
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser()
+
     parser.add_argument("--url", default="http://localhost:8000")
+
+    parser.add_argument("--url", default="http://localhost:8001")
+
     parser.add_argument("--retries", type=int, default=2, help="extra passes while something is missing")
     parser.add_argument("--wait", type=float, default=65, help="seconds to wait before a retry")
     parser.add_argument("--timeout", type=float, default=180, help="max seconds without data from the server")
     parser.add_argument("--reviews", type=int, default=6, help="warm the reviews of the top N players (0 = skip)")
     args = parser.parse_args(argv)
     base = args.url.rstrip("/")
+
 
     try:
         response = requests.get(f"{base}/health", timeout=10)
@@ -96,6 +105,9 @@ def main(argv=None) -> int:
     except requests.exceptions.RequestException as exc:
         print(f"Could not check backend health at {base}: {exc}", file=sys.stderr)
         return 1
+
+    health = requests.get(f"{base}/health", timeout=10).json()
+
     languages = health["languages"]
     print(f"Server {base} | model configured: {health['llm_configured']} | languages: {', '.join(languages)}")
     if not health["llm_configured"]:

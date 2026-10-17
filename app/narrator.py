@@ -40,12 +40,17 @@ MODEL_FACT_KEYS = (
     "duration_s", "passes", "ended_in", "shots", "goals", "span_min",
     "players", "starter", "finisher", "name", "touches", "carries", "tackles",
     "interceptions", "fouls", "progressive", "key_moments", "goal_minutes", "highlight",
+<<<<<<< HEAD
     "prev_share_pct", "curr_share_pct",
 )
 DETECTOR_KINDS = (
     "counter_attack", "turnover_shot", "high_press_turnover", "goal_buildup",
     "shot_pressure", "foul_turning_point", "player_standout", "momentum_swing",
 )
+=======
+)
+DETECTOR_KINDS = ("counter_attack", "turnover_shot", "high_press_turnover", "goal_buildup", "shot_pressure")
+>>>>>>> feature/steve
 
 KIND_MEANING = {
     "counter_attack": "won the ball in their own half and reached a shot or goal within seconds",
@@ -53,9 +58,12 @@ KIND_MEANING = {
     "high_press_turnover": "won the ball high up the pitch by pressing, then reached a shot or goal quickly",
     "goal_buildup": "kept the ball through a patient passing move and scored",
     "shot_pressure": "kept attacking and had several shots within a few minutes",
+<<<<<<< HEAD
     "foul_turning_point": "won a foul and punished the opposition by scoring from the resulting play",
     "player_standout": "was heavily involved and ran the game for their team over a short spell",
     "momentum_swing": "turned the game around, taking control of possession after being dominated",
+=======
+>>>>>>> feature/steve
     "player_review": "a short end-of-match review of one player's game",
 }
 
@@ -141,6 +149,7 @@ def template_narration(insight: Insight) -> str:
             f"{insight.team} string together {facts['passes']} passes over "
             f"{facts['duration_s']} seconds and score."
         )
+<<<<<<< HEAD
     elif insight.kind == "foul_turning_point" and "duration_s" in facts:
         body = f"{insight.team} win a foul and punish the opposition by scoring {facts['duration_s']} seconds later."
     elif insight.kind == "player_standout" and {"name", "touches", "span_min"} <= facts.keys():
@@ -148,6 +157,8 @@ def template_narration(insight: Insight) -> str:
     elif insight.kind == "momentum_swing" and {"prev_share_pct", "curr_share_pct"} <= facts.keys():
         body = (f"{insight.team} flip the momentum, jumping from {facts['prev_share_pct']}% possession "
                 f"to {facts['curr_share_pct']}% over the last {facts.get('span_min', 5)} minutes.")
+=======
+>>>>>>> feature/steve
     else:
         body = f"{insight.team}: {insight.kind.replace('_', ' ')} detected."
     return f"{int(insight.minute)}' {body} [{cites}]"
@@ -175,6 +186,7 @@ def _named_sentence(insight: Insight) -> str | None:
         m = f["span_min"]
         return (f"{team} keep the pressure on with {f['shots']} shots in "
                 f"{m} {'minute' if m == 1 else 'minutes'}, from {join_names(f['players'])}.")
+<<<<<<< HEAD
     if insight.kind == "foul_turning_point" and finisher and seconds is not None:
         return f"{team} win a foul and {finisher} punishes the opposition with a goal {seconds} seconds later."
     if insight.kind == "player_standout" and f.get("name") and {"touches", "span_min"} <= f.keys():
@@ -183,6 +195,8 @@ def _named_sentence(insight: Insight) -> str | None:
     if insight.kind == "momentum_swing" and {"prev_share_pct", "curr_share_pct"} <= f.keys():
         return (f"{team} turn the game around, moving from {f['prev_share_pct']}% to "
                 f"{f['curr_share_pct']}% possession over {f.get('span_min', 5)} minutes.")
+=======
+>>>>>>> feature/steve
     return None
 
 
@@ -368,7 +382,10 @@ def narrate_all(client, model: str | None, insight: Insight, languages: list[str
 RECAP_SYSTEM = (
     "You are a Premier League studio analyst writing a full-time summary in {language}. "
     "Write at most three short sentences. Use ONLY the facts in the JSON. "
+<<<<<<< HEAD
     "Explicitly mention the standout player and their key contribution (such as goals scored) if provided. "
+=======
+>>>>>>> feature/steve
     "Do not invent players, goals, scores or stats, and never write coordinates or distances. "
     "Do not use square brackets."
 )
@@ -394,6 +411,7 @@ def model_status() -> dict:
     }
 
 
+<<<<<<< HEAD
 def write_recap(
     model: str,
     language_code: str,
@@ -402,10 +420,15 @@ def write_recap(
     top_player: dict | None = None,
 ) -> str:
     """AI full-time summary featuring score, moments, and standout player; ground all numbers."""
+=======
+def write_recap(model: str, language_code: str, score: dict, moments: list[dict]) -> str:
+    """AI full-time summary; reject numbers not grounded in the supplied facts."""
+>>>>>>> feature/steve
     allowed = set(score.values()) | {len(moments)}
     for m in moments:
         allowed.add(int(m["minute"]))
         allowed.update(int(n) for n in re.findall(r"\d+", m["what"]))
+<<<<<<< HEAD
     payload = {"score": score, "moments": moments}
     if top_player:
         payload["standout_player"] = {
@@ -420,6 +443,12 @@ def write_recap(
     messages = [
         {"role": "system", "content": RECAP_SYSTEM.format(language=language)},
         {"role": "user", "content": json.dumps(payload)},
+=======
+    language = LANGUAGE_NAMES.get(language_code, language_code)
+    messages = [
+        {"role": "system", "content": RECAP_SYSTEM.format(language=language)},
+        {"role": "user", "content": json.dumps({"score": score, "moments": moments})},
+>>>>>>> feature/steve
     ]
     try:
         text = _chat(model, messages, f"recap {language_code}", max_tokens=400)

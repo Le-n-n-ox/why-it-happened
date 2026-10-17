@@ -1,5 +1,5 @@
 // web/src/PlayerName.tsx - a player's name, linked to their page when the players list has a match.
-import type { PlayerSummary } from "./types";
+import type { PlayerSummary } from "@/types/types";
 
 export function findPlayer(name: string, players: PlayerSummary[]): PlayerSummary | undefined {
   const key = name.trim().toLowerCase();
@@ -9,21 +9,18 @@ export function findPlayer(name: string, players: PlayerSummary[]): PlayerSummar
 export function PlayerName({ name, players }: { name: string; players: PlayerSummary[] }) {
   const p = findPlayer(name, players);
   return p ? (
-    <a className="link" href={`#/player/${encodeURIComponent(p.id)}`}>{p.name}</a>
+    <a className="pname" href={`#/player/${encodeURIComponent(p.id)}`}>{p.name}</a>
   ) : (
-    <span>{name}</span>
+    <span className="pname pname--plain">{name}</span>
   );
 }
 
 export function NameList({ names, players }: { names: string[]; players: PlayerSummary[] }) {
   return (
-    <>
-      {names.map((n, i) => (
-        <span key={n}>
-          {i > 0 && ", "}
-          <PlayerName name={n} players={players} />
-        </span>
+    <span className="namelist">
+      {names.map((n) => (
+        <PlayerName key={n} name={n} players={players} />
       ))}
-    </>
+    </span>
   );
 }

@@ -1,7 +1,7 @@
 // web/src/InsightCard.tsx - one insight. A real <button>, so keyboard and screen readers just work.
 import { memo } from "react";
-import type { Insight } from "./types";
-import { factChips, formatMinute, kindLabel, lacksLang, pickText, stripCitations } from "./match";
+import type { Insight } from "@/types/types";
+import { factChips, formatMinute, kindLabel, lacksLang, pickText, stripCitations } from "@/lib/match";
 
 interface Props {
   insight: Insight;

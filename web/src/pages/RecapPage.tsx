@@ -1,7 +1,7 @@
 // web/src/pages/RecapPage.tsx - timeline of every insight, plus the full-time recap.
-import { formatMinute, kindLabel, pickText, stripCitations, teamColor } from "../match";
-import { useMatch } from "../matchContext";
-import { Recap } from "../Recap";
+import { formatMinute, kindLabel, pickText, stripCitations, teamColor } from "@/lib/match";
+import { useMatch } from "@/types/matchContext";
+import { Recap } from "@/components/Recap";
 
 export function RecapPage() {
   const { insights, allEvents, teams, lang, ended } = useMatch();

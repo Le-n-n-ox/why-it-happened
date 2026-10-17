@@ -1,14 +1,15 @@
 // web/src/pages/PlayerPage.tsx - one player: rating, breakdown, review, moments and actions with proof.
 import { useState } from "react";
-import { getPlayer } from "../api";
-import { Loader } from "../Loader";
-import { eventsByIds, formatMinute, stripCitations, teamColor } from "../match";
-import { useMatch } from "../matchContext";
-import { Pitch } from "../Pitch";
-import { formatRating, normalizePlayerDetail, prettyKey } from "../players";
-import { ReviewPanel } from "../ReviewPanel";
-import { useApi } from "../useApi";
 
+import { getPlayer } from "@/lib/api";
+import { Heatmap } from "@/components/Heatmap";
+import { Loader } from "@/components/Loader";
+import { eventsByIds, formatMinute, stripCitations, teamColor } from "@/lib/match";
+import { useMatch } from "@/types/matchContext";
+import { Pitch } from "@/components/Pitch";
+import { formatRating, normalizePlayerDetail, prettyKey } from "@/lib/players";
+import { ReviewPanel } from "@/components/ReviewPanel";
+import { useApi } from "@/hooks/useApi";
 interface Picked {
   ids: string[];
   label: string;
@@ -58,6 +59,12 @@ export function PlayerPage({ id }: { id: string }) {
   const color = teamColor(player.team, teams);
   const maxAbs = Math.max(1e-9, ...player.breakdown.map((b) => Math.abs(b.value)));
   const missing = picked.ids.length - selected.length;
+
+  const allCited = eventsByIds(
+    [...player.moments.flatMap((m) => m.evidence), ...player.actions.flatMap((a) => a.evidence)],
+    byId,
+  );
+
 
   return (
     <section className="page page--wide">
@@ -167,6 +174,9 @@ export function PlayerPage({ id }: { id: string }) {
 
         {teams.length > 0 && (
           <div className="player__side">
+
+            <Heatmap events={allCited} teams={teams} />
+
             <Pitch events={allEvents} selected={selected} teams={teams} />
             <p className="empty">
               {picked.ids.length > 0

@@ -1,7 +1,7 @@
 // web/src/matchContext.ts - shared match state, so every page reads one stream.
 import { createContext, useContext } from "react";
-import type { Insight, MatchEvent } from "./types";
-import type { StreamStatus } from "./useMatchStream";
+import type { Insight, MatchEvent } from "@/types/types";
+import type { StreamStatus } from "@/hooks/useMatchStream";
 
 export interface MatchState {
   insights: Insight[]; // newest first
