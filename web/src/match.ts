@@ -1,4 +1,5 @@
 // web/src/match.ts - small pure helpers. No React in here, so they are easy to test.
+import { playerNames } from "./players";
 import type { Insight, MatchEvent } from "./types";
 
 export const PITCH_W = 105;
@@ -53,13 +54,17 @@ export function languagesFrom(insights: Insight[], extra: string[] = []): string
   return [...codes];
 }
 
-/** The events an insight cites, in the order it cites them. Unknown ids are skipped. */
+/** Events for a list of ids, in that order. Unknown ids are skipped. */
+export function eventsByIds(ids: string[], byId: Map<string, MatchEvent>): MatchEvent[] {
+  return ids.map((id) => byId.get(id)).filter((e): e is MatchEvent => e !== undefined);
+}
+
+/** The events an insight cites, in the order it cites them. */
 export function evidenceEvents(
   insight: Insight | undefined,
   byId: Map<string, MatchEvent>,
 ): MatchEvent[] {
-  if (!insight) return [];
-  return insight.evidence.map((id) => byId.get(id)).filter((e): e is MatchEvent => e !== undefined);
+  return insight ? eventsByIds(insight.evidence, byId) : [];
 }
 
 /** Fallback recap with no LLM: the most important moments, in match order. */
@@ -82,15 +87,30 @@ export function teamColor(team: string, teams: string[]): string {
 export const stripCitations = (text: string): string =>
   text.replace(/\s*\[[^\]]*\]/g, "").replace(/^\s*\d+'\s*/, "").trim();
 
-/** Short chips from an insight's facts, e.g. ["12s", "2 passes", "ends in shot"]. */
+/** Short chips from an insight's facts, e.g. ["12s", "2 passes", "ends in shot", "started: Ada"]. */
 export function factChips(insight: Insight): string[] {
   const f = insight.facts;
   const out: string[] = [];
   if (typeof f["duration_s"] === "number") out.push(`${f["duration_s"]}s`);
-    if (typeof f["passes"] === "number") {
+  if (typeof f["passes"] === "number") {
     out.push(`${f["passes"]} ${f["passes"] === 1 ? "pass" : "passes"}`);
   }
   if (f["ended_in"] !== undefined) out.push(`ends in ${String(f["ended_in"]).replace(/_/g, " ")}`);
+
+  const starter = playerNames(f["starter"])[0];
+  const finisher = playerNames(f["finisher"])[0];
+  if (starter !== undefined && starter === finisher) {
+    out.push(`${starter} started and finished`);
+  } else {
+    if (starter !== undefined) out.push(`started: ${starter}`);
+    if (finisher !== undefined) out.push(`finished: ${finisher}`);
+  }
+
+  const involved = playerNames(f["players"]);
+  if (involved.length > 0) {
+    const more = involved.length - 3;
+    out.push(`${involved.slice(0, 3).join(", ")}${more > 0 ? ` +${more}` : ""}`);
+  }
   return out;
 }
 

@@ -11,12 +11,15 @@ import { AnnouncersPage } from "./pages/AnnouncersPage";
 import { FansPage } from "./pages/FansPage";
 import { InsightPage } from "./pages/InsightPage";
 import { LivePage } from "./pages/LivePage";
+import { PlayerPage } from "./pages/PlayerPage";
+import { PlayersPage } from "./pages/PlayersPage";
 import { RecapPage } from "./pages/RecapPage";
 import { Sidebar } from "./Sidebar";
 import { useHashRoute } from "./useHashRoute";
 import { useTheme } from "./useTheme";
 
 const INSIGHT_PREFIX = "/insight/";
+const PLAYER_PREFIX = "/player/";
 
 function safeDecode(s: string): string {
   try {
@@ -29,6 +32,10 @@ function safeDecode(s: string): string {
 function Page({ path }: { path: string }) {
   if (path === "/recap") return <RecapPage />;
   if (path === "/analytics") return <AnalyticsPage />;
+  if (path === "/players") return <PlayersPage />;
+  if (path.startsWith(PLAYER_PREFIX)) {
+    return <PlayerPage id={safeDecode(path.slice(PLAYER_PREFIX.length))} />;
+  }
   if (path === "/announcers") return <AnnouncersPage />;
   if (path === "/fans") return <FansPage />;
   if (path === "/about") return <AboutPage />;

@@ -2,10 +2,11 @@
 import { Icon, type IconName } from "./icons";
 import type { Theme } from "./useTheme";
 
-const NAV: { href: string; path: string; label: string; icon: IconName }[] = [
-  { href: "#/", path: "/", label: "Live", icon: "live" },
+const NAV: { href: string; path: string; label: string; icon: IconName; prefixes?: string[] }[] = [
+  { href: "#/", path: "/", label: "Live", icon: "live", prefixes: ["/insight/"] },
   { href: "#/recap", path: "/recap", label: "Timeline", icon: "timeline" },
   { href: "#/analytics", path: "/analytics", label: "Analytics", icon: "analytics" },
+  { href: "#/players", path: "/players", label: "Players", icon: "players", prefixes: ["/player/"] },
   { href: "#/announcers", path: "/announcers", label: "Announcers", icon: "mic" },
   { href: "#/fans", path: "/fans", label: "Fans", icon: "fans" },
   { href: "#/about", path: "/about", label: "How it works", icon: "info" },
@@ -39,7 +40,7 @@ export function Sidebar({
       <nav aria-label="Pages">
         <ul className="nav">
           {NAV.map((n) => {
-            const active = n.path === path || (n.path === "/" && path.startsWith("/insight/"));
+            const active = n.path === path || (n.prefixes?.some((p) => path.startsWith(p)) ?? false);
             return (
               <li key={n.href}>
                 <a
