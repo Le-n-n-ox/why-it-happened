@@ -1,4 +1,5 @@
 // web/src/Pitch.tsx - top-down pitch drawn as SVG (105 x 68, the real pitch size in metres).
+import type { ZoneCell } from "./analytics";
 import type { MatchEvent } from "./types";
 import { PITCH_H, PITCH_W, teamColor, toPitch } from "./match";
 
@@ -6,9 +7,10 @@ interface Props {
   events: MatchEvent[]; // everything that has happened so far (drawn faintly)
   selected: MatchEvent[]; // the evidence of the chosen insight, in order (drawn bright, numbered)
   teams: string[]; // first team attacks right, second is rotated
+  zones?: ZoneCell[]; // optional attack-zone overlay
 }
 
-export function Pitch({ events, selected, teams }: Props) {
+export function Pitch({ events, selected, teams, zones }: Props) {
   const leftTeam = teams[0];
   const chosen = new Set(selected.map((e) => e.id));
   const path = selected
@@ -17,7 +19,11 @@ export function Pitch({ events, selected, teams }: Props) {
     .join(" ");
   const label = selected.length
     ? `Pitch map: ${selected.length} evidence events highlighted`
-    : "Pitch map of match events";
+    : zones
+      ? "Pitch map with attack zones"
+      : "Pitch map of match events";
+  const maxCount = zones ? Math.max(0, ...zones.map((z) => z.count)) : 0;
+  const best = zones && maxCount > 0 ? zones.find((z) => z.count === maxCount) : undefined;
 
   return (
     <svg viewBox={`0 0 ${PITCH_W} ${PITCH_H}`} role="img" aria-label={label} className="pitch">
@@ -48,6 +54,32 @@ export function Pitch({ events, selected, teams }: Props) {
         <circle cx="11" cy={PITCH_H / 2} r="0.4" />
         <circle cx={PITCH_W - 11} cy={PITCH_H / 2} r="0.4" />
       </g>
+
+      {zones && (
+        <g className="pitch__zones">
+          {zones.map((z) => (
+            <g key={`${z.team}-${z.channel}`}>
+              <rect
+                className={z === best ? "pitch__zone pitch__zone--best" : "pitch__zone"}
+                x={z.x} y={z.y} width={z.w} height={z.h}
+                style={{
+                  fill: teamColor(z.team, teams),
+                  fillOpacity: maxCount > 0 ? 0.08 + (z.count / maxCount) * 0.5 : 0.08,
+                }}
+              >
+                <title>{`${z.team}: ${z.count} attacking actions in this zone`}</title>
+              </rect>
+              <text className="pitch__zonecount" x={z.x + z.w / 2} y={z.y + z.h / 2} dy=".35em"
+                textAnchor="middle">{z.count}</text>
+              {z === best && (
+                <text className="pitch__zonetag" x={z.x + z.w / 2} y={z.y + 3.6} textAnchor="middle">
+                  Most attacks
+                </text>
+              )}
+            </g>
+          ))}
+        </g>
+      )}
 
       {teams.length >= 2 && (
         <>
@@ -82,7 +114,7 @@ export function Pitch({ events, selected, teams }: Props) {
         );
       })}
 
-      {selected.length === 0 && (
+      {selected.length === 0 && !zones && (
         <text x={PITCH_W / 2} y={PITCH_H - 4} textAnchor="middle" className="pitch__hint">
           Select an insight to see its evidence
         </text>

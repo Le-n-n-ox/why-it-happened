@@ -1,4 +1,6 @@
 // web/src/pages/LivePage.tsx - the live dashboard: pitch + insight feed.
+import { useState } from "react";
+import { attackZones } from "../analytics";
 import { InsightCard } from "../InsightCard";
 import { evidenceEvents, teamColor } from "../match";
 import { useMatch } from "../matchContext";
@@ -7,13 +9,24 @@ import { Recap } from "../Recap";
 
 export function LivePage() {
   const { insights, status, teams, shown, byId, lang, ended, selectedId, select } = useMatch();
+  const [showZones, setShowZones] = useState(false);
   const selected = evidenceEvents(insights.find((i) => i.id === selectedId), byId);
 
   return (
     <div className="live">
       {teams.length > 0 && (
         <div className="live__pitch">
-          <Pitch events={shown} selected={selected} teams={teams} />
+          <div className="live__tools">
+            <button type="button" aria-pressed={showZones} onClick={() => setShowZones((v) => !v)}>
+              Attack zones: {showZones ? "on" : "off"}
+            </button>
+          </div>
+          <Pitch
+            events={shown}
+            selected={selected}
+            teams={teams}
+            zones={showZones ? attackZones(shown, teams) : undefined}
+          />
           {selectedId && (
             <a className="link" href={`#/insight/${encodeURIComponent(selectedId)}`}>
               Open full detail for this insight →
