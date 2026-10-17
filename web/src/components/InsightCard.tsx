@@ -1,8 +1,10 @@
 // web/src/components/InsightCard.tsx - one insight. A real <button>, so keyboard and screen readers just work.
 import { memo } from "react";
-import { factChips, formatMinute, kindLabel, lacksLang, pickText, stripCitations } from "../lib/match";
-import { ui } from "../lib/ui";
-import type { Insight } from "../types/types";
+import { ChainInline } from "@/components/Chain";
+import { factChips, formatMinute, kindLabel, lacksLang, pickText, stripCitations } from "@/lib/match";
+import { ui } from "@/lib/ui";
+import { normalizeChain } from "@/lib/why";
+import type { Insight } from "@/types/types";
 
 interface Props {
   insight: Insight;
@@ -34,6 +36,7 @@ export const InsightCard = memo(function InsightCard({ insight, lang, color, sel
           {stripCitations(pickText(insight, lang))}
           {fallback && <span className={ui.tag}>EN</span>}
         </span>
+        <ChainInline steps={normalizeChain(insight.chain)} />
         <span className={ui.chips}>
           {factChips(insight).map((c) => (
             <span key={c} className={ui.chip}>{c}</span>

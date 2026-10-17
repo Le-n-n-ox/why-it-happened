@@ -9,7 +9,6 @@ const BACKEND = "http://127.0.0.1:8001";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  // If your old file had a different alias block, keep yours.
   resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
   server: {
     port: 5173,
@@ -22,6 +21,7 @@ export default defineConfig({
       "/insights": BACKEND,
       "/recap": BACKEND,
       "/players": BACKEND,
+      "/why": BACKEND,
     },
   },
 });

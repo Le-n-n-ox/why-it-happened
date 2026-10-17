@@ -2,9 +2,12 @@ import { useState } from "react";
 import { InsightEvidenceTable } from "@/components/insights/InsightEvidenceTable";
 import { NameList } from "@/components/PlayerName";
 import { Pitch } from "@/components/Pitch";
+import { Chain } from "@/components/Chain";
+import { Button } from "@/components/Button";
 import { getEventWhy, getPlayers } from "@/lib/api";
-import { evidenceEvents, formatMinute, kindLabel, languageName, stripCitations, teamColor } from "@/lib/match";
+import { evidenceEvents, eventsByIds, formatMinute, kindLabel, languageName, stripCitations, teamColor } from "@/lib/match";
 import { normalizeAction, normalizePlayers, playerNames } from "@/lib/players";
+import { normalizeChain } from "@/lib/why";
 import { ui } from "@/lib/ui";
 import { useApi } from "@/hooks/useApi";
 import { useMatch } from "@/types/matchContext";
@@ -33,6 +36,8 @@ export function InsightPage({ id }: { id: string }) {
   const { insights, byId, allEvents, teams, status } = useMatch();
   const playersState = useApi(getPlayers, "all");
   const [why, setWhy] = useState<Partial<Record<string, WhyState>>>({});
+  const [focus, setFocus] = useState<string[] | null>(null);
+  
   const insight = insights.find((item) => item.id === id);
   const players = playersState.data === null ? [] : normalizePlayers(playersState.data);
 
@@ -65,6 +70,9 @@ export function InsightPage({ id }: { id: string }) {
   const starter = playerNames(insight.facts["starter"]);
   const finisher = playerNames(insight.facts["finisher"]);
   const involved = playerNames(insight.facts["players"]);
+  
+  const steps = normalizeChain(insight.chain);
+  const shownEvidence = focus ? eventsByIds(focus, byId) : evidence;
 
   return (
     <section className={ui.page}>
@@ -73,7 +81,18 @@ export function InsightPage({ id }: { id: string }) {
         <span className={ui.minute}>{formatMinute(insight.minute)}</span>{" "}
         <span style={{ color }}>{insight.team}</span> · {kindLabel(insight.kind)}
       </h2>
-      <Pitch events={allEvents} selected={evidence} teams={teams} />
+      <Pitch events={allEvents} selected={shownEvidence} teams={teams} />
+      
+      {steps.length > 0 && (
+        <section className="grid gap-2.5" aria-label="How it happened">
+          <h3 className={ui.h3}>How it happened</h3>
+          <Chain steps={steps} onShow={setFocus} />
+          {focus !== null && (
+            <div><Button onClick={() => setFocus(null)}>Show all evidence</Button></div>
+          )}
+        </section>
+      )}
+
       <h3 className={ui.h3}>Narration</h3>
       <ul className="m-0 grid list-disc gap-1.5 pl-5">
         {Object.entries(insight.narration).map(([code, text]) => (

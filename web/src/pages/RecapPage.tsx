@@ -1,8 +1,9 @@
-// web/src/pages/RecapPage.tsx - timeline of every insight, plus the full-time recap.
-import { Recap } from "../components/Recap";
-import { formatMinute, kindLabel, pickText, stripCitations, teamColor } from "../lib/match";
-import { ui } from "../lib/ui";
-import { useMatch } from "../types/matchContext";
+// web/src/pages/RecapPage.tsx - why the match went this way, a timeline of every insight, and the recap.
+import { Recap } from "@/components/Recap";
+import { WhyPanel } from "@/components/WhyPanel";
+import { formatMinute, kindLabel, pickText, stripCitations, teamColor } from "@/lib/match";
+import { ui } from "@/lib/ui";
+import { useMatch } from "@/types/matchContext";
 
 export function RecapPage() {
   const { insights, allEvents, teams, lang, ended } = useMatch();
@@ -12,6 +13,7 @@ export function RecapPage() {
 
   return (
     <section className={ui.page}>
+      <WhyPanel />
       <h2 className={ui.h2}>Match timeline</h2>
 
       {insights.length === 0 ? (

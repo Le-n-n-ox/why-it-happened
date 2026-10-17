@@ -1,4 +1,4 @@
-// web/src/players.ts - turns /players responses into UI types. Reads loosely: unknown shapes are skipped.
+// web/src/lib/players.ts - turns /players responses into UI types. Reads loosely: unknown shapes are skipped.
 import type {
   PlayerAction, PlayerDetail, PlayerMoment, PlayerReview, PlayerSummary, RatingPart, Stat,
 } from "@/types/types";
@@ -23,8 +23,21 @@ export const prettyKey = (key: string): string => {
   return s.charAt(0).toUpperCase() + s.slice(1);
 };
 
+/** Ratings top out at 9.9: a perfect 10 is not possible. */
+export const MAX_RATING = 9.9;
+
+/** Keeps a rating in 0 to 9.9. A value above 10 is treated as bad data and dropped. */
+export function clampRating(r: number | undefined): number | undefined {
+  if (r === undefined || r < 0 || r > 10) return undefined;
+  return Math.min(r, MAX_RATING);
+}
+
+/** Bar width in percent on a 0 to 10 scale. It can never reach 100. */
+export const ratingPct = (r: number | null): number =>
+  r === null ? 0 : (Math.min(Math.max(r, 0), MAX_RATING) / 10) * 100;
+
 export const formatRating = (r: number | null): string =>
-  r === null ? "-" : Number.isInteger(r) ? String(r) : r.toFixed(1);
+  r === null ? "-" : Math.min(r, MAX_RATING).toFixed(1);
 
 function normalizeStats(v: unknown): Stat[] {
   if (isObj(v)) {
@@ -71,7 +84,7 @@ export function normalizePlayer(raw: unknown): PlayerSummary | null {
     id,
     name: str(raw.name) ?? id,
     team: str(raw.team) ?? "",
-    rating: num(raw.rating) ?? null,
+    rating: clampRating(num(raw.rating)) ?? null,
     stats: normalizeStats(raw.stats),
   };
 }
@@ -133,7 +146,7 @@ export function normalizeReview(raw: unknown): PlayerReview | null {
   return {
     text,
     lang: str(raw.lang) ?? "",
-    rating: num(raw.rating) ?? null,
+    rating: clampRating(num(raw.rating)) ?? null,
     evidence: strList(raw.evidence),
   };
 }

@@ -10,6 +10,7 @@ import { Pitch } from "@/components/Pitch";
 import { PowerSwitch } from "@/components/PowerSwitch";
 import { Recap } from "@/components/Recap";
 import { ui } from "@/lib/ui";
+import { WhyPanel } from "@/components/WhyPanel";
 
 export function LivePage() {
   const { insights, status, teams, shown, byId, lang, ended, selectedId, select } = useMatch();
@@ -61,6 +62,11 @@ export function LivePage() {
           ))}
         </ul>
       </section>
+
+      {/* The new WhyPanel can be placed full-width under the main grids */}
+      <div className="col-span-2 max-[1100px]:col-span-1">
+        <WhyPanel />
+      </div>
 
       <div className="col-span-2 max-[1100px]:col-span-1">
         <Recap insights={insights} lang={lang} ended={ended} />

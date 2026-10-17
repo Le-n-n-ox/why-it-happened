@@ -10,7 +10,7 @@ interface StatCardProps {
 function StatCard({ title, teams, colors, values }: StatCardProps) {
   return (
     <div className="grid gap-1 rounded-card border border-line bg-surface px-4 py-3.5">
-      <h3 className="m-0 text-xs font-normal uppercase tracking-wider text-muted">{title}</h3>
+      <h3 className="m-0 font-sans text-xs font-normal uppercase tracking-wider text-muted">{title}</h3>
       {teams.map((team, index) => (
         <div key={team} className="flex items-baseline justify-between font-semibold">
           <span style={{ color: colors[index] }}>{team}</span>

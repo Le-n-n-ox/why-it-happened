@@ -19,6 +19,7 @@ export interface Insight {
   minute: number; // when it was detected
   evidence: string[]; // MatchEvent ids
   // Known keys: duration_s, passes, ended_in, players, starter, finisher. Others may appear.
+  chain?: unknown;
   facts: Record<string, unknown>;
   narration: Record<string, string>; // language code -> text, e.g. { en: "...", sw: "..." }
 }

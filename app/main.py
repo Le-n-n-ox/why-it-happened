@@ -6,8 +6,9 @@
   GET  /insights          insights stored so far (current stream)
   GET  /insights/history  saved insights from the database (?team=&limit=)
   GET  /recap             full-time recap text (?lang=)
-  GET  /players            player summaries derived from match events
-  GET  /players/{id}       one player's details
+  GET  /why               match-level explanation for WhyPanel (?lang=)
+  GET  /players           player summaries derived from match events
+  GET  /players/{id}      one player's details
   GET  /players/{id}/review written review placeholder (?lang=)
   GET  /stream            Server-Sent Events: replays the match and pushes insights live
 """
@@ -18,7 +19,7 @@ import re
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -132,6 +133,21 @@ def event_why(event_id: str):
     return result
 
 
+@app.get("/why")
+def get_match_why(lang: str = Query("en")):
+    """
+    Match-level explanation for the frontend WhyPanel.
+    Stubbed to prevent 404s until the backend narrator is wired up.
+    """
+    return {
+        "status": "ok",
+        "lang": lang,
+        "summary": "The AI narrator is currently analyzing the match.",
+        "factors": [],
+        "chain": []
+    }
+
+
 @app.get("/health")
 def health():
     configured = bool(os.getenv("NVIDIA_API_KEY") and MODEL)
@@ -184,16 +200,13 @@ _recap_cache: dict[tuple, dict] = {}     # (language, insight ids) -> finished A
 
 @app.get("/recap")
 def recap(lang: str = "en"):
-
     """Return a grounded AI summary including the standout player when available."""
     events, found = _match_data()
-
-    """Return a grounded AI summary when available, otherwise join plain narrations."""
-
     items = sorted(store.list_insights(), key=lambda i: i.get("minute", 0))
     parts: list[str] = []
     ids: list[str] = []
     moments: list[dict] = []
+    
     for i in items:
         narration = i.get("narration") or {}
         if not isinstance(narration, dict):
@@ -207,14 +220,24 @@ def recap(lang: str = "en"):
             moments.append({"minute": int(i.get("minute", 0)), "team": i.get("team", ""), "what": english})
 
     info = match_info(events)
+    home = info.get("home")
+    away = info.get("away")
+    scores = info.get("score", {})
 
-    info = match_info(load_events(EVENTS_FILE))
+    # Fallback: Extract teams and calculate goals manually if metadata is missing
+    if not home or not away:
+        teams = list(dict.fromkeys(getattr(e, "team", "") for e in events if getattr(e, "team", "")))
+        home = teams[0] if len(teams) > 0 else "Home"
+        away = teams[1] if len(teams) > 1 else "Away"
+        
+        scores = {home: 0, away: 0}
+        for e in events:
+            if getattr(e, "kind", "") == "goal":
+                t = getattr(e, "team", "")
+                if t:
+                    scores[t] = scores.get(t, 0) + 1
 
-    headline = ""
-    if info["home"] and info["away"]:
-        s = info["score"]
-        headline = f"Full time: {info['home']} {s[info['home']]}-{s[info['away']]} {info['away']}."
-
+    headline = f"Full time: {home} {scores.get(home, 0)}-{scores.get(away, 0)} {away}."
 
     players = player_table(events, found)
     top_player = players[0] if players else None
@@ -222,22 +245,19 @@ def recap(lang: str = "en"):
     standout_key = tuple(top_player.get(key) for key in ("name", "team", "goals", "rating")) if top_player else None
     key = (lang, tuple(ids), standout_key)
 
-    key = (lang, tuple(ids))
-
     if key in _recap_cache:
         return _recap_cache[key]
+        
     if ids and MODEL and os.getenv("NVIDIA_API_KEY") and model_available():
         try:
-
-            summary = write_recap(MODEL, lang, info["score"], moments, top_player=top_player)
-
-            summary = write_recap(MODEL, lang, info["score"], moments)
-
+            # Pass the accurate, calculated scores directly to the LLM to ground the generation
+            summary = write_recap(MODEL, lang, scores, moments, top_player=top_player)
             result = {"lang": lang, "text": f"{headline} {summary}".strip(), "insight_ids": ids}
             _recap_cache[key] = result
             return result
         except Exception as exc:
             print(f"[DEBUG] AI recap failed ({exc}); using the plain join")
+            
     return {"lang": lang, "text": " ".join(([headline] if headline else []) + parts), "insight_ids": ids}
 
 

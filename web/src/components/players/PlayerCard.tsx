@@ -1,18 +1,17 @@
-import { formatRating, prettyKey } from "@/lib/players";
 import { teamColor } from "@/lib/match";
+import { formatRating, prettyKey, ratingPct } from "@/lib/players";
 import { ui } from "@/lib/ui";
 import type { PlayerSummary } from "@/types/types";
 
 interface PlayerCardProps {
   player: PlayerSummary;
   rank: number;
-  scaleMax: number;
   teams: string[];
 }
 
-export function PlayerCard({ player, rank, scaleMax, teams }: PlayerCardProps) {
+export function PlayerCard({ player, rank, teams }: PlayerCardProps) {
   const color = teamColor(player.team, teams);
-  const pct = player.rating === null ? 0 : Math.max(0, Math.min(100, (player.rating / scaleMax) * 100));
+  const pct = ratingPct(player.rating);
 
   return (
     <li
@@ -21,7 +20,10 @@ export function PlayerCard({ player, rank, scaleMax, teams }: PlayerCardProps) {
     >
       <span className="text-center font-heading text-[1.4rem] text-muted" aria-hidden="true">{rank}</span>
       <div className="grid min-w-0 gap-1.5">
-        <a className="text-[1.1rem] font-bold text-accent hover:underline" href={`#/player/${encodeURIComponent(player.id)}`}>
+        <a
+          className="text-[1.1rem] font-bold text-accent hover:underline"
+          href={`#/player/${encodeURIComponent(player.id)}`}
+        >
           {player.name}
         </a>
         <div className={ui.meta}>
@@ -34,7 +36,10 @@ export function PlayerCard({ player, rank, scaleMax, teams }: PlayerCardProps) {
         </div>
       </div>
       <div className="grid justify-items-end gap-1.5 max-[600px]:col-span-full max-[600px]:justify-items-stretch">
-        <span className="font-heading text-[1.8rem] font-bold tabular-nums" aria-label={`Rating ${formatRating(player.rating)}`}>
+        <span
+          className="font-heading text-[1.8rem] font-bold tabular-nums"
+          aria-label={`Rating ${formatRating(player.rating)}`}
+        >
           {formatRating(player.rating)}
         </span>
         <div className="h-2 w-full overflow-hidden rounded-full bg-surface-2" aria-hidden="true">

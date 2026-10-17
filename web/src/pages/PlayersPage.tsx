@@ -3,10 +3,10 @@ import { Button } from "@/components/Button";
 import { Loader } from "@/components/Loader";
 import { PlayerCard } from "@/components/players/PlayerCard";
 import { PlayerFilters, type PlayerSort } from "@/components/players/PlayerFilters";
+import { useApi } from "@/hooks/useApi";
 import { getPlayers } from "@/lib/api";
 import { normalizePlayers } from "@/lib/players";
 import { ui } from "@/lib/ui";
-import { useApi } from "@/hooks/useApi";
 import { useMatch } from "@/types/matchContext";
 import type { PlayerSummary } from "@/types/types";
 
@@ -28,8 +28,6 @@ export function PlayersPage() {
   const list = players
     .filter((player) => activeTeam === "all" || player.team === activeTeam)
     .sort(sort === "rating" ? byRating : sort === "name" ? byName : byTeam);
-  const top = Math.max(0, ...players.map((player) => player.rating ?? 0));
-  const scaleMax = top <= 10 ? 10 : 100;
 
   return (
     <section className={ui.pageWide}>
@@ -69,13 +67,7 @@ export function PlayersPage() {
           />
           <ol className="m-0 grid list-none gap-2.5 p-0">
             {list.map((player, index) => (
-              <PlayerCard
-                key={player.id}
-                player={player}
-                rank={index + 1}
-                scaleMax={scaleMax}
-                teams={teams}
-              />
+              <PlayerCard key={player.id} player={player} rank={index + 1} teams={teams} />
             ))}
           </ol>
         </>

@@ -1,6 +1,6 @@
+import type { PlayerStat } from "@/lib/analytics";
 import { teamColor } from "@/lib/match";
 import { ui } from "@/lib/ui";
-import type { PlayerStat } from "@/lib/analytics";
 
 interface MeterCellProps {
   value: number;
@@ -11,8 +11,9 @@ interface MeterCellProps {
 const TH = "border-b border-line px-2.5 py-1.5 text-left font-semibold text-muted";
 const TD = "border-b border-line px-2.5 py-1.5 text-left";
 
+// The leader's bar stops short of full so it never reads as a perfect score.
 function MeterCell({ value, max, color }: MeterCellProps) {
-  const pct = Math.max(0, Math.min(100, (value / max) * 100));
+  const pct = Math.max(0, Math.min(95, (value / max) * 100));
   return (
     <div className="flex min-w-[130px] items-center gap-2">
       <span className="min-w-[3.5ch] text-right tabular-nums">{value}</span>
@@ -46,6 +47,7 @@ export function PlayerRanking({ players, teams }: PlayerRankingProps) {
 
   const maxScore = Math.max(1, ...players.map((player) => player.score));
   const maxDistance = Math.max(1, ...players.map((player) => player.distanceM));
+
   return (
     <section className={ui.panel} aria-label="Player ranking">
       <h3 className={ui.h3}>Player ranking</h3>

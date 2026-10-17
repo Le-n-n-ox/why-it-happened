@@ -5,7 +5,7 @@ import { RoutePage } from "@/app/routes";
 import { Button } from "@/components/Button";
 import { useHashRoute } from "@/hooks/useHashRoute";
 import { useTheme } from "@/hooks/useTheme";
-import Header from "../layout/Header";
+import { Header } from "@/layout/Header";
 import { Sidebar } from "@/layout/Sidebar";
 import { useMatch } from "@/types/matchContext";
 
