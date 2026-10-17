@@ -1,7 +1,8 @@
-// web/src/InsightCard.tsx - one insight. A real <button>, so keyboard and screen readers just work.
+// web/src/components/InsightCard.tsx - one insight. A real <button>, so keyboard and screen readers just work.
 import { memo } from "react";
-import type { Insight } from "@/types/types";
-import { factChips, formatMinute, kindLabel, lacksLang, pickText, stripCitations } from "@/lib/match";
+import { factChips, formatMinute, kindLabel, lacksLang, pickText, stripCitations } from "../lib/match";
+import { ui } from "../lib/ui";
+import type { Insight } from "../types/types";
 
 interface Props {
   insight: Insight;
@@ -14,28 +15,31 @@ interface Props {
 export const InsightCard = memo(function InsightCard({ insight, lang, color, selected, onSelect }: Props) {
   const fallback = lacksLang(insight, lang);
   return (
-    <li className="card" style={{ borderLeftColor: color }}>
+    <li
+      className="animate-slide-in rounded-card border border-l-4 border-line bg-surface transition hover:-translate-y-px hover:shadow-card"
+      style={{ borderLeftColor: color }}
+    >
       <button
         type="button"
-        className="card__button"
+        className="grid w-full cursor-pointer gap-1.5 rounded-card p-3 text-left hover:bg-surface-3/40 aria-pressed:bg-surface-2"
         aria-pressed={selected}
         onClick={() => onSelect(insight.id)}
       >
-        <span className="card__meta">
-          <span className="card__minute">{formatMinute(insight.minute)}</span>
-          <span className="card__team" style={{ color }}>{insight.team}</span>
-          <span className="card__kind">{kindLabel(insight.kind)}</span>
+        <span className={ui.meta}>
+          <span className={ui.minute}>{formatMinute(insight.minute)}</span>
+          <span className="font-bold" style={{ color }}>{insight.team}</span>
+          <span>{kindLabel(insight.kind)}</span>
         </span>
-        <span className="card__text" lang={fallback ? "en" : lang}>
+        <span lang={fallback ? "en" : lang}>
           {stripCitations(pickText(insight, lang))}
-          {fallback && <span className="tag">EN</span>}
+          {fallback && <span className={ui.tag}>EN</span>}
         </span>
-        <span className="card__chips">
+        <span className={ui.chips}>
           {factChips(insight).map((c) => (
-            <span key={c} className="chip">{c}</span>
+            <span key={c} className={ui.chip}>{c}</span>
           ))}
         </span>
-        <span className="card__evidence">Evidence: {insight.evidence.join(", ")}</span>
+        <span className="text-xs text-muted">Evidence: {insight.evidence.join(", ")}</span>
       </button>
     </li>
   );

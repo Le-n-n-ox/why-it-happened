@@ -1,7 +1,10 @@
+// web/src/components/Recap.tsx - full-time recap: /recap if the backend has it, else a local key-moments list.
 import { useEffect, useState } from "react";
-import { getRecap } from "@/lib/api";
-import { formatMinute, keyMoments, pickText, stripCitations } from "@/lib/match";
-import type { Insight, Recap as RecapData } from "@/types/types";
+import { getRecap } from "../lib/api";
+import { formatMinute, keyMoments, pickText, stripCitations } from "../lib/match";
+import { ui } from "../lib/ui";
+import { cn } from "../lib/utils";
+import type { Insight, Recap as RecapData } from "../types/types";
 
 interface Props {
   insights: Insight[];
@@ -19,26 +22,20 @@ export function Recap({ insights, lang, ended }: Props) {
     }
     let cancelled = false;
     getRecap(lang)
-      .then((r) => {
-        if (!cancelled) setRecap(r);
-      })
-      .catch(() => {
-        if (!cancelled) setRecap(null);
-      });
-    return () => {
-      cancelled = true;
-    };
+      .then((r) => { if (!cancelled) setRecap(r); })
+      .catch(() => { if (!cancelled) setRecap(null); }); // no /recap yet: fallback below
+    return () => { cancelled = true; };
   }, [ended, lang]);
 
   if (!ended) return null;
 
   return (
-    <section className="recap" aria-label="Full-time recap">
-      <h2>Full-time recap</h2>
+    <section className="rounded-card border border-line bg-surface px-[18px] py-3.5" aria-label="Full-time recap">
+      <h2 className={cn(ui.h2, "mb-2")}>Full-time recap</h2>
       {recap?.text ? (
         <p lang={lang}>{stripCitations(recap.text)}</p>
       ) : (
-        <ul>
+        <ul className="grid list-disc gap-1.5 pl-5">
           {keyMoments(insights).map((i) => (
             <li key={i.id}>
               {formatMinute(i.minute)} {i.team}: {stripCitations(pickText(i, lang))}

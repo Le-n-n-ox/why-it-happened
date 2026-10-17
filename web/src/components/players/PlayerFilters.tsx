@@ -1,3 +1,4 @@
+import { Button } from "@/components/Button";
 import { teamColor } from "@/lib/match";
 
 export type PlayerSort = "rating" | "name" | "team";
@@ -17,43 +18,48 @@ const SORTS: { id: PlayerSort; label: string }[] = [
   { id: "team", label: "Team" },
 ];
 
+const ROW = "flex flex-wrap items-center gap-2.5";
+const LABEL = "text-[.8rem] font-bold uppercase tracking-[.06em] text-muted";
+const FAV = "flex flex-wrap gap-2";
+const FAV_BUTTON = "border-2 px-4 py-2 aria-pressed:bg-surface-2 aria-pressed:shadow-[0_0_0_2px_var(--accent)]";
+
 export function PlayerFilters({
   sort, team, teams, matchTeams, onSortChange, onTeamChange,
 }: PlayerFiltersProps) {
   return (
     <>
-      <div className="sortbar">
-        <span className="sortbar__label">Sort by</span>
-        <div className="fav" role="group" aria-label="Sort players">
+      <div className={ROW}>
+        <span className={LABEL}>Sort by</span>
+        <div className={FAV} role="group" aria-label="Sort players">
           {SORTS.map((option) => (
-            <button
+            <Button
               key={option.id}
-              type="button"
+              className={FAV_BUTTON}
               aria-pressed={sort === option.id}
               onClick={() => onSortChange(option.id)}
             >
               {option.label}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
       {matchTeams.length > 1 && (
-        <div className="team-filter">
-          <span className="sortbar__label">Team</span>
-          <div className="fav" role="group" aria-label="Filter by team">
-            <button type="button" aria-pressed={team === "all"} onClick={() => onTeamChange("all")}>
+        <div className={ROW}>
+          <span className={LABEL}>Team</span>
+          <div className={FAV} role="group" aria-label="Filter by team">
+            <Button className={FAV_BUTTON} aria-pressed={team === "all"} onClick={() => onTeamChange("all")}>
               Both teams
-            </button>
+            </Button>
             {matchTeams.map((matchTeam) => (
-              <button
+              <Button
                 key={matchTeam}
-                type="button"
+                className={FAV_BUTTON}
                 aria-pressed={team === matchTeam}
                 onClick={() => onTeamChange(matchTeam)}
                 style={{ borderColor: teamColor(matchTeam, teams) }}
               >
                 {matchTeam}
-              </button>
+              </Button>
             ))}
           </div>
         </div>

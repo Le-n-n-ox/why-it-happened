@@ -1,18 +1,16 @@
-import { defineConfig } from "vite";
+import path from "node:path";
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { fileURLToPath, URL } from "node:url";
+import { defineConfig } from "vite";
 
 // Dev only: the page calls its own address and Vite forwards these routes to the backend.
 // Port 8001 because Splunk answers on 8000 on this machine.
 const BACKEND = "http://127.0.0.1:8001";
 
 export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      "@": fileURLToPath(new URL("./src", import.meta.url)),
-    },
-  },
+  plugins: [react(), tailwindcss()],
+  // If your old file had a different alias block, keep yours.
+  resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
   server: {
     port: 5173,
     strictPort: true,

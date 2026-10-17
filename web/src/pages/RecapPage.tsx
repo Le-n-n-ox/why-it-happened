@@ -1,7 +1,8 @@
 // web/src/pages/RecapPage.tsx - timeline of every insight, plus the full-time recap.
-import { formatMinute, kindLabel, pickText, stripCitations, teamColor } from "@/lib/match";
-import { useMatch } from "@/types/matchContext";
-import { Recap } from "@/components/Recap";
+import { Recap } from "../components/Recap";
+import { formatMinute, kindLabel, pickText, stripCitations, teamColor } from "../lib/match";
+import { ui } from "../lib/ui";
+import { useMatch } from "../types/matchContext";
 
 export function RecapPage() {
   const { insights, allEvents, teams, lang, ended } = useMatch();
@@ -10,19 +11,19 @@ export function RecapPage() {
   const maxMinute = Math.max(5, Math.ceil(last / 5) * 5);
 
   return (
-    <section className="page">
-      <h2>Match timeline</h2>
+    <section className={ui.page}>
+      <h2 className={ui.h2}>Match timeline</h2>
 
       {insights.length === 0 ? (
-        <p className="empty">No insights yet. Go to Live and let the match play.</p>
+        <p className={ui.empty}>No insights yet. Go to Live and let the match play.</p>
       ) : (
         <>
-          <div className="track" role="list" aria-label="Insights by minute">
+          <div className="relative h-7 rounded-full bg-surface" role="list" aria-label="Insights by minute">
             {chrono.map((i) => (
               <a
                 key={i.id}
                 role="listitem"
-                className="track__marker"
+                className="absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-fg"
                 href={`#/insight/${encodeURIComponent(i.id)}`}
                 style={{
                   left: `${Math.min(100, (i.minute / maxMinute) * 100)}%`,
@@ -33,23 +34,23 @@ export function RecapPage() {
               />
             ))}
           </div>
-          <div className="track__scale" aria-hidden="true">
+          <div className="-mt-2 flex justify-between text-xs text-muted" aria-hidden="true">
             <span>0'</span>
             <span>{maxMinute}'</span>
           </div>
 
-          <ol className="timeline">
+          <ol className="grid gap-2.5">
             {chrono.map((i) => (
               <li key={i.id}>
                 <a
-                  className="tl__item"
+                  className="grid gap-1 rounded-card border border-l-4 border-line bg-surface px-3.5 py-3 text-fg transition-colors hover:bg-surface-2"
                   href={`#/insight/${encodeURIComponent(i.id)}`}
                   style={{ borderLeftColor: teamColor(i.team, teams) }}
                 >
-                  <span className="card__meta">
-                    <span className="card__minute">{formatMinute(i.minute)}</span>
-                    <span className="card__team" style={{ color: teamColor(i.team, teams) }}>{i.team}</span>
-                    <span className="card__kind">{kindLabel(i.kind)}</span>
+                  <span className={ui.meta}>
+                    <span className={ui.minute}>{formatMinute(i.minute)}</span>
+                    <span className="font-bold" style={{ color: teamColor(i.team, teams) }}>{i.team}</span>
+                    <span>{kindLabel(i.kind)}</span>
                   </span>
                   <span lang={lang in i.narration ? lang : "en"}>
                     {stripCitations(pickText(i, lang))}
@@ -64,7 +65,7 @@ export function RecapPage() {
       {ended ? (
         <Recap insights={insights} lang={lang} ended={ended} />
       ) : (
-        <p className="empty">The full-time recap appears when the match ends.</p>
+        <p className={ui.empty}>The full-time recap appears when the match ends.</p>
       )}
     </section>
   );

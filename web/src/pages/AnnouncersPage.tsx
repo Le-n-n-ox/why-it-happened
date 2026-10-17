@@ -1,11 +1,13 @@
 // web/src/pages/AnnouncersPage.tsx - booth view: the line to read, a cue sheet, and proof to fact-check.
 import { useState } from "react";
-import { CopyButton } from "@/components/Actions";
+import { CopyButton } from "../components/Actions";
+import { Button } from "../components/Button";
 import {
   factChips, formatMinute, kindLabel, lacksLang, pickText, stripCitations, teamColor,
-} from "@/lib/match";
-import { useMatch } from "@/types/matchContext";
-import type { Insight } from "@/types/types";
+} from "../lib/match";
+import { ui } from "../lib/ui";
+import { useMatch } from "../types/matchContext";
+import type { Insight } from "../types/types";
 
 type Size = "m" | "l" | "xl";
 const SIZES: { id: Size; label: string }[] = [
@@ -13,6 +15,7 @@ const SIZES: { id: Size; label: string }[] = [
   { id: "l", label: "A+" },
   { id: "xl", label: "A++" },
 ];
+const TEXT_SIZE: Record<Size, string> = { m: "text-[1.3rem]", l: "text-[2rem]", xl: "text-[3rem]" };
 
 export function AnnouncersPage() {
   const { insights, teams, score, clock, ended, lang, selectedId, select } = useMatch();
@@ -31,88 +34,88 @@ export function AnnouncersPage() {
     });
 
   return (
-    <section className="page">
-      <h2>Announcers</h2>
+    <section className={ui.page}>
+      <h2 className={ui.h2}>Announcers</h2>
 
-      <div className="onair" aria-label="On air">
-        <div className="onair__bar">
-          <span className="onair__status">
+      <div className="grid gap-2.5 rounded-card border-2 border-accent-2 bg-surface px-5 py-4 shadow-card" aria-label="On air">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="font-bold tabular-nums">
             {teams.map((t) => `${t} ${score[t]}`).join(" - ")} · {ended ? "FT" : formatMinute(clock)}
           </span>
-          <span className="onair__sizes" role="group" aria-label="Text size">
+          <span className="flex gap-1.5" role="group" aria-label="Text size">
             {SIZES.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                aria-pressed={size === s.id}
-                onClick={() => setSize(s.id)}
-              >
+              <Button key={s.id} aria-pressed={size === s.id} onClick={() => setSize(s.id)}>
                 {s.label}
-              </button>
+              </Button>
             ))}
           </span>
         </div>
 
         {current ? (
           <>
-            <p className="onair__meta">
-              <span className="card__minute">{formatMinute(current.minute)}</span>{" "}
+            <p className="m-0 text-muted">
+              <span className={ui.minute}>{formatMinute(current.minute)}</span>{" "}
               <span style={{ color: teamColor(current.team, teams) }}>{current.team}</span>
               {" · "}{kindLabel(current.kind)}
             </p>
-            <p className="onair__text" data-size={size} lang={lacksLang(current, lang) ? "en" : lang}>
+            <p className={`m-0 font-semibold leading-snug ${TEXT_SIZE[size]}`} lang={lacksLang(current, lang) ? "en" : lang}>
               {stripCitations(pickText(current, lang))}
             </p>
-            <p className="onair__proof">
+            <p className="m-0 text-[.85rem] text-muted">
               Check: {current.evidence.join(", ")}{" "}
-              <a className="link" href={`#/insight/${encodeURIComponent(current.id)}`}>
+              <a className={ui.link} href={`#/insight/${encodeURIComponent(current.id)}`}>
                 Open the proof →
               </a>
             </p>
           </>
         ) : (
-          <p className="empty">Waiting for the first insight...</p>
+          <p className={ui.empty}>Waiting for the first insight...</p>
         )}
       </div>
 
-      <div className="cues__head">
-        <h3>Cue sheet</h3>
-        <button type="button" onClick={() => setRead(new Set())} disabled={read.size === 0}>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className={ui.h3}>Cue sheet</h3>
+        <Button onClick={() => setRead(new Set())} disabled={read.size === 0}>
           Clear read marks
-        </button>
+        </Button>
       </div>
-      <p className="empty">Newest first. Read marks stay in this page only.</p>
+      <p className={ui.empty}>Newest first. Read marks stay in this page only.</p>
 
-      <ul className="cues">
+      <ul className="grid gap-2.5">
         {insights.map((i) => {
           const isCurrent = i.id === current?.id;
           return (
             <li
               key={i.id}
-              className="cue"
               data-read={read.has(i.id)}
+              className="grid gap-2 rounded-card border border-l-4 border-line bg-surface px-3.5 py-3 data-[read=true]:opacity-55"
               style={{ borderLeftColor: teamColor(i.team, teams) }}
             >
-              <div className="card__meta">
-                <span className="card__minute">{formatMinute(i.minute)}</span>
-                <span className="card__team" style={{ color: teamColor(i.team, teams) }}>{i.team}</span>
-                <span className="card__kind">{kindLabel(i.kind)}</span>
+              <div className={ui.meta}>
+                <span className={ui.minute}>{formatMinute(i.minute)}</span>
+                <span className="font-bold" style={{ color: teamColor(i.team, teams) }}>{i.team}</span>
+                <span>{kindLabel(i.kind)}</span>
               </div>
-              <p className="cue__text" lang={lacksLang(i, lang) ? "en" : lang}>
+              <p className="m-0 text-[1.1rem]" lang={lacksLang(i, lang) ? "en" : lang}>
                 {stripCitations(pickText(i, lang))}
-                {lacksLang(i, lang) && <span className="tag">EN</span>}
+                {lacksLang(i, lang) && <span className={ui.tag}>EN</span>}
               </p>
-              <div className="card__chips">
-                {factChips(i).map((c) => <span key={c} className="chip">{c}</span>)}
-                <span className="chip">Check: {i.evidence.join(", ")}</span>
+              <div className={ui.chips}>
+                {factChips(i).map((c) => <span key={c} className={ui.chip}>{c}</span>)}
+                <span className={ui.chip}>Check: {i.evidence.join(", ")}</span>
               </div>
-              <div className="cue__actions">
-                <button type="button" aria-pressed={isCurrent} onClick={() => select(i.id)}>
+              <div className={ui.actions}>
+                <Button aria-pressed={isCurrent} onClick={() => select(i.id)}>
                   {isCurrent ? "On air" : "Put on air"}
-                </button>
+                </Button>
                 <CopyButton text={line(i)} label="Copy line" />
-                <label className="cue__read">
-                  <input type="checkbox" checked={read.has(i.id)} onChange={() => toggleRead(i.id)} />
+                <label className="inline-flex items-center gap-1.5 text-[.9rem] text-muted">
+                  <input
+                    type="checkbox"
+                    className="size-[18px] accent-accent"
+                    checked={read.has(i.id)}
+                    onChange={() => toggleRead(i.id)}
+                  />
                   Read
                 </label>
               </div>

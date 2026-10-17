@@ -1,12 +1,16 @@
-// web/src/App.tsx - shell: sidebar, topbar, banners and the current page.
+// web/src/app/App.tsx - shell: sidebar, header, banners and the current page.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MatchProvider } from "@/app/MatchProvider";
 import { RoutePage } from "@/app/routes";
-import { useMatch } from "@/types/matchContext";
-import { Header } from "@/layout/Header";
-import { Sidebar } from "@/layout/Sidebar";
+import { Button } from "@/components/Button";
 import { useHashRoute } from "@/hooks/useHashRoute";
 import { useTheme } from "@/hooks/useTheme";
+import Header from "../layout/Header";
+import { Sidebar } from "@/layout/Sidebar";
+import { useMatch } from "@/types/matchContext";
+
+const BANNER = "m-0 rounded-card bg-warn px-3.5 py-2.5 text-black";
+const BANNER_BUTTON = "border-black bg-white text-black hover:bg-white/90";
 
 function readCollapsed(): boolean {
   try {
@@ -23,6 +27,7 @@ function Shell() {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const menuButton = useRef<HTMLButtonElement>(null);
+
   useEffect(() => {
     try {
       localStorage.setItem("nav", collapsed ? "collapsed" : "open");
@@ -48,7 +53,11 @@ function Shell() {
   const closeMenu = useCallback(() => setOpen(false), []);
 
   return (
-    <div className="shell" data-open={open} data-collapsed={collapsed}>
+    <div
+      className="grid min-h-screen grid-cols-[var(--nav-w)_minmax(0,1fr)] transition-[grid-template-columns] duration-[250ms] ease-[cubic-bezier(.2,.8,.2,1)] [--nav-w:248px] data-[collapsed=true]:[--nav-w:76px] max-[900px]:grid-cols-[minmax(0,1fr)]"
+      data-open={open}
+      data-collapsed={collapsed}
+    >
       <Sidebar
         path={path}
         collapsed={collapsed}
@@ -58,25 +67,42 @@ function Shell() {
         onToggleCollapse={() => setCollapsed((c) => !c)}
         onToggleTheme={toggleTheme}
       />
-      <button type="button" className="backdrop" tabIndex={-1} aria-label="Close menu" onClick={closeMenu} />
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-label="Close menu"
+        onClick={closeMenu}
+        className="pointer-events-none fixed inset-0 z-30 hidden rounded-none border-0 bg-black/55 p-0 opacity-0 transition-opacity duration-[250ms] max-[900px]:block max-[900px]:backdrop-blur-[2px] max-[900px]:[[data-open=true]_&]:pointer-events-auto max-[900px]:[[data-open=true]_&]:opacity-100"
+      />
 
-      <div className="shell__main">
-        <Header menuButton={menuButton} open={open} onOpenMenu={() => setOpen(true)} />
+      <div className="min-w-0">
+        <Header
+          menuButton={menuButton}
+          open={open}
+          onOpenMenu={() => setOpen(true)}
+        />
 
-        <main className="content">
+        <main className="mx-auto grid w-full max-w-[1280px] gap-4 p-4">
           {status === "error" && (
-            <p role="alert" className="banner">
+            <p role="alert" className={BANNER}>
               Can't reach the match feed. Is the backend running?{" "}
-              <button type="button" onClick={restart}>Retry</button>
+              <Button className={BANNER_BUTTON} onClick={restart}>
+                Retry
+              </Button>
             </p>
           )}
           {eventsFailed && status !== "error" && (
-            <p role="alert" className="banner">
+            <p role="alert" className={BANNER}>
               Couldn't load match events, so the pitch is unavailable.{" "}
-              <button type="button" onClick={() => window.location.reload()}>Reload</button>
+              <Button
+                className={BANNER_BUTTON}
+                onClick={() => window.location.reload()}
+              >
+                Reload
+              </Button>
             </p>
           )}
-          <div key={path} className="page-enter">
+          <div key={path} className="animate-page-in">
             <RoutePage path={path} />
           </div>
         </main>

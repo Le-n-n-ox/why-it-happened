@@ -1,4 +1,4 @@
-// web/src/icons.tsx - small inline SVG icons (no icon library).
+// web/src/components/icons.tsx - small inline SVG icons (no icon library).
 import type { ReactNode } from "react";
 
 export type IconName =
@@ -55,7 +55,12 @@ const PATHS: Record<IconName, ReactNode> = {
 
 export function Icon({ name }: { name: IconName }) {
   return (
-    <svg className="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <svg
+      className="size-5 shrink-0 fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:1.8]"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+    >
       {PATHS[name]}
     </svg>
   );

@@ -1,10 +1,12 @@
-// web/src/ReviewPanel.tsx - the player's written review in the selected language.
+// web/src/components/ReviewPanel.tsx - the player's written review in the selected language.
 import { useEffect, useState } from "react";
-import { getPlayerReview } from "@/lib/api";
-import { Loader } from "@/components/Loader";
-import { stripCitations } from "@/lib/match";
-import { formatRating, normalizeReview } from "@/lib/players";
-import type { PlayerReview } from "@/types/types";
+import { getPlayerReview } from "../lib/api";
+import { stripCitations } from "../lib/match";
+import { formatRating, normalizeReview } from "../lib/players";
+import { ui } from "../lib/ui";
+import type { PlayerReview } from "../types/types";
+import { Button } from "./Button";
+import { Skeleton } from "./Skeleton";
 
 type ReviewState =
   | { status: "loading" }
@@ -36,30 +38,32 @@ export function ReviewPanel({ id, lang, onShow }: Props) {
   }, [id, lang]);
 
   return (
-    <section className="panel" aria-label="Player review">
-      <h3>Review</h3>
-      {state.status === "loading" && (
-        <Loader label="Loading review" />
+    <section className={ui.panel} aria-label="Player review">
+      <h3 className={ui.h3}>Review</h3>
+      {state.status === "loading" && <Skeleton />}
+      {state.status === "error" && <p className={ui.empty}>The review isn't available right now.</p>}
+      {state.status === "ok" && state.review === null && (
+        <p className={ui.empty}>No review for this player yet.</p>
       )}
-      {state.status === "error" && <p className="empty">The review isn't available right now.</p>}
-      {state.status === "ok" && state.review === null && <p className="empty">No review for this player yet.</p>}
       {state.status === "ok" && state.review !== null && (
         <>
-          <p className="review__text" lang={state.review.lang || lang}>
+          <p className="m-0 text-[1.05rem] leading-snug" lang={state.review.lang || lang}>
             {stripCitations(state.review.text)}
             {state.review.lang !== "" && state.review.lang !== lang && (
-              <span className="tag">{state.review.lang.toUpperCase()}</span>
+              <span className={ui.tag}>{state.review.lang.toUpperCase()}</span>
             )}
           </p>
-          <div className="card__chips">
-            {state.review.rating !== null && <span className="chip">Rating {formatRating(state.review.rating)}</span>}
-            {state.review.evidence.map((e) => <span key={e} className="chip">{e}</span>)}
+          <div className={ui.chips}>
+            {state.review.rating !== null && (
+              <span className={ui.chip}>Rating {formatRating(state.review.rating)}</span>
+            )}
+            {state.review.evidence.map((e) => <span key={e} className={ui.chip}>{e}</span>)}
           </div>
           {state.review.evidence.length > 0 && (
             <div>
-              <button type="button" onClick={() => onShow(state.review ? state.review.evidence : [], "review evidence")}>
+              <Button onClick={() => onShow(state.review ? state.review.evidence : [], "review evidence")}>
                 Show evidence on pitch
-              </button>
+              </Button>
             </div>
           )}
         </>
