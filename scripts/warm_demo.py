@@ -44,12 +44,41 @@ def missing_languages(insights: list[dict], languages: list[str]) -> dict[str, l
     return gaps
 
 
+def warm_reviews(base: str, languages: list[str], top: int, timeout: float) -> list[str]:
+    """Generate and cache reviews for the best-rated named players."""
+    if top <= 0:
+        return []
+    players = requests.get(f"{base}/players", timeout=30).json()[:top]
+    if not players:
+        print("\nReviews: this match has no player names. Nothing to warm.")
+        return []
+    print(f"\nReviews (top {len(players)} players)")
+    gaps = []
+    for player in players:
+        have = []
+        for code in languages:
+            try:
+                got = requests.get(
+                    f"{base}/players/{player['id']}/review",
+                    params={"lang": code}, timeout=timeout,
+                ).json()
+                if got["lang"] == code:
+                    have.append(code)
+                else:
+                    gaps.append(f"{player['id']}:{code}")
+            except Exception:
+                gaps.append(f"{player['id']}:{code}")
+        print(f"  {player['name']:20} {player['rating']:>4}  {' '.join(have)}")
+    return gaps
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", default="http://localhost:8001")
     parser.add_argument("--retries", type=int, default=2, help="extra passes while something is missing")
     parser.add_argument("--wait", type=float, default=65, help="seconds to wait before a retry")
     parser.add_argument("--timeout", type=float, default=180, help="max seconds without data from the server")
+    parser.add_argument("--reviews", type=int, default=6, help="warm the reviews of the top N players (0 = skip)")
     args = parser.parse_args(argv)
     base = args.url.rstrip("/")
 
@@ -82,8 +111,11 @@ def main(argv=None) -> int:
         except Exception as exc:
             print(f"  {code}: FAILED ({exc})")
 
-    if gaps:
-        print(f"\nStill missing in {len(gaps)} insight(s). Check the server log for '[DEBUG] LLM call failed'.")
+    review_gaps = warm_reviews(base, languages, args.reviews, args.timeout)
+
+    if gaps or review_gaps:
+        print(f"\nStill missing: {len(gaps)} insight(s), {len(review_gaps)} review(s). "
+              "Check the server log for '[DEBUG] LLM call failed'.")
         return 1
     print("\nWarm: every language is present for every insight.")
     return 0

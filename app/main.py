@@ -27,6 +27,7 @@ from app.db import get_insights, init_db
 from app.detectors import detect_all
 from app.events import MatchEvent, load_events
 from app.matchinfo import match_info
+from app.players import explain_action, involvement, player_actions, player_stats, player_table, rating, review_insight
 from app.narrator import make_client, model_available, model_status, narrate_all, write_recap
 from app.players import list_players, player_detail
 from app.simulate import replay
@@ -68,6 +69,68 @@ live_match_events: list[MatchEvent] = []
 
 init_db()        # at import, so it also runs under TestClient
 store.clear()    # start clean once per server start (not on every /stream)
+
+
+def _match_data():
+    """Load the full match, independent of the live stream's rolling window."""
+    events = load_events(EVENTS_FILE)
+    return events, detect_all(events)
+
+
+@app.get("/players")
+def players():
+    """Named players and their event-based stats, best rated first."""
+    events, found = _match_data()
+    return player_table(events, found)
+
+
+@app.get("/players/{player_id}")
+def player_detail(player_id: str):
+    """Stats, rating breakdown, match involvement, and action context for one player."""
+    events, found = _match_data()
+    stats = player_stats(events, found).get(player_id)
+    if stats is None:
+        raise HTTPException(status_code=404, detail="Unknown player")
+    score = rating(stats)
+    return {
+        **stats,
+        "rating": score["value"],
+        "rating_breakdown": score["breakdown"],
+        "moments": involvement(events, found).get(player_id, []),
+        "actions": player_actions(events, player_id, found),
+    }
+
+
+@app.get("/players/{player_id}/review")
+def player_review(player_id: str, lang: str = "en"):
+    """Return a grounded end-of-match player review and its supporting evidence."""
+    events, found = _match_data()
+    insight = review_insight(events, player_id, found)
+    if insight is None:
+        raise HTTPException(status_code=404, detail="Unknown player")
+    narration = narrate_all(client, MODEL, insight, [lang])
+    used = lang if lang in narration else "en"
+    score = rating(player_stats(events, found)[player_id])
+    return {
+        "player_id": player_id,
+        "name": insight.facts["name"],
+        "team": insight.team,
+        "lang": used,
+        "text": narration.get(used) or next(iter(narration.values())),
+        "rating": score["value"],
+        "rating_breakdown": score["breakdown"],
+        "evidence": insight.evidence,
+    }
+
+
+@app.get("/events/{event_id}/why")
+def event_why(event_id: str):
+    """Explain an event from nearby actions and any detector evidence that includes it."""
+    events, found = _match_data()
+    result = explain_action(events, event_id, found)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Unknown event")
+    return result
 
 
 @app.get("/health")
