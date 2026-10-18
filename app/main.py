@@ -19,7 +19,7 @@ import re
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -29,7 +29,7 @@ from app.causes import (attach_why, causal_chains, chain_for, explain_event, fou
                         turning_points, why_they_won)
 from app.db import get_insights, init_db
 from app.detectors import detect_all
-from app.events import MatchEvent, load_events
+from app.events import MatchEvent, from_official, load_events
 from app.matchinfo import match_info
 from app.players import involvement, player_actions, player_stats, player_table, rating, review_insight
 from app.narrator import (make_client, model_available, model_status, narrate_all, register_players,
@@ -68,16 +68,24 @@ app.add_middleware(
 # OmniPitchStore holds both insights and raw events
 store = OmniPitchStore(os.getenv("DB_PATH", ":memory:"))
 client = make_client()  # always None: narrator calls the NVIDIA REST API directly
-live_match_events: list[MatchEvent] = []
+live_match_events: list[MatchEvent] = []      # events pushed in by a video parser or feed (POST /events)
+_live_ids: set[str] = set()
+_live_state = {"ended": False}
+INGEST_TOKEN = os.getenv("INGEST_TOKEN")        # when set, every ingest route needs the X-Ingest-Token header
 
 
 init_db()        # at import, so it also runs under TestClient
 store.clear()    # start clean once per server start (not on every /stream)
 
 
+def _current_events() -> list[MatchEvent]:
+    """The live match if a feed has pushed events in, otherwise the match file."""
+    return list(live_match_events) if live_match_events else load_events(EVENTS_FILE)
+
+
 def _match_data():
     """Load the full match, independent of the live stream's rolling window."""
-    events = load_events(EVENTS_FILE)
+    events = _current_events()
     register_players(e.player for e in events)
     return events, detect_all(events)
 
@@ -169,6 +177,7 @@ def match_why(lang: str = Query("en")):
             summary = "No match result is available."
     title = f"Why {result['winner']} won" if result["winner"] else "Why the match finished level"
     return {
+        "result": result,
         **result,
         "lang": lang,
         "title": title,
@@ -209,19 +218,70 @@ def health():
 
 @app.get("/events")
 def events():
-    return [e.model_dump(mode="json") for e in load_events(EVENTS_FILE)]
+    return [e.model_dump(mode="json") for e in _current_events()]
 
 
 @app.get("/match")
 def match():
-    return match_info(load_events(EVENTS_FILE))
+    return match_info(_current_events())
+
+
+def _check_token(token: str | None) -> None:
+    if INGEST_TOKEN and token != INGEST_TOKEN:
+        raise HTTPException(status_code=401, detail="Missing or wrong X-Ingest-Token")
+
+
+def _accept(event: MatchEvent) -> dict:
+    """Add one event to the live match. Repeats are ignored; events must arrive in clock order."""
+    if event.id in _live_ids:
+        return {"status": "duplicate", "event_id": event.id, "queue_size": len(live_match_events)}
+    if live_match_events and event.minute < live_match_events[-1].minute:
+        raise HTTPException(status_code=409, detail="Event is older than the last one received; "
+                                                    "send events in clock order")
+    live_match_events.append(event)
+    _live_ids.add(event.id)
+    return {"status": "success", "event_id": event.id, "queue_size": len(live_match_events)}
 
 
 @app.post("/events")
-def ingest_event(event: MatchEvent):
-    """Webhook to ingest live match data via POST."""
-    live_match_events.append(event)
-    return {"status": "success", "event_id": event.id, "queue_size": len(live_match_events)}
+def ingest_event(event: MatchEvent, x_ingest_token: str | None = Header(default=None)):
+    """Push one event (our own format: x, y 0-100 from the team's own goal line) into the live match."""
+    _check_token(x_ingest_token)
+    return _accept(event)
+
+
+@app.post("/events/official")
+def ingest_official(raw: dict, x_ingest_token: str | None = Header(default=None)):
+    """Push one event in the official feed format (120x80 pitch, with `period`); it is converted for you."""
+    _check_token(x_ingest_token)
+    try:
+        event = from_official(raw)
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=f"Not a valid official event: {exc}")
+    return _accept(event)
+
+
+@app.post("/live/end")
+def live_end(x_ingest_token: str | None = Header(default=None)):
+    """Tell the stream the live match is over (it then sends the `done` message)."""
+    _check_token(x_ingest_token)
+    _live_state["ended"] = True
+    return {"status": "ended", "events": len(live_match_events)}
+
+
+@app.post("/live/reset")
+def live_reset(x_ingest_token: str | None = Header(default=None)):
+    """Forget the live match and go back to the match file."""
+    _check_token(x_ingest_token)
+    live_match_events.clear()
+    _live_ids.clear()
+    _live_state["ended"] = False
+    return {"status": "reset"}
+
+
+@app.get("/live/status")
+def live_status():
+    return {"live": bool(live_match_events), "events": len(live_match_events), "ended": _live_state["ended"]}
 
 
 @app.get("/insights")
@@ -295,12 +355,32 @@ def recap(lang: str = "en"):
     return {"lang": lang, "text": " ".join(([headline] if headline else []) + parts), "insight_ids": ids}
 
 
-async def _event_source(delay: float, seconds_per_minute: float | None):
+async def _live_events(poll: float = 0.05):
+    """Yield live events as they are pushed in, in order, until /live/end."""
+    index = 0
+    while True:
+        if index > len(live_match_events):          # the live match was reset under us
+            return
+        if index < len(live_match_events):
+            yield live_match_events[index]
+            index += 1
+        elif _live_state["ended"]:
+            return
+        else:
+            await asyncio.sleep(poll)
+
+
+async def _event_source(delay: float, seconds_per_minute: float | None, source: str = "file"):
     claimed: dict[tuple[str, str], set[str]] = {}    # (kind, team) -> evidence ids already reported
     buffer: list[MatchEvent] = []
-    match = load_events(EVENTS_FILE)
-    register_players(event.player for event in match)
-    async for event in replay(match, delay, seconds_per_minute):
+    if source == "live":
+        feed = _live_events()
+    else:
+        match = load_events(EVENTS_FILE)
+        register_players(e.player for e in match)
+        feed = replay(match, delay, seconds_per_minute)
+    async for event in feed:
+        register_players([event.player])
         buffer.append(event)
         payload = event.model_dump(mode="json")
         store.add_event(payload)
@@ -333,11 +413,11 @@ async def _event_source(delay: float, seconds_per_minute: float | None):
 
 
 @app.get("/stream")
-async def stream(speed: float | None = None, delay: float = REPLAY_DELAY):
+async def stream(speed: float | None = None, delay: float = REPLAY_DELAY, source: str = "file"):
     if speed is not None:
         speed = min(max(speed, 0.0), 5.0)
     return StreamingResponse(
-        _event_source(delay, speed),
+        _event_source(delay, speed, "live" if source == "live" else "file"),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

@@ -51,7 +51,7 @@ def from_official(raw: dict) -> MatchEvent:
         minute=float(raw["minute"]),
         team=team,
         player=raw.get("player"),
-        type=TYPE_MAP.get(raw["type"], EventType(raw["type"])),
+        type=TYPE_MAP.get(raw["type"]) or EventType(raw["type"]),     # lookup first: the fallback raises,
         x=x,
         y=y,
         outcome=raw.get("outcome")
