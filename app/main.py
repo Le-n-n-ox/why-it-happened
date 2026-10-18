@@ -177,6 +177,7 @@ def match_why(lang: str = Query("en")):
             summary = "No match result is available."
     title = f"Why {result['winner']} won" if result["winner"] else "Why the match finished level"
     return {
+        "result": result,
         **result,
         "lang": lang,
         "title": title,
