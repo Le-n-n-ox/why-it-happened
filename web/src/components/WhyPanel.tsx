@@ -2,7 +2,7 @@
 import { Button } from "@/components/Button";
 import { Skeleton } from "@/components/Skeleton";
 import { useApi } from "@/hooks/useApi";
-import { getMatchWhy } from "@/lib/api";
+import { getWhy } from "@/lib/api";
 import { formatMinute, stripCitations } from "@/lib/match";
 import { ui } from "@/lib/ui";
 import { normalizeWhy } from "@/lib/why";
@@ -10,7 +10,7 @@ import { useMatch } from "@/types/matchContext";
 
 function WhyBody({ title }: { title: string }) {
   const { lang } = useMatch();
-  const { data, error, loading, retry } = useApi(getMatchWhy, lang);
+  const { data, error, loading, retry } = useApi(getWhy, lang);
   const why = data === null ? null : normalizeWhy(data);
   const extraTitle = why?.title !== undefined && why.title !== title ? why.title : undefined;
 
@@ -72,7 +72,7 @@ function WhyBody({ title }: { title: string }) {
 
 export function WhyPanel() {
   const { teams, score, ended } = useMatch();
-  if (!ended || teams.length < 2) return null;
+  if (!ended || teams.length < 2 || score === null) return null;
   const [home, away] = teams;
   const diff = score[home] - score[away];
   const title = diff === 0 ? "Why it finished level" : `Why ${diff > 0 ? home : away} won`;

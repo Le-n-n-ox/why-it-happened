@@ -81,6 +81,7 @@ export interface Action {
   detail?: string | null;
   factors?: string[]; // fouls: lost_ball_just_before, after_opponent_shot, stopping_an_attack, trailing, repeat_offender
 }
+export type PlayerAction = Action;
 
 export interface WhyReason {
   minute: number;

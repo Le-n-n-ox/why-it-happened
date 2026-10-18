@@ -13,7 +13,7 @@ interface AttackPanelProps {
   leader: string | null;
 }
 
-export function AttackPanel({ events, teams, colors, zones, rows, leader }: AttackPanelProps) {
+export function AttackPanel({ events, teams, colors, rows, leader }: AttackPanelProps) {
   const noAttacks = rows.every((row) => row.total === 0);
   return (
     <section className={ui.panel} aria-label="Where each team attacks">
@@ -22,7 +22,7 @@ export function AttackPanel({ events, teams, colors, zones, rows, leader }: Atta
         Passes, carries and shots in each team's final third, split into the top, centre and bottom of the
         pitch map. Darker means more.
       </p>
-      <Pitch events={events} selected={[]} teams={teams} zones={zones} />
+      <Pitch events={events} selected={[]} teams={teams} />
       <ul className="m-0 grid list-disc gap-1 pl-5">
         {rows.map((row, index) => (
           <li key={row.team}>

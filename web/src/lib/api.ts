@@ -37,8 +37,8 @@ export const getMatch = () => getJson<MatchInfo>("/match");
 export const getEvents = () => getJson<MatchEvent[]>("/events");
 export const getRecap = (lang: string) => getJson<Recap>(`/recap?lang=${enc(lang)}`);
 
-export async function getWhy(): Promise<MatchWhy> {
-  const w = await getJson<MatchWhy>("/why");
+export async function getWhy(lang = "en"): Promise<MatchWhy> {
+  const w = await getJson<MatchWhy>(`/why?lang=${enc(lang)}`);
   const result = w.result ?? { score: {}, winner: null, reasons: [] };
   return {
     result: { ...result, reasons: result.reasons ?? [] },
