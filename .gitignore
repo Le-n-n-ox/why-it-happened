@@ -25,3 +25,9 @@ insights.db
 *.db-wal
 
 .kilo
+
+# Temporary AI scripts
+edit*.py
+refactor*.py
+update*.*
+labels.txt
