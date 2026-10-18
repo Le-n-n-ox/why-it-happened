@@ -177,7 +177,6 @@ def match_why(lang: str = Query("en")):
             summary = "No match result is available."
     title = f"Why {result['winner']} won" if result["winner"] else "Why the match finished level"
     return {
-        "result": result,
         **result,
         "lang": lang,
         "title": title,
@@ -293,8 +292,6 @@ def insights():
 def insights_history(team: str | None = None, limit: int = 20):
     """Saved insights from the database. Example: /insights/history?team=Reds&limit=5"""
     return get_insights(team=team, limit=limit)
-
-
 _recap_cache: dict[tuple, dict] = {}     # (language, insight ids) -> finished AI recap
 
 
