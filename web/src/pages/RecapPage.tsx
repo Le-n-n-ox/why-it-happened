@@ -65,7 +65,7 @@ export function RecapPage() {
       )}
 
       {ended ? (
-        <Recap insights={insights} lang={lang} ended={ended} />
+        <Recap lang={lang} />
       ) : (
         <p className={ui.empty}>The full-time recap appears when the match ends.</p>
       )}

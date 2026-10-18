@@ -7,6 +7,10 @@
   GET  /insights/history  saved insights from the database (?team=&limit=)
   GET  /recap             full-time recap text (?lang=)
   GET  /why               match-level explanation for WhyPanel (?lang=)
+  GET  /fouls             stub for frontend compatibility
+  GET  /team/{id}/assessment stub for frontend compatibility
+  GET  /team/{id}/tactics stub for frontend compatibility
+  GET  /predict           stub for frontend compatibility
   GET  /players           player summaries derived from match events
   GET  /players/{id}      one player's details
   GET  /players/{id}/review written review placeholder (?lang=)
@@ -145,6 +149,43 @@ def get_match_why(lang: str = Query("en")):
         "summary": "The AI narrator is currently analyzing the match.",
         "factors": [],
         "chain": []
+    }
+
+
+@app.get("/fouls")
+def get_fouls():
+    """Stubbed endpoint to prevent 404s for the frontend fouls component."""
+    return []
+
+
+@app.get("/team/{team_id}/assessment")
+def get_team_assessment(team_id: str):
+    """Stubbed endpoint for frontend team assessment."""
+    return {
+        "status": "ok",
+        "team": team_id,
+        "assessment": "Tactical assessment is currently unavailable.",
+        "score": 0
+    }
+
+@app.get("/team/{team_id}/tactics")
+def get_team_tactics(team_id: str):
+    """Stubbed endpoint for frontend team tactics."""
+    return {
+        "status": "ok",
+        "team": team_id,
+        "tactics": "Tactical data is currently offline.",
+        "formations": []
+    }
+
+
+@app.get("/predict")
+def get_prediction():
+    """Stubbed endpoint for frontend prediction fetching."""
+    return {
+        "status": "ok",
+        "prediction": "AI prediction models are currently offline.",
+        "confidence": 0
     }
 
 

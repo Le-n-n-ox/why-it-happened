@@ -19,6 +19,7 @@ const TEXT_SIZE: Record<Size, string> = { m: "text-[1.3rem]", l: "text-[2rem]", 
 
 export function AnnouncersPage() {
   const { insights, teams, score, clock, ended, lang, selectedId, select } = useMatch();
+  if (!score) return null;
   const [size, setSize] = useState<Size>("l");
   const [read, setRead] = useState<Set<string>>(new Set());
 
@@ -40,7 +41,7 @@ export function AnnouncersPage() {
       <div className="grid gap-2.5 rounded-card border-2 border-accent-2 bg-surface px-5 py-4 shadow-card" aria-label="On air">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="font-bold tabular-nums">
-            {teams.map((t) => `${t} ${score[t]}`).join(" - ")} · {ended ? "FT" : formatMinute(clock)}
+            {teams.map((t) => `${t} ${score?.[t] ?? 0}`).join(" - ")} · {ended ? "FT" : formatMinute(clock)}
           </span>
           <span className="flex gap-1.5" role="group" aria-label="Text size">
             {SIZES.map((s) => (

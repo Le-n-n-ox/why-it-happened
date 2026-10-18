@@ -1,5 +1,5 @@
 import { teamColor } from "@/lib/match";
-import { formatRating, prettyKey, ratingPct } from "@/lib/players";
+import { formatRating, ratingPct } from "@/lib/players";
 import { ui } from "@/lib/ui";
 import type { PlayerSummary } from "@/types/types";
 
@@ -28,11 +28,6 @@ export function PlayerCard({ player, rank, teams }: PlayerCardProps) {
         </a>
         <div className={ui.meta}>
           <span className="font-bold" style={{ color }}>{player.team}</span>
-        </div>
-        <div className={ui.chips}>
-          {player.stats.slice(0, 4).map((stat) => (
-            <span key={stat.key} className={ui.chip}>{prettyKey(stat.key)}: {stat.value}</span>
-          ))}
         </div>
       </div>
       <div className="grid justify-items-end gap-1.5 max-[600px]:col-span-full max-[600px]:justify-items-stretch">
