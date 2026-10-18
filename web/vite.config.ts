@@ -4,7 +4,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 // Dev only: the page calls its own address and Vite forwards these routes to the backend.
-// Port 8001 because Splunk answers on 8000 on this machine.
+// The backend container is started with -p 8001:8000 because Splunk answers on 8000 on this machine.
 const BACKEND = "http://127.0.0.1:8001";
 
 export default defineConfig({
@@ -20,8 +20,10 @@ export default defineConfig({
       "/stream": BACKEND,
       "/insights": BACKEND,
       "/recap": BACKEND,
-      "/players": BACKEND,
       "/why": BACKEND,
+      "/players": BACKEND,
+      "/fouls": BACKEND,
+      "/team": BACKEND,
     },
   },
 });

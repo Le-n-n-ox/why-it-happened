@@ -2,7 +2,7 @@
 import type { ReactNode } from "react";
 
 export type IconName =
-  | "live" | "timeline" | "analytics" | "players" | "mic" | "fans" | "info"
+  | "live" | "result" | "timeline" | "teams" | "players" | "fouls" | "analytics" | "mic" | "fans" | "info"
   | "menu" | "close" | "sun" | "moon" | "chevrons" | "replay";
 
 const PATHS: Record<IconName, ReactNode> = {
@@ -12,6 +12,7 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M6.3 6.3a8 8 0 0 0 0 11.4M17.7 6.3a8 8 0 0 1 0 11.4M3.5 3.5a12 12 0 0 0 0 17M20.5 3.5a12 12 0 0 1 0 17" />
     </>
   ),
+  result: <path d="M5 21V4M5 4h11l-2 4 2 4H5" />,
   timeline: (
     <>
       <path d="M3 12h18" />
@@ -20,13 +21,15 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M7 5v3M16 16v3" />
     </>
   ),
-  analytics: <path d="M3 20h18M6 20v-6M11 20V6M16 20v-9M20 20v-4" />,
+  teams: <path d="M12 3l8 3v6c0 4.5-3.4 7.7-8 9-4.6-1.3-8-4.5-8-9V6l8-3z" />,
   players: (
     <>
       <circle cx="9" cy="8" r="3.2" />
       <path d="M3 20a6 6 0 0 1 12 0M16 5.2a3.2 3.2 0 0 1 0 5.6M21 20a6 6 0 0 0-4-5.6" />
     </>
   ),
+  fouls: <path d="M12 3l10 18H2L12 3zM12 10v5M12 18h.01" />,
+  analytics: <path d="M3 20h18M6 20v-6M11 20V6M16 20v-9M20 20v-4" />,
   mic: (
     <>
       <rect x="9" y="3" width="6" height="11" rx="3" />

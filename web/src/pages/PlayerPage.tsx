@@ -1,46 +1,23 @@
-// web/src/pages/PlayerPage.tsx - one player: rating, breakdown, review, moments and actions with proof.
+// web/src/pages/PlayerPage.tsx - one player: stats, rating receipt, review, moments and explained actions.
 import { useState } from "react";
-
-import { getPlayer } from "@/lib/api";
 import { Button } from "@/components/Button";
-import { Heatmap } from "@/components/Heatmap";
 import { Loader } from "@/components/Loader";
-import { eventsByIds, formatMinute, stripCitations, teamColor } from "@/lib/match";
-import { useMatch } from "@/types/matchContext";
 import { Pitch } from "@/components/Pitch";
-import { formatRating, normalizePlayerDetail, prettyKey } from "@/lib/players";
+import { RatingReceipt } from "@/components/RatingReceipt";
 import { ReviewPanel } from "@/components/ReviewPanel";
-import { ui } from "@/lib/ui";
 import { useApi } from "@/hooks/useApi";
+import { getPlayer } from "@/lib/api";
+import { eventsByIds, formatMinute, teamColor } from "@/lib/match";
+import { formatRating, prettyKey, readMoment, STAT_LABELS, type StatKey } from "@/lib/players";
+import { ui } from "@/lib/ui";
+import { useMatch } from "@/types/matchContext";
 
-interface Picked {
-  ids: string[];
-  label: string;
-}
-
-const MOMENT = "grid gap-2 rounded-card bg-surface-2 px-3.5 py-3";
-const MOMENT_TEXT = "m-0 leading-snug";
-const LIST = "m-0 grid list-none gap-2.5 p-0";
-
-const round2 = (n: number): number => Math.round(n * 100) / 100;
-
-function Evidence({ ids }: { ids: string[] }) {
-  if (ids.length === 0) return null;
-  return (
-    <div className={ui.chips}>
-      {ids.map((e) => <span key={e} className={ui.chip}>{e}</span>)}
-    </div>
-  );
-}
+const STAT_ORDER = Object.keys(STAT_LABELS) as StatKey[];
 
 export function PlayerPage({ id }: { id: string }) {
-  const { teams, byId, allEvents, lang } = useMatch();
-  const { data, error, loading, retry } = useApi(getPlayer, id);
-  const [picked, setPicked] = useState<Picked>({ ids: [], label: "" });
-
-  const player = data === null ? null : normalizePlayerDetail(data);
-  const selected = eventsByIds(picked.ids, byId);
-  const show = (ids: string[], label: string) => setPicked({ ids, label });
+  const { teams, allEvents, byId, lang, pinned, pin } = useMatch();
+  const { data: player, loading, error, notFound, retry } = useApi(getPlayer, id);
+  const [showRoutine, setShowRoutine] = useState(false);
 
   if (loading) {
     return (
@@ -55,22 +32,22 @@ export function PlayerPage({ id }: { id: string }) {
     return (
       <section className={ui.page}>
         <a className={ui.link} href="#/players">← All players</a>
-        <p role="alert" className="m-0 rounded-card bg-warn px-3.5 py-2.5 text-black">
-          {error !== null ? `Couldn't load this player (${error}).` : "Couldn't read this player's data."}{" "}
-          <Button className="border-black bg-white text-black hover:bg-white/80" onClick={retry}>Retry</Button>
-        </p>
+        {notFound ? (
+          <p className={ui.empty}>Player not found.</p>
+        ) : (
+          <p role="alert" className={ui.banner}>
+            Couldn't load this player ({error}). <Button className={ui.bannerButton} onClick={retry}>Retry</Button>
+          </p>
+        )}
       </section>
     );
   }
 
   const color = teamColor(player.team, teams);
-  const maxAbs = Math.max(1e-9, ...player.breakdown.map((b) => Math.abs(b.value)));
-  const missing = picked.ids.length - selected.length;
-
-  const allCited = eventsByIds(
-    [...player.moments.flatMap((m) => m.evidence), ...player.actions.flatMap((a) => a.evidence)],
-    byId,
-  );
+  const routineCount = player.actions.filter((a) => a.routine).length;
+  const actions = showRoutine ? player.actions : player.actions.filter((a) => !a.routine);
+  const moments = player.moments.map(readMoment).filter((m) => m !== null);
+  const selected = eventsByIds(pinned ?? [], byId);
 
   return (
     <section className={ui.pageWide}>
@@ -83,93 +60,83 @@ export function PlayerPage({ id }: { id: string }) {
         </span>
       </div>
 
-      <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] items-start gap-4 max-[1000px]:grid-cols-1">
+      <div className={ui.split}>
         <div className="grid min-w-0 gap-4">
-          {player.stats.length > 0 && (
-            <dl className="m-0 flex flex-wrap gap-2.5">
-              {player.stats.map((s) => (
-                <div key={s.key} className="rounded-card border border-line bg-surface px-3.5 py-2">
-                  <dt className="text-[.7rem] uppercase text-muted">{prettyKey(s.key)}</dt>
-                  <dd className="m-0 font-bold tabular-nums">{s.value}</dd>
-                </div>
-              ))}
-            </dl>
-          )}
-
-          <section className={ui.panel} aria-label="Rating breakdown">
-            <h3 className={ui.h3}>Rating breakdown</h3>
-            {player.breakdown.length === 0 ? (
-              <p className={ui.empty}>No breakdown available.</p>
-            ) : (
-              player.breakdown.map((b) => (
-                <div key={b.label} className="grid grid-cols-[9rem_minmax(0,1fr)_5ch] items-center gap-2.5 text-[.9rem]">
-                  <span>{b.label}</span>
-                  <div className="h-2 overflow-hidden rounded-full bg-surface-2" role="img" aria-label={`${b.label} ${round2(b.value)}`}>
-                    <span
-                      className="block h-full animate-meter-in rounded-[inherit]"
-                      style={{
-                        width: `${(Math.abs(b.value) / maxAbs) * 100}%`,
-                        background: b.value >= 0 ? "var(--accent)" : "var(--warn)",
-                      }}
-                    />
-                  </div>
-                  <span className="text-right tabular-nums">{b.value > 0 ? `+${round2(b.value)}` : round2(b.value)}</span>
-                </div>
-              ))
+          <dl className="m-0 flex flex-wrap gap-2.5">
+            {STAT_ORDER.map((k) => (
+              <div key={k} className="rounded-card border border-line bg-surface px-3.5 py-2">
+                <dt className="text-[.7rem] text-muted uppercase">{STAT_LABELS[k]}</dt>
+                <dd className="m-0 font-bold tabular-nums">{player[k]}</dd>
+              </div>
+            ))}
+            {player.goal_minutes.length > 0 && (
+              <div className="rounded-card border border-line bg-surface px-3.5 py-2">
+                <dt className="text-[.7rem] text-muted uppercase">Goal minutes</dt>
+                <dd className="m-0 font-bold tabular-nums">{player.goal_minutes.map(formatMinute).join(" ")}</dd>
+              </div>
             )}
-          </section>
+          </dl>
 
-          <ReviewPanel id={player.id} lang={lang} onShow={show} />
+          <RatingReceipt lines={player.rating_breakdown} rating={player.rating} />
+          <ReviewPanel id={player.id} lang={lang} />
 
-          <section className={ui.panel} aria-label="Key moments">
-            <h3 className={ui.h3}>Key moments</h3>
-            {player.moments.length === 0 ? (
-              <p className={ui.empty}>No key moments yet.</p>
-            ) : (
-              <ul className={LIST}>
-                {player.moments.map((m, n) => (
-                  <li key={`${n}-${m.text}`} className={MOMENT}>
-                    <div className={ui.meta}>
+          {moments.length > 0 && (
+            <section className={ui.panel} aria-label="Key moments">
+              <h3 className={ui.h3}>Key moments</h3>
+              <ul className="grid gap-2.5">
+                {moments.map((m, n) => (
+                  <li key={`${n}-${m.text}`} className="grid gap-2 rounded-card bg-surface-2 px-3.5 py-3">
+                    <p className={`m-0 ${ui.meta}`}>
                       {m.minute !== undefined && <span className={ui.minute}>{formatMinute(m.minute)}</span>}
-                    </div>
-                    <p className={MOMENT_TEXT}>{stripCitations(m.text)}</p>
-                    <Evidence ids={m.evidence} />
+                      {m.role && <span>{prettyKey(m.role)}</span>}
+                    </p>
+                    <p className="m-0 leading-snug">{m.text}</p>
                     <div className={ui.actions}>
-                      {m.evidence.length > 0 && (
-                        <Button onClick={() => show(m.evidence, "moment")}>Show on pitch</Button>
-                      )}
-                      {m.insightId !== undefined && (
+                      {m.evidence.length > 0 && <Button onClick={() => pin(m.evidence)}>Highlight on pitch</Button>}
+                      {m.insightId && (
                         <a className={ui.link} href={`#/insight/${encodeURIComponent(m.insightId)}`}>Open insight →</a>
                       )}
                     </div>
                   </li>
                 ))}
               </ul>
-            )}
-          </section>
+            </section>
+          )}
 
           <section className={ui.panel} aria-label="Actions and why">
-            <h3 className={ui.h3}>Actions, and why they mattered</h3>
-            {player.actions.length === 0 ? (
-              <p className={ui.empty}>No actions recorded yet.</p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className={ui.h3}>Actions, and why they mattered</h3>
+              {routineCount > 0 && (
+                <Button aria-pressed={showRoutine} onClick={() => setShowRoutine((v) => !v)}>
+                  Routine actions ({routineCount}): {showRoutine ? "shown" : "hidden"}
+                </Button>
+              )}
+            </div>
+            {actions.length === 0 ? (
+              <p className={ui.empty}>
+                {player.actions.length === 0
+                  ? "No actions recorded."
+                  : `All ${player.actions.length} actions are routine. Use the toggle to see them.`}
+              </p>
             ) : (
-              <ul className={LIST}>
-                {player.actions.map((a, n) => (
-                  <li key={`${n}-${a.eventId ?? a.why}`} className={MOMENT}>
-                    <div className={ui.meta}>
-                      {a.minute !== undefined && <span className={ui.minute}>{formatMinute(a.minute)}</span>}
-                      {a.type !== undefined && <span>{prettyKey(a.type)}</span>}
+              <ul className="grid gap-2.5">
+                {actions.map((a, n) => (
+                  <li key={`${n}-${a.event_id}`} className="grid gap-2 rounded-card bg-surface-2 px-3.5 py-3">
+                    <p className={`m-0 ${ui.meta}`}>
+                      <span className={ui.minute}>{formatMinute(a.minute)}</span>
+                      <span>{prettyKey(a.action)}</span>
+                      {a.role && <span className={ui.chip}>{a.role}</span>}
+                      {a.routine && <span className={ui.quiet}>Routine</span>}
+                    </p>
+                    <p className="m-0 leading-snug">{a.why}</p>
+                    {a.detail && <p className="m-0 text-[.9rem] text-muted">{a.detail}</p>}
+                    <div className={ui.chips}>
+                      {a.evidence.map((e) => <span key={e} className={`${ui.chip} font-mono`}>{e}</span>)}
                     </div>
-                    <p className={MOMENT_TEXT}>{a.why}</p>
-                    <Evidence ids={a.evidence} />
                     <div className={ui.actions}>
-                      {a.evidence.length > 0 && (
-                        <Button onClick={() => show(a.evidence, a.type ?? "action")}>
-                          Show on pitch
-                        </Button>
-                      )}
-                      {a.insightId !== undefined && (
-                        <a className={ui.link} href={`#/insight/${encodeURIComponent(a.insightId)}`}>Open insight →</a>
+                      {a.evidence.length > 0 && <Button onClick={() => pin(a.evidence)}>Highlight on pitch</Button>}
+                      {a.insight_id && (
+                        <a className={ui.link} href={`#/insight/${encodeURIComponent(a.insight_id)}`}>Open insight →</a>
                       )}
                     </div>
                   </li>
@@ -180,20 +147,12 @@ export function PlayerPage({ id }: { id: string }) {
         </div>
 
         {teams.length > 0 && (
-          <div className="sticky top-[90px] grid gap-2 max-[1000px]:static max-[1000px]:-order-1">
-            <Heatmap events={allCited} teams={teams} />
-
+          <div className={ui.side}>
             <Pitch events={allEvents} selected={selected} teams={teams} />
             <p className={ui.empty}>
-              {picked.ids.length > 0
-                ? `Showing: ${picked.label}${missing > 0 ? ` (${missing} cited event(s) not found in /events)` : ""}`
-                : "Choose “Show on pitch” on a moment, action or the review."}
+              {selected.length > 0 ? "Showing the highlighted evidence." : "Use “Highlight on pitch” to see the evidence."}
             </p>
-            {picked.ids.length > 0 && (
-              <div>
-                <Button onClick={() => show([], "")}>Clear</Button>
-              </div>
-            )}
+            {pinned !== null && <div><Button onClick={() => pin(null)}>Clear</Button></div>}
           </div>
         )}
       </div>

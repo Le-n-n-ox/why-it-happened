@@ -1,13 +1,16 @@
 // web/src/layout/Sidebar.tsx - desktop sidebar (collapsible) and mobile drawer.
-import { Icon, type IconName } from "../components/icons";
-import type { Theme } from "../hooks/useTheme";
-import { cn } from "../lib/utils";
+import { Icon, type IconName } from "@/components/icons";
+import type { Theme } from "@/hooks/useTheme";
+import { cn } from "@/lib/utils";
 
 const NAV: { href: string; path: string; label: string; icon: IconName; prefixes?: string[] }[] = [
   { href: "#/", path: "/", label: "Live", icon: "live", prefixes: ["/insight/"] },
+  { href: "#/result", path: "/result", label: "Why the result", icon: "result" },
   { href: "#/recap", path: "/recap", label: "Timeline", icon: "timeline" },
-  { href: "#/analytics", path: "/analytics", label: "Analytics", icon: "analytics" },
+  { href: "#/teams", path: "/teams", label: "Teams", icon: "teams", prefixes: ["/team/"] },
   { href: "#/players", path: "/players", label: "Players", icon: "players", prefixes: ["/player/"] },
+  { href: "#/fouls", path: "/fouls", label: "Fouls", icon: "fouls" },
+  { href: "#/analytics", path: "/analytics", label: "Analytics", icon: "analytics" },
   { href: "#/announcers", path: "/announcers", label: "Announcers", icon: "mic" },
   { href: "#/fans", path: "/fans", label: "Fans", icon: "fans" },
   { href: "#/about", path: "/about", label: "How it works", icon: "info" },

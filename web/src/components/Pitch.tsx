@@ -1,30 +1,45 @@
 // web/src/components/Pitch.tsx - top-down pitch drawn as SVG (105 x 68, the real pitch size in metres).
-import type { ZoneCell } from "../lib/analytics";
-import { PITCH_H, PITCH_W, teamColor, toPitch } from "../lib/match";
-import { cn } from "../lib/utils";
-import type { MatchEvent } from "../types/types";
+import type { KeyboardEvent } from "react";
+import { PITCH_H, PITCH_W, teamColor, toPitch } from "@/lib/match";
+import type { MatchEvent } from "@/types/types";
 
 interface Props {
   events: MatchEvent[]; // everything that has happened so far (drawn faintly)
-  selected: MatchEvent[]; // the evidence of the chosen insight, in order (drawn bright, numbered)
-  teams: string[]; // first team attacks right, second is rotated
-  zones?: ZoneCell[]; // optional attack-zone overlay
+  selected: MatchEvent[]; // the evidence being explained, in order (drawn bright, numbered)
+  teams: string[]; // the first team is drawn as is, the second team's x is flipped
+  ball?: MatchEvent | null; // the latest tick
+  onEventClick?: (id: string) => void; // click or Enter on an event asks why it mattered
 }
 
-export function Pitch({ events, selected, teams, zones }: Props) {
-  const leftTeam = teams[0];
+const HIT = "cursor-pointer fill-transparent outline-none focus-visible:stroke-white [stroke-width:.4]";
+
+export function Pitch({ events, selected, teams, ball, onEventClick }: Props) {
+  const firstTeam = teams[0];
   const chosen = new Set(selected.map((e) => e.id));
   const path = selected
-    .map((e) => toPitch(e, leftTeam))
+    .map((e) => toPitch(e, firstTeam))
     .map((p) => `${p.px.toFixed(1)},${p.py.toFixed(1)}`)
     .join(" ");
+  const ballAt = ball ? toPitch(ball, firstTeam) : null;
   const label = selected.length
     ? `Pitch map: ${selected.length} evidence events highlighted`
-    : zones
-      ? "Pitch map with attack zones"
-      : "Pitch map of match events";
-  const maxCount = zones ? Math.max(0, ...zones.map((z) => z.count)) : 0;
-  const best = zones && maxCount > 0 ? zones.find((z) => z.count === maxCount) : undefined;
+    : "Pitch map of match events";
+
+  const hit = (e: MatchEvent) =>
+    onEventClick
+      ? {
+          role: "button",
+          tabIndex: 0,
+          "aria-label": `Explain event ${e.id}`,
+          onClick: () => onEventClick(e.id),
+          onKeyDown: (ev: KeyboardEvent<SVGCircleElement>) => {
+            if (ev.key === "Enter" || ev.key === " ") {
+              ev.preventDefault();
+              onEventClick(e.id);
+            }
+          },
+        }
+      : {};
 
   return (
     <svg
@@ -62,34 +77,6 @@ export function Pitch({ events, selected, teams, zones }: Props) {
         <circle cx={PITCH_W - 11} cy={PITCH_H / 2} r="0.4" />
       </g>
 
-      {zones && (
-        <g>
-          {zones.map((z) => (
-            <g key={`${z.team}-${z.channel}`}>
-              <rect
-                className={cn(
-                  "stroke-white/25 transition-[fill-opacity] duration-[400ms] [stroke-width:.2]",
-                  z === best && "stroke-white [stroke-dasharray:1_.8] [stroke-width:.5]",
-                )}
-                x={z.x} y={z.y} width={z.w} height={z.h}
-                style={{
-                  fill: teamColor(z.team, teams),
-                  fillOpacity: maxCount > 0 ? 0.08 + (z.count / maxCount) * 0.5 : 0.08,
-                }}
-              >
-                <title>{`${z.team}: ${z.count} attacking actions in this zone`}</title>
-              </rect>
-              <text className="pointer-events-none fill-white text-[3.4px] font-bold" x={z.x + z.w / 2}
-                y={z.y + z.h / 2} dy=".35em" textAnchor="middle">{z.count}</text>
-              {z === best && (
-                <text className="pointer-events-none fill-white text-[1.9px] font-semibold uppercase"
-                  x={z.x + z.w / 2} y={z.y + 3.6} textAnchor="middle">Most attacks</text>
-              )}
-            </g>
-          ))}
-        </g>
-      )}
-
       {teams.length >= 2 && (
         <>
           <text x="3" y="4.5" className="fill-white/75 text-[2.4px]">{`${teams[0]} attack →`}</text>
@@ -100,10 +87,16 @@ export function Pitch({ events, selected, teams, zones }: Props) {
       )}
 
       {events.filter((e) => !chosen.has(e.id)).map((e) => {
-        const { px, py } = toPitch(e, leftTeam);
+        const { px, py } = toPitch(e, firstTeam);
         return (
-          <circle key={e.id} cx={px} cy={py} r="0.8" className="[fill-opacity:.45]"
-            style={{ fill: teamColor(e.team, teams) }} />
+          <g key={e.id}>
+            <circle cx={px} cy={py} r="0.8" className="[fill-opacity:.45]" style={{ fill: teamColor(e.team, teams) }} />
+            {onEventClick && (
+              <circle cx={px} cy={py} r="2" className={HIT} {...hit(e)}>
+                <title>{`${e.id}: ${e.team} ${e.type} (${Math.floor(e.minute)}')`}</title>
+              </circle>
+            )}
+          </g>
         );
       })}
 
@@ -113,7 +106,7 @@ export function Pitch({ events, selected, teams, zones }: Props) {
       )}
 
       {selected.map((e, i) => {
-        const { px, py } = toPitch(e, leftTeam);
+        const { px, py } = toPitch(e, firstTeam);
         return (
           <g key={e.id}>
             <circle cx={px} cy={py} r="2"
@@ -125,13 +118,22 @@ export function Pitch({ events, selected, teams, zones }: Props) {
             </circle>
             <text x={px} y={py} dy=".35em" textAnchor="middle"
               className="pointer-events-none fill-bg text-[2px] font-bold">{i + 1}</text>
+            {onEventClick && <circle cx={px} cy={py} r="2.4" className={HIT} {...hit(e)} />}
           </g>
         );
       })}
 
-      {selected.length === 0 && !zones && (
+      {ballAt && (
+        <g className="pointer-events-none">
+          <circle cx={ballAt.px} cy={ballAt.py} r="1.4"
+            className="origin-center animate-ring fill-none stroke-white [stroke-width:.3] [transform-box:fill-box]" />
+          <circle cx={ballAt.px} cy={ballAt.py} r="1" className="fill-white stroke-black/60 [stroke-width:.25]" />
+        </g>
+      )}
+
+      {selected.length === 0 && (
         <text x={PITCH_W / 2} y={PITCH_H - 4} textAnchor="middle" className="fill-white/75 text-[2.6px]">
-          Select an insight to see its evidence
+          {onEventClick ? "Click an event to see why it mattered" : "Select an insight to see its evidence"}
         </text>
       )}
     </svg>
