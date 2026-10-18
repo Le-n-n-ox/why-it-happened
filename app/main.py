@@ -29,12 +29,14 @@ from app.causes import (attach_why, causal_chains, chain_for, explain_event, fou
                         turning_points, why_they_won)
 from app.db import get_insights, init_db
 from app.detectors import detect_all
-from app.events import MatchEvent, from_official, load_events
+from app.events import EventType, MatchEvent, from_official, load_events
 from app.matchinfo import match_info
 from app.players import involvement, player_actions, player_stats, player_table, rating, review_insight
 from app.narrator import (make_client, model_available, model_status, narrate_all, register_players,
                           write_recap)
 from app.simulate import replay
+from app.tactics import (factors_summary, match_factors, pass_quality, tactical_report,
+                         tactics_insight, win_probability, win_timeline)
 from app.store import OmniPitchStore
 
 load_dotenv()
@@ -155,6 +157,32 @@ def team_assessment(team: str, lang: str = "en"):
     }
 
 
+@app.get("/team/{team}/tactics")
+def team_tactics(team: str, lang: str = "en"):
+    """The tactics a team used, whether they worked, how they changed after half-time."""
+    events, _ = _match_data()
+    name = next((e.team for e in events if e.team.casefold() == team.casefold()), None)
+    report = tactical_report(events, name) if name else None
+    if report is None:
+        raise HTTPException(status_code=404, detail="Unknown team")
+    insight = tactics_insight(events, name)
+    narration = narrate_all(client, MODEL, insight, [lang])
+    used = lang if lang in narration else "en"
+    return {
+        **report,
+        "lang": used,
+        "text": narration.get(used) or next(iter(narration.values())),
+        "evidence": insight.evidence,
+    }
+
+
+@app.get("/predict")
+def predict(minute: float | None = None):
+    """Who is likely to win, from the score and the quality of each team's chances."""
+    events, _ = _match_data()
+    return {**win_probability(events, minute), "timeline": win_timeline(events)}
+
+
 @app.get("/fouls")
 def fouls():
     """Every foul with the situation around it and what followed."""
@@ -167,7 +195,9 @@ def match_why(lang: str = Query("en")):
     events, found = _match_data()
     result = why_they_won(events, found)
     info = match_info(events)
-    summary = " ".join(reason["text"] for reason in result["reasons"])
+    factors = match_factors(events)
+    goals_text = " ".join(reason["text"] for reason in result["reasons"])
+    summary = " ".join(part for part in (factors_summary(factors, result["winner"]), goals_text) if part)
     if not summary:
         if info["home"] and info["away"]:
             home_score, away_score = info["score"].get(info["home"], 0), info["score"].get(info["away"], 0)
@@ -182,6 +212,7 @@ def match_why(lang: str = Query("en")):
         "lang": lang,
         "title": title,
         "summary": summary,
+        "factors": factors,
         "turning_points": turning_points(events, found),
         "chains": causal_chains(events, found),
     }
@@ -194,6 +225,9 @@ def event_why(event_id: str):
     result = explain_event(events, event_id, found)
     if result is None:
         raise HTTPException(status_code=404, detail="Unknown event")
+    if result["action"] == "pass":
+        index = next(i for i, e in enumerate(events) if e.id == event_id)
+        result["quality"] = pass_quality(events, index)
     return result
 
 
@@ -315,6 +349,8 @@ def recap(lang: str = "en"):
                 line += f" Biggest problem: {report['issues'][0]['detail']}"
             teams.append(line)
     parts += teams
+    factors = [f["detail"] for f in match_factors(events)[:4]]
+    parts = factors + parts
 
     info = match_info(events)
     home = info.get("home")
@@ -334,7 +370,7 @@ def recap(lang: str = "en"):
     top_player = players[0] if players else None
 
     standout_key = tuple(top_player.get(key) for key in ("name", "team", "goals", "rating")) if top_player else None
-    key = (lang, tuple(ids), standout_key, tuple(teams))
+    key = (lang, tuple(ids), standout_key, tuple(teams), tuple(factors))
 
     if key in _recap_cache:
         return _recap_cache[key]
@@ -342,7 +378,8 @@ def recap(lang: str = "en"):
     if ids and MODEL and os.getenv("NVIDIA_API_KEY") and model_available():
         try:
             summary = write_recap(
-                MODEL, lang, info["score"], moments, top_player=top_player, teams=teams
+                MODEL, lang, info["score"], moments, top_player=top_player, teams=teams,
+                factors=factors
             )
             result = {"lang": lang, "text": f"{headline} {summary}".strip(), "insight_ids": ids}
             _recap_cache[key] = result
@@ -383,6 +420,10 @@ async def _event_source(delay: float, seconds_per_minute: float | None, source: 
         payload = event.model_dump(mode="json")
         store.add_event(payload)
         yield f"event: tick\ndata: {json.dumps(payload)}\n\n"
+        if event.type in (EventType.SHOT, EventType.GOAL) or len(buffer) == 1:
+            prediction = win_probability(buffer)
+            if prediction.get("available"):
+                yield f"event: prediction\ndata: {json.dumps(prediction)}\n\n"
 
         # Only the last 5 minutes of action go to the detectors
         recent_events = [e for e in buffer if e.minute >= event.minute - 5.0]

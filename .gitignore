@@ -24,3 +24,4 @@ insights.db
 *.db-shm
 *.db-wal
 
+.kilo

@@ -43,6 +43,15 @@ TEAM_SYSTEM = (
     "do not give advice that is not in 'story'. End with the evidence ids in square brackets, e.g. [e1, e2]."
 )
 
+TACTICS_SYSTEM = (
+    "You are a Premier League tactical analyst writing a short end-of-match tactics review of one team in "
+    "{language}. Use ONLY the facts in the JSON payload. In at most four short sentences say which tactics "
+    "the team used and whether each worked, using the verdicts in 'story', and say whether and how they "
+    "changed in the second half and whether that helped. Never claim what the coach intended or said: "
+    "describe only what the team visibly did. Do not invent tactics, formations, numbers or players. "
+    "End with the evidence ids in square brackets, e.g. [e1, e2]."
+)
+
 LANGUAGE_NAMES = {
     "en": "English", "sw": "Swahili", "fr": "French", "es": "Spanish",
     "pt": "Portuguese", "de": "German", "ar": "Arabic",
@@ -72,6 +81,7 @@ KIND_MEANING = {
     "momentum_swing": "turned the game around, taking control of possession after being dominated",
     "player_review": "a short end-of-match review of one player's game",
     "team_assessment": "an end-of-match assessment of how well one team played and what it should change",
+    "tactics_report": "an end-of-match review of the tactics one team visibly used, whether they worked, and any change after half-time",
 }
 
 # One worked example per language, shown to the model as an earlier exchange. It teaches tone and
@@ -167,7 +177,7 @@ def template_narration(insight: Insight) -> str:
     cites = ", ".join(insight.evidence)
     if insight.kind == "player_review" and "name" in facts:
         return f"{player_review_text(facts, insight.team)} [{cites}]"
-    if insight.kind == "team_assessment" and facts.get("story"):
+    if insight.kind in ("team_assessment", "tactics_report") and facts.get("story"):
         return f"{' '.join(facts['story'])} [{cites}]"
     why = facts.get("why")
     if why and insight.kind != "player_review":
@@ -369,7 +379,8 @@ def narrate(client, model: str, insight: Insight, language: str = "English") -> 
     if insight.facts.get("story"):
         payload_data["story"] = insight.facts["story"]
     system = (PLAYER_SYSTEM if insight.kind == "player_review" else
-              TEAM_SYSTEM if insight.kind == "team_assessment" else SYSTEM)
+              TEAM_SYSTEM if insight.kind == "team_assessment" else
+              TACTICS_SYSTEM if insight.kind == "tactics_report" else SYSTEM)
     messages = [{"role": "system", "content": system.format(language=language)}]
     if insight.kind in DETECTOR_KINDS and language in FEW_SHOT_BY_LANGUAGE:
         messages += [
@@ -432,8 +443,9 @@ def narrate_all(client, model: str | None, insight: Insight, languages: list[str
 RECAP_SYSTEM = (
     "You are a Premier League studio analyst writing a full-time summary in {language}. "
     "Write at most three short sentences. Use ONLY the facts in the JSON. "
-    "Explain WHY the result happened: each item in 'moments' is a goal with its cause, so say what caused "
-    "each goal, in order, and then name the biggest problem of the weaker team from 'teams'. "
+    "Explain WHY the result happened: start with the football reasons in 'factors' (chance quality, finishing, "
+    "pressure, turnovers), then say what caused each goal from 'moments', and name the biggest problem of the "
+    "weaker team from 'teams'. "
     "Mention the standout player and their key contribution (such as goals scored) if provided. "
     "Never say what a player intended. "
     "Do not invent players, goals, scores or stats, and never write coordinates or distances. "
@@ -468,6 +480,7 @@ def write_recap(
     moments: list[dict],
     top_player: dict | None = None,
     teams: list[str] | None = None,
+    factors: list[str] | None = None,
 ) -> str:
     """AI full-time summary featuring score, moments, and standout player; ground all numbers."""
     allowed = set(score.values()) | {len(moments)}
@@ -478,6 +491,10 @@ def write_recap(
     if teams:
         payload["teams"] = teams
         for line in teams:
+            allowed.update(int(n) for n in re.findall(r"\d+", line))
+    if factors:
+        payload["factors"] = factors
+        for line in factors:
             allowed.update(int(n) for n in re.findall(r"\d+", line))
     if top_player:
         payload["standout_player"] = {
@@ -498,7 +515,7 @@ def write_recap(
         text = re.sub(r"\s*\[[^\]]*\]", "", text)
         if not {int(n) for n in re.findall(r"\d+", text)} <= allowed:
             raise ValueError("recap used a number that is not in the facts")
-        shown = " ".join([moment["what"] for moment in moments] + list(teams or [])
+        shown = " ".join([moment["what"] for moment in moments] + list(teams or []) + list(factors or [])
                           + [str((top_player or {}).get("name", ""))])
         if not names_are_grounded(text, shown):
             raise ValueError("recap named a player who is not in the facts")
