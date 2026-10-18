@@ -24,8 +24,3 @@ insights.db
 *.db-shm
 *.db-wal
 
-
-*.py
-!app/adapter.py
-*.ps1
-labels.txt
