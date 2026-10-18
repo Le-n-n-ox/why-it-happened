@@ -203,3 +203,19 @@ def test_endpoints_on_match_data_without_names():
         assert err.value.status_code == 404
     finally:
         main.EVENTS_FILE = original
+
+
+def test_a_player_appears_once_per_moment():
+    from app.players import involvement
+    for rows in involvement(DEMO, FOUND).values():
+        keys = [(row["kind"], row["minute"]) for row in rows]
+        assert len(keys) == len(set(keys))
+
+
+def test_player_numbers_are_consistent_with_the_match():
+    from app.matchinfo import match_info
+    rows = player_table(DEMO, FOUND)
+    assert all(row["shots"] >= row["goals"] for row in rows)  # a goal is a shot
+    score = match_info(DEMO)["score"]
+    for team, goals in score.items():
+        assert sum(row["goals"] for row in rows if row["team"] == team) == goals

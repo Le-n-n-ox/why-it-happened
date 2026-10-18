@@ -123,3 +123,17 @@ def test_example_is_sent_before_the_real_insight():
     assert [m["role"] for m in swahili] == ["system", "user", "assistant", "user"]
     assert "e901" in swahili[1]["content"] and "e1" in swahili[3]["content"]
     assert [m["role"] for m in klingon] == ["system", "user"]
+
+
+def test_a_match_file_with_repeated_ids_is_loaded_once_and_in_order(tmp_path):
+    import json
+    from app.events import load_events
+
+    base = json.loads(open("data/sample_match.json").read())
+    doubled = base + base + [{"id": "late", "minute": 1.0, "team": "Reds", "player": None,
+                              "type": "pass", "x": 10, "y": 10}]
+    path = tmp_path / "doubled.json"
+    path.write_text(json.dumps(doubled))
+    loaded = load_events(path)
+    assert len(loaded) == len(base) + 1
+    assert [event.minute for event in loaded] == sorted(event.minute for event in loaded)

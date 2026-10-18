@@ -59,5 +59,19 @@ def from_official(raw: dict) -> MatchEvent:
 
 
 def load_events(path: str | Path) -> list[MatchEvent]:
+    """Load a match file, dropping repeated evidence ids and sorting by match clock.
+
+    The first event for each id wins because event ids are the evidence keys for every claim.
+    """
     records = json.loads(Path(path).read_text())
-    return [from_official(r) for r in records]
+    seen: set[str] = set()
+    events: list[MatchEvent] = []
+    for record in records:
+        event = from_official(record)
+        if event.id in seen:
+            continue
+        seen.add(event.id)
+        events.append(event)
+    if len(events) != len(records):
+        print(f"[DEBUG] {path}: dropped {len(records) - len(events)} events with repeated ids")
+    return sorted(events, key=lambda event: event.minute)

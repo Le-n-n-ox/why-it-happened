@@ -156,9 +156,11 @@ def involvement(events: list[MatchEvent], insights: list[Insight]) -> dict[str, 
     by_id = {event.id: event for event in events}
     result: dict[str, list[dict]] = defaultdict(list)
     for insight in insights:
+        counted: set[str] = set()                    # one row per player per insight
         for event_id in insight.evidence:
             event = by_id.get(event_id)
-            if event and event.player:
+            if event and event.player and slug(event.team, event.player) not in counted:
+                counted.add(slug(event.team, event.player))
                 result[slug(event.team, event.player)].append({
                     "kind": insight.kind, "team": insight.team,
                     "minute": insight.minute, "evidence": insight.evidence,
