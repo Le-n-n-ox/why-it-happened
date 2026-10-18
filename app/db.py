@@ -83,7 +83,7 @@ def get_insights(team: str = None, limit: int = 10) -> list[dict]:
     """Retrieves historical insights, optionally filtered by team."""
     conn = get_connection()
     with _connection_lock:
-        query = "SELECT * FROM saved_insights WHERE kind NOT LIKE 'player\\_%' ESCAPE '\\'"
+        query = "SELECT * FROM saved_insights WHERE kind NOT LIKE 'player\\_%' ESCAPE '\\' AND kind != 'team_assessment'"
         params = []
 
         if team:

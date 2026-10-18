@@ -3,6 +3,7 @@ from collections import Counter, defaultdict
 import re
 import unicodedata
 
+from app.causes import chain_for, explain_event
 from app.detectors import Insight
 from app.events import EventType, MatchEvent
 
@@ -29,12 +30,37 @@ def _event_kind(event: MatchEvent) -> str:
     return event.type.value
 
 
+def _chain_roles(events: list[MatchEvent], insights: list[Insight]) -> dict[str, dict]:
+    """player id -> the causal chains they started, finished, or were part of."""
+    by_id = {e.id: e for e in events}
+    roles: dict[str, dict] = defaultdict(lambda: {"started": [], "finished": [], "involved": []})
+    for insight in insights:
+        chain = chain_for(events, insight)
+        if not chain:
+            continue
+        steps = [by_id[i] for i in insight.evidence if i in by_id]
+        seen: set[str] = set()
+        for position, event in enumerate(steps):
+            if not event.player:
+                continue
+            pid = slug(event.team, event.player)
+            if position == 0:
+                roles[pid]["started"].append(chain)
+            if position == len(steps) - 1:
+                roles[pid]["finished"].append(chain)
+            if pid not in seen:
+                roles[pid]["involved"].append(chain)
+                seen.add(pid)
+    return roles
+
+
 def player_stats(events: list[MatchEvent], insights: list[Insight]) -> dict[str, dict]:
     by_name: dict[str, list[MatchEvent]] = defaultdict(list)
     for event in events:
         if event.player:
             by_name[event.player].append(event)
     rows = {}
+    roles = _chain_roles(events, insights)
     for name, records in by_name.items():
         counts = Counter(_event_kind(event) for event in records)
         goals = [event for event in records if event.type == EventType.GOAL]
@@ -56,6 +82,12 @@ def player_stats(events: list[MatchEvent], insights: list[Insight]) -> dict[str,
                                 if e.type in (EventType.PASS, EventType.CARRY)),
             "goal_minutes": [int(e.minute) for e in goals],
             "key_moments": len(related),
+            "chains_started": len(roles[slug(records[0].team, name)]["started"]),
+            "chains_finished": len(roles[slug(records[0].team, name)]["finished"]),
+            "chains_involved": len(roles[slug(records[0].team, name)]["involved"]),
+            "goals_created": sum(
+                1 for c in roles[slug(records[0].team, name)]["involved"]
+                if c["ended_in"] == "goal" and c["finished_by"] != name),
         }
     return rows
 
@@ -63,7 +95,8 @@ def player_stats(events: list[MatchEvent], insights: list[Insight]) -> dict[str,
 def rating(stats: dict) -> dict:
     lines = [{"reason": "Starting point", "points": 6.0}]
     for key, reason, weight in (
-        ("goals", "Goals", 1.0), ("shots", "Shots", 0.1),
+        ("goals", "Goals", 1.0), ("goals_created", "Helped create goals", 0.5),
+        ("chains_involved", "Part of dangerous moves", 0.15), ("shots", "Shots", 0.1),
         ("progressive", "Progressive actions", 0.05),
         ("tackles", "Tackles", 0.1), ("interceptions", "Interceptions", 0.1),
         ("fouls", "Fouls", -0.1),
@@ -135,19 +168,19 @@ def involvement(events: list[MatchEvent], insights: list[Insight]) -> dict[str, 
 
 def player_actions(events: list[MatchEvent], player_id: str,
                    insights: list[Insight]) -> list[dict]:
-    return [explain_action(events, event.id, insights) for event in events
+    return [explain_event(events, event.id, insights) for event in events
             if event.player and slug(event.team, event.player) == player_id]
 
 
 def player_review_text(facts: dict, team: str) -> str:
     name = facts["name"]
-    goals = facts.get("goals", 0)
-    goal_minutes = facts.get("goal_minutes", [])
-    text = f"{name} ({team}) had {facts.get('touches', 0)} touches"
-    if goals:
-        times = " and ".join(f"{minute}'" for minute in goal_minutes)
-        text += f" and scored {goals} {'goal' if goals == 1 else 'goals'} ({times})"
-    return text + "."
+    story = facts.get("story") or []
+    if story:
+        n = facts.get("chains_involved", len(story))
+        return (f"{name} ({team}) shaped the match through {n} key "
+                f"{'move' if n == 1 else 'moves'}. " + " ".join(story))
+    return (f"{name} ({team}) had {facts.get('touches', 0)} touches but was not part of "
+            f"any of the match's key moves.")
 
 
 def review_insight(events: list[MatchEvent], player_id: str,
@@ -157,11 +190,24 @@ def review_insight(events: list[MatchEvent], player_id: str,
         return None
     records = [event for event in events if event.player and
                slug(event.team, event.player) == player_id]
-    evidence = [event.id for event in records[:6]]
+    roles = _chain_roles(events, insights).get(player_id, {"started": [], "finished": [], "involved": []})
+    chains = sorted(roles["involved"], key=lambda c: (c["ended_in"] != "goal", c["minute"]))[:2]
+    story = []
+    for chain in chains:
+        phrase = ("started the move" if chain in roles["started"] else
+                  "finished the move" if chain in roles["finished"] else "was part of the move")
+        story.append(f"At {int(chain['minute'])}' {stats['name']} {phrase}: {chain['trigger']}; "
+                     f"{chain['payoff']}. {chain['consequence']}")
+    # Cite where each move started and where it ended: enough to check the story.
+    evidence = list(dict.fromkeys(i for c in chains for i in (c["evidence"][0], c["evidence"][-1]))) \
+        or [event.id for event in records[:6]]
     facts = {key: stats[key] for key in (
         "name", "touches", "carries", "tackles", "interceptions", "fouls",
-        "progressive", "goal_minutes", "key_moments", "goals", "shots")}
+        "progressive", "goal_minutes", "key_moments", "goals", "shots",
+        "chains_started", "chains_finished", "chains_involved", "goals_created")}
+    facts["story"] = story
     first_goal = next((event for event in records if event.type == EventType.GOAL), None)
-    minute = first_goal.minute if first_goal else (records[0].minute if records else 0)
+    minute = first_goal.minute if first_goal else (chains[0]["minute"] if chains else
+                                                    (records[0].minute if records else 0))
     return Insight(kind="player_review", team=stats["team"], minute=minute,
                    evidence=evidence, facts=facts)

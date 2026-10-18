@@ -37,13 +37,14 @@ class MatchEvent(BaseModel):
 def from_official(raw: dict) -> MatchEvent:
     """Maps one record of the official feed to a MatchEvent using the adapter."""
     team = raw["team"]
-    period = raw.get("period", 1)
-
-    # Reds attack right (0 -> 120) in Period 1. Blues attack right in Period 2.
-    attacks_right = (period == 1 and team == "Reds") or (period == 2 and team == "Blues")
-
-    # Scale from 120x80 and flip if attacking left
-    x, y = normalise_xy(raw["x"], raw["y"], 120.0, 80.0, attacks_right)
+    if "period" in raw:
+        # Official feed: 120x80 pitch, absolute direction.
+        period = raw["period"]
+        attacks_right = (period == 1 and team == "Reds") or (period == 2 and team == "Blues")
+        x, y = normalise_xy(raw["x"], raw["y"], 120.0, 80.0, attacks_right)
+    else:
+        # Our own files are already 0-100 from each team's own goal line.
+        x, y = float(raw["x"]), float(raw["y"])
 
     return MatchEvent(
         id=str(raw["id"]),

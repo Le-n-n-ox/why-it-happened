@@ -112,11 +112,11 @@ def test_a_players_actions_are_all_theirs():
 
 def test_review_facts_cite_real_events():
     review = review_insight(DEMO, ASHDOWN, FOUND)
-    assert review.kind == "player_review" and 1 <= len(review.evidence) <= 6
+    assert review.kind == "player_review" and 1 <= len(review.evidence) <= 8
     assert set(review.evidence) <= {e.id for e in DEMO}
     assert review.facts["goal_minutes"] == [34, 64] and int(review.minute) == 34
     text = template_narration(review)
-    assert text.startswith("Felix Ashdown (Reds) had 4 touches and scored 2 goals (34' and 64').")
+    assert text.startswith("Felix Ashdown (Reds) shaped the match through 2 key moves.")
     assert text.endswith(f"[{', '.join(review.evidence)}]")
 
 
@@ -142,18 +142,20 @@ def run_review(model_text, lang="en"):
 
 
 def test_a_grounded_model_review_is_used():
-    out = run_review("Felix Ashdown scored twice, in the 34th and 64th minutes. [d73, d134]")
+    review = review_insight(DEMO, ASHDOWN, FOUND)
+    evidence = ", ".join(review.evidence)
+    out = run_review(f"Felix Ashdown scored twice, in the 34th and 64th minutes. [{evidence}]")
     assert out["en"].startswith("Felix Ashdown scored twice")
 
 
 def test_a_review_with_an_invented_number_falls_back_to_the_template():
     out = run_review("Felix Ashdown scored 5 goals and was brilliant. [d73]")
-    assert out["en"].startswith("Felix Ashdown (Reds) had 4 touches")
+    assert out["en"].startswith("Felix Ashdown (Reds) shaped the match")
 
 
 def test_a_review_citing_an_unknown_event_falls_back_to_the_template():
     out = run_review("Felix Ashdown scored twice. [d999]")
-    assert out["en"].startswith("Felix Ashdown (Reds) had 4 touches")
+    assert out["en"].startswith("Felix Ashdown (Reds) shaped the match")
 
 
 # ---- the example the model is shown must not use real players -----------------------------

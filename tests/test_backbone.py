@@ -104,7 +104,8 @@ def test_few_shot_examples_obey_our_own_rules():
 
     example = Insight(
         kind=EXAMPLE_PAYLOAD["kind"], team=EXAMPLE_PAYLOAD["team"], minute=EXAMPLE_PAYLOAD["minute"],
-        evidence=EXAMPLE_PAYLOAD["evidence"], facts=EXAMPLE_PAYLOAD["facts"],
+        evidence=EXAMPLE_PAYLOAD["evidence"],
+        facts={**EXAMPLE_PAYLOAD["facts"], "why": EXAMPLE_PAYLOAD["why"]},
     )
     for language, text in FEW_SHOT_BY_LANGUAGE.items():
         assert ensure_citations(text, example) == text, language      # cites every evidence id

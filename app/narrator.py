@@ -14,7 +14,11 @@ SYSTEM = (
     "You are an expert Premier League tactical analyst and broadcaster. "
     "Given a JSON payload of a match event, write a sharp, professional studio commentary "
     "in {language}. Use only the facts in the JSON payload. "
-    "Stay strictly on what the JSON says: say nothing about defenders, goalkeepers, momentum or how the opposition reacted. "
+    "Explain WHY it happened, not just what happened. The payload's 'why' holds the cause, how the move "
+    "developed, its payoff and why it mattered: build one flowing sentence from those parts, in that order, "
+    "linking them with words like 'after', 'which led to' or 'because'. Never claim what a player "
+    "intended or felt. "
+    "Stay strictly on what the JSON says: say nothing about defenders, goalkeepers or how the opposition reacted. "
     "When the facts name players (starter, finisher, players), use those names exactly as written "
     "and never add any other name. "
     "Never write coordinates or distances. Write natural, simple {language}, not a word-for-word translation. "
@@ -24,10 +28,19 @@ SYSTEM = (
 
 PLAYER_SYSTEM = (
     "You are a Premier League analyst writing a short end-of-match player review in {language}. "
-    "Use ONLY the facts in the JSON payload. Write at most three short sentences about this "
-    "player's game, using the counts and goal_minutes provided. "
+    "Use ONLY the facts in the JSON payload. Write at most three short sentences about what changed "
+    "because of this player: the moves they started or finished and what those led to, using 'story'. "
+    "Do not list touch counts unless 'story' is empty. "
     "Do not invent numbers, events, positions, injuries, feelings or reasons for what the player did, "
     "and do not mention a rating. End with the evidence ids in square brackets, e.g. [e1, e2]."
+)
+
+TEAM_SYSTEM = (
+    "You are a Premier League analyst writing a short end-of-match team assessment in {language}. "
+    "Use ONLY the facts in the JSON payload. In at most four short sentences say how well the team "
+    "played, using the verdict, name the strongest point and the biggest problem from 'story', and "
+    "give the advice that 'story' contains. Do not invent tactics, numbers, players or reasons, and "
+    "do not give advice that is not in 'story'. End with the evidence ids in square brackets, e.g. [e1, e2]."
 )
 
 LANGUAGE_NAMES = {
@@ -41,6 +54,7 @@ MODEL_FACT_KEYS = (
     "players", "starter", "finisher", "name", "touches", "carries", "tackles",
     "interceptions", "fouls", "progressive", "key_moments", "goal_minutes", "highlight",
     "prev_share_pct", "curr_share_pct",
+    "chains_started", "chains_finished", "chains_involved", "goals_created",
 )
 DETECTOR_KINDS = (
     "counter_attack", "turnover_shot", "high_press_turnover", "goal_buildup",
@@ -57,6 +71,7 @@ KIND_MEANING = {
     "player_standout": "was heavily involved and ran the game for their team over a short spell",
     "momentum_swing": "turned the game around, taking control of possession after being dominated",
     "player_review": "a short end-of-match review of one player's game",
+    "team_assessment": "an end-of-match assessment of how well one team played and what it should change",
 }
 
 # One worked example per language, shown to the model as an earlier exchange. It teaches tone and
@@ -68,12 +83,15 @@ EXAMPLE_PAYLOAD = {
     "meaning": KIND_MEANING["counter_attack"],
     "facts": {"duration_s": 14, "passes": 3, "ended_in": "shot",
               "players": ["Okoro", "Lindqvist", "Varga"], "starter": "Okoro", "finisher": "Varga"},
+    "why": {"cause": "Okoro intercepted the ball in Reds' own third",
+            "how": "4 touches in 14 seconds moved it from the own third to the final third",
+            "payoff": "Varga took a shot", "why_it_mattered": "It was Reds' shot number 2 of the match."},
     "evidence": ["e901", "e902", "e903", "e904"],
 }
 
 FEW_SHOT_BY_LANGUAGE = {
-    "English": "33' Okoro wins the ball for Reds in their own half and Varga shoots 14 seconds later, "
-               "after just 3 passes. [e901, e902, e903, e904]",
+    "English": "33' Reds create this chance because Okoro intercepts in their own third, and 4 touches in "
+               "14 seconds carry it forward for Varga to shoot, Reds' second shot of the match. [e901, e902, e903, e904]",
     "French": "33e minute : Okoro récupère le ballon pour les Reds dans leur moitié de terrain, "
               "et Varga tire 14 secondes plus tard, après seulement 3 passes. [e901, e902, e903, e904]",
     "Spanish": "Minuto 33: Okoro recupera el balón para los Reds en su propio campo y Varga remata "
@@ -102,6 +120,11 @@ def ensure_citations(text: str, insight: Insight) -> str:
 def numbers_are_grounded(text: str, insight: Insight) -> bool:
     """Every number in the text must be the minute or one of the facts shown to the model."""
     allowed = {int(insight.minute)}
+    for key in ("why", "story"):
+        block = insight.facts.get(key)
+        parts = block.values() if isinstance(block, dict) else (block or [])
+        for part in parts:
+            allowed |= {int(n) for n in re.findall(r"\d+", str(part))}
     for key in MODEL_FACT_KEYS:
         value = insight.facts.get(key)
         for value_item in (value if isinstance(value, list) else [value]):
@@ -111,11 +134,45 @@ def numbers_are_grounded(text: str, insight: Insight) -> bool:
     return {int(n) for n in re.findall(r"\d+", body)} <= allowed
 
 
+KNOWN_PLAYERS: set[str] = set()      # every player name in the match; filled by register_players()
+
+
+def register_players(names) -> None:
+    KNOWN_PLAYERS.update(name for name in names if name)
+
+
+def _mentions(text: str, name: str) -> bool:
+    parts = {name, name.split()[-1]}
+    return any(re.search(rf"\b{re.escape(part)}\b", text) for part in parts)
+
+
+def names_are_grounded(text: str, allowed_text: str) -> bool:
+    """A real player in the match may only be named if the facts name them too."""
+    body = re.sub(r"\[[^\]]*\]", "", text)
+    return all(not _mentions(body, name) or _mentions(allowed_text, name) for name in KNOWN_PLAYERS)
+
+
+def _facts_text(insight: Insight) -> str:
+    """Every name and sentence the model was shown for this insight."""
+    facts = insight.facts or {}
+    bits = [str(facts.get(key, "")) for key in ("name", "starter", "finisher")]
+    bits += [str(player) for player in facts.get("players", [])]
+    bits += [str(value) for value in (facts.get("why") or {}).values()]
+    bits += [str(sentence) for sentence in facts.get("story", [])]
+    return " ".join(bits)
+
+
 def template_narration(insight: Insight) -> str:
     facts = insight.facts or {}
     cites = ", ".join(insight.evidence)
     if insight.kind == "player_review" and "name" in facts:
         return f"{player_review_text(facts, insight.team)} [{cites}]"
+    if insight.kind == "team_assessment" and facts.get("story"):
+        return f"{' '.join(facts['story'])} [{cites}]"
+    why = facts.get("why")
+    if why and insight.kind != "player_review":
+        return (f"{int(insight.minute)}' {why['cause']}; {why['how']}; {why['payoff']}. "
+                f"{why['why_it_mattered']} [{cites}]")
     named = _named_sentence(insight)
     if named:
         return f"{int(insight.minute)}' {named} [{cites}]"
@@ -307,7 +364,12 @@ def narrate(client, model: str, insight: Insight, language: str = "English") -> 
         "facts": {k: v for k, v in insight.facts.items() if k in MODEL_FACT_KEYS},
         "evidence": insight.evidence,
     }
-    system = PLAYER_SYSTEM if insight.kind == "player_review" else SYSTEM
+    if insight.facts.get("why"):
+        payload_data["why"] = insight.facts["why"]
+    if insight.facts.get("story"):
+        payload_data["story"] = insight.facts["story"]
+    system = (PLAYER_SYSTEM if insight.kind == "player_review" else
+              TEAM_SYSTEM if insight.kind == "team_assessment" else SYSTEM)
     messages = [{"role": "system", "content": system.format(language=language)}]
     if insight.kind in DETECTOR_KINDS and language in FEW_SHOT_BY_LANGUAGE:
         messages += [
@@ -333,6 +395,8 @@ def _narrate_language(client, model: str | None, insight: Insight, code: str) ->
         text = ensure_citations(narrate(client, model, insight, LANGUAGE_NAMES.get(code, code)), insight)
         if not numbers_are_grounded(text, insight):
             raise ValueError("model used a number that is not in the facts")
+        if not names_are_grounded(text, _facts_text(insight)):
+            raise ValueError("model named a player who is not in the facts")
         _record_model_result(True)
     except Exception as exc:
         if not paused and model and os.getenv("NVIDIA_API_KEY"):
@@ -368,7 +432,10 @@ def narrate_all(client, model: str | None, insight: Insight, languages: list[str
 RECAP_SYSTEM = (
     "You are a Premier League studio analyst writing a full-time summary in {language}. "
     "Write at most three short sentences. Use ONLY the facts in the JSON. "
-    "Explicitly mention the standout player and their key contribution (such as goals scored) if provided. "
+    "Explain WHY the result happened: each item in 'moments' is a goal with its cause, so say what caused "
+    "each goal, in order, and then name the biggest problem of the weaker team from 'teams'. "
+    "Mention the standout player and their key contribution (such as goals scored) if provided. "
+    "Never say what a player intended. "
     "Do not invent players, goals, scores or stats, and never write coordinates or distances. "
     "Do not use square brackets."
 )
@@ -400,6 +467,7 @@ def write_recap(
     score: dict,
     moments: list[dict],
     top_player: dict | None = None,
+    teams: list[str] | None = None,
 ) -> str:
     """AI full-time summary featuring score, moments, and standout player; ground all numbers."""
     allowed = set(score.values()) | {len(moments)}
@@ -407,6 +475,10 @@ def write_recap(
         allowed.add(int(m["minute"]))
         allowed.update(int(n) for n in re.findall(r"\d+", m["what"]))
     payload = {"score": score, "moments": moments}
+    if teams:
+        payload["teams"] = teams
+        for line in teams:
+            allowed.update(int(n) for n in re.findall(r"\d+", line))
     if top_player:
         payload["standout_player"] = {
             "name": top_player.get("name"),
@@ -426,6 +498,10 @@ def write_recap(
         text = re.sub(r"\s*\[[^\]]*\]", "", text)
         if not {int(n) for n in re.findall(r"\d+", text)} <= allowed:
             raise ValueError("recap used a number that is not in the facts")
+        shown = " ".join([moment["what"] for moment in moments] + list(teams or [])
+                          + [str((top_player or {}).get("name", ""))])
+        if not names_are_grounded(text, shown):
+            raise ValueError("recap named a player who is not in the facts")
     except Exception as exc:
         _record_model_result(False, exc)
         raise

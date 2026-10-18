@@ -23,12 +23,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.assessment import assess_team, assessment_insight
+from app.causes import (attach_why, causal_chains, chain_for, explain_event, foul_explanations,
+                        turning_points, why_they_won)
 from app.db import get_insights, init_db
 from app.detectors import detect_all
 from app.events import MatchEvent, load_events
 from app.matchinfo import match_info
-from app.players import explain_action, involvement, player_actions, player_stats, player_table, rating, review_insight
-from app.narrator import make_client, model_available, model_status, narrate_all, write_recap
+from app.players import involvement, player_actions, player_stats, player_table, rating, review_insight
+from app.narrator import (make_client, model_available, model_status, narrate_all, register_players,
+                          write_recap)
 from app.simulate import replay
 from app.store import OmniPitchStore
 
@@ -73,6 +77,7 @@ store.clear()    # start clean once per server start (not on every /stream)
 def _match_data():
     """Load the full match, independent of the live stream's rolling window."""
     events = load_events(EVENTS_FILE)
+    register_players(e.player for e in events)
     return events, detect_all(events)
 
 
@@ -122,11 +127,47 @@ def player_review(player_id: str, lang: str = "en"):
     }
 
 
+@app.get("/team/{team}/assessment")
+def team_assessment(team: str, lang: str = "en"):
+    """How well a team played, the evidence for it, and what it should change."""
+    events, _ = _match_data()
+    name = next((e.team for e in events if e.team.casefold() == team.casefold()), None)
+    report = assess_team(events, name) if name else None
+    if report is None:
+        raise HTTPException(status_code=404, detail="Unknown team")
+    insight = assessment_insight(events, name)
+    narration = narrate_all(client, MODEL, insight, [lang])
+    used = lang if lang in narration else "en"
+    return {
+        **report,
+        "lang": used,
+        "text": narration.get(used) or next(iter(narration.values())),
+        "evidence": insight.evidence,
+    }
+
+
+@app.get("/fouls")
+def fouls():
+    """Every foul with the situation around it and what followed."""
+    events, found = _match_data()
+    return foul_explanations(events, found)
+
+
+@app.get("/why")
+def match_why():
+    events, found = _match_data()
+    return {
+        "result": why_they_won(events, found),
+        "turning_points": turning_points(events, found),
+        "chains": causal_chains(events, found),
+    }
+
+
 @app.get("/events/{event_id}/why")
 def event_why(event_id: str):
     """Explain an event from nearby actions and any detector evidence that includes it."""
     events, found = _match_data()
-    result = explain_action(events, event_id, found)
+    result = explain_event(events, event_id, found)
     if result is None:
         raise HTTPException(status_code=404, detail="Unknown event")
     return result
@@ -184,31 +225,25 @@ _recap_cache: dict[tuple, dict] = {}     # (language, insight ids) -> finished A
 
 @app.get("/recap")
 def recap(lang: str = "en"):
-
     """Return a grounded AI summary including the standout player when available."""
     events, found = _match_data()
-
-    """Return a grounded AI summary when available, otherwise join plain narrations."""
-
-    items = sorted(store.list_insights(), key=lambda i: i.get("minute", 0))
-    parts: list[str] = []
-    ids: list[str] = []
-    moments: list[dict] = []
-    for i in items:
-        narration = i.get("narration") or {}
-        if not isinstance(narration, dict):
-            continue
-        text = narration.get(lang) or narration.get("en") or next(iter(narration.values()), "")
-        if text:
-            plain = re.sub(r"\s*\[[^\]]*\]", "", text)
-            parts.append(plain)
-            ids.append(i.get("id", ""))
-            english = re.sub(r"\s*\[[^\]]*\]", "", narration.get("en") or text)
-            moments.append({"minute": int(i.get("minute", 0)), "team": i.get("team", ""), "what": english})
+    # The recap explains the RESULT: every goal traced to its cause, then each team's biggest problem.
+    reasons = why_they_won(events, found)["reasons"]
+    parts = [reason["text"] for reason in reasons]
+    ids = [reason["insight_id"] or reason["evidence"][0] for reason in reasons]
+    moments = [{"minute": int(reason["minute"]), "team": reason["team"], "what": reason["text"]}
+               for reason in reasons]
+    teams: list[str] = []
+    for name in dict.fromkeys(event.team for event in events):
+        report = assess_team(events, name)
+        if report and report["verdict"] != "too little play to judge":
+            line = f"{name} were {report['verdict']}."
+            if report["issues"]:
+                line += f" Biggest problem: {report['issues'][0]['detail']}"
+            teams.append(line)
+    parts += teams
 
     info = match_info(events)
-
-    info = match_info(load_events(EVENTS_FILE))
 
     headline = ""
     if info["home"] and info["away"]:
@@ -220,19 +255,15 @@ def recap(lang: str = "en"):
     top_player = players[0] if players else None
 
     standout_key = tuple(top_player.get(key) for key in ("name", "team", "goals", "rating")) if top_player else None
-    key = (lang, tuple(ids), standout_key)
-
-    key = (lang, tuple(ids))
+    key = (lang, tuple(ids), standout_key, tuple(teams))
 
     if key in _recap_cache:
         return _recap_cache[key]
     if ids and MODEL and os.getenv("NVIDIA_API_KEY") and model_available():
         try:
-
-            summary = write_recap(MODEL, lang, info["score"], moments, top_player=top_player)
-
-            summary = write_recap(MODEL, lang, info["score"], moments)
-
+            summary = write_recap(
+                MODEL, lang, info["score"], moments, top_player=top_player, teams=teams
+            )
             result = {"lang": lang, "text": f"{headline} {summary}".strip(), "insight_ids": ids}
             _recap_cache[key] = result
             return result
@@ -244,7 +275,9 @@ def recap(lang: str = "en"):
 async def _event_source(delay: float, seconds_per_minute: float | None):
     claimed: dict[tuple[str, str], set[str]] = {}    # (kind, team) -> evidence ids already reported
     buffer: list[MatchEvent] = []
-    async for event in replay(load_events(EVENTS_FILE), delay, seconds_per_minute):
+    match = load_events(EVENTS_FILE)
+    register_players(event.player for event in match)
+    async for event in replay(match, delay, seconds_per_minute):
         buffer.append(event)
         payload = event.model_dump(mode="json")
         store.add_event(payload)
@@ -261,12 +294,15 @@ async def _event_source(delay: float, seconds_per_minute: float | None):
                 continue
             used.update(insight.evidence)
 
+            attach_why(buffer, insight)      # the cause the narration must explain
+
             # The LLM call blocks, so run it off the event loop thread
             insight.narration = await asyncio.to_thread(
                 narrate_all, client, MODEL, insight, LANGS
             )
 
             data = insight.to_dict()
+            data["chain"] = chain_for(buffer, insight)
             store.add_insight(data)
             yield f"data: {json.dumps(data)}\n\n"
 

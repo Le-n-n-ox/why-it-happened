@@ -300,7 +300,6 @@ def detect_momentum_swing(events: list[MatchEvent], window_min: float = 5.0) -> 
 DETECTORS = [
     detect_counter_attacks, detect_turnover_shots, detect_high_press,
     detect_goal_buildups, detect_shot_pressure, detect_foul_turning_point,
-    detect_player_standout, detect_momentum_swing,
 ]
 
 
