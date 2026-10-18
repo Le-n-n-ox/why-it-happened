@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { Button } from "@/components/Button";
 import { Loader } from "@/components/Loader";
 import { PlayerCard } from "@/components/players/PlayerCard";
 import { PlayerFilters, type PlayerSort } from "@/components/players/PlayerFilters";
+import { useApi } from "@/hooks/useApi";
 import { getPlayers } from "@/lib/api";
 import { normalizePlayers } from "@/lib/players";
-import { useApi } from "@/hooks/useApi";
+import { ui } from "@/lib/ui";
 import { useMatch } from "@/types/matchContext";
 import type { PlayerSummary } from "@/types/types";
 
@@ -26,31 +28,31 @@ export function PlayersPage() {
   const list = players
     .filter((player) => activeTeam === "all" || player.team === activeTeam)
     .sort(sort === "rating" ? byRating : sort === "name" ? byName : byTeam);
-  const top = Math.max(0, ...players.map((player) => player.rating ?? 0));
-  const scaleMax = top <= 10 ? 10 : 100;
 
   return (
-    <section className="page page--wide players-page">
-      <div className="players-page__header">
+    <section className={ui.pageWide}>
+      <div className="flex items-end justify-between gap-4 max-[600px]:items-start">
         <div>
-          <p className="eyebrow">Match squad</p>
-          <h2>Players</h2>
+          <p className="m-0 text-[.72rem] font-extrabold uppercase tracking-[.12em] text-accent">Match squad</p>
+          <h2 className={`${ui.h2} mt-0.5`}>Players</h2>
         </div>
         {!loading && error === null && players.length > 0 && (
-          <span className="players-page__count">{players.length} players</span>
+          <span className="whitespace-nowrap rounded-full border border-line px-2.5 py-1.5 text-[.8rem] font-bold text-muted max-[600px]:mt-1">
+            {players.length} players
+          </span>
         )}
       </div>
-      <p className="empty">Ratings come from the match backend. Select a player for the breakdown and review.</p>
+      <p className={ui.empty}>Ratings come from the match backend. Select a player for the breakdown and review.</p>
 
       {loading && <Loader label="Loading players" />}
       {error !== null && (
-        <p role="alert" className="banner">
+        <p role="alert" className="m-0 rounded-card bg-warn px-3.5 py-2.5 text-black">
           Couldn't load players ({error}).{" "}
-          <button type="button" onClick={retry}>Retry</button>
+          <Button className="border-black bg-white text-black hover:bg-white/80" onClick={retry}>Retry</Button>
         </p>
       )}
       {!loading && error === null && players.length === 0 && (
-        <p className="empty">No players in this match data yet.</p>
+        <p className={ui.empty}>No players in this match data yet.</p>
       )}
 
       {players.length > 0 && (
@@ -63,15 +65,9 @@ export function PlayersPage() {
             onSortChange={setSort}
             onTeamChange={setTeam}
           />
-          <ol className="playerlist">
+          <ol className="m-0 grid list-none gap-2.5 p-0">
             {list.map((player, index) => (
-              <PlayerCard
-                key={player.id}
-                player={player}
-                rank={index + 1}
-                scaleMax={scaleMax}
-                teams={teams}
-              />
+              <PlayerCard key={player.id} player={player} rank={index + 1} teams={teams} />
             ))}
           </ol>
         </>

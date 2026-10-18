@@ -1,14 +1,18 @@
 // web/src/pages/AboutPage.tsx - how it works, for judges.
+import { ui } from "../lib/ui";
+
+const CODE = "rounded bg-surface-2 px-1.5 py-px";
+
 export function AboutPage() {
   return (
-    <section className="page">
-      <h2>How it works</h2>
+    <section className={ui.page}>
+      <h2 className={ui.h2}>How it works</h2>
       <p>
         Football stories do not end at the scoreline. This dashboard replays a match event by event
         and explains the tactical moments as they happen, with proof you can click.
       </p>
 
-      <ol className="steps">
+      <ol className="grid list-decimal gap-2.5 pl-5">
         <li>
           <strong>Rules detect.</strong> A Python service scans the events for tactical moments such
           as counter-attacks. Detection is deterministic, so every insight can be reproduced.
@@ -23,20 +27,22 @@ export function AboutPage() {
         </li>
       </ol>
 
-      <h3>Data and endpoints</h3>
-      <ul className="plain">
+      <h3 className={ui.h3}>Data and endpoints</h3>
+      <ul className="grid list-disc gap-1.5 pl-5">
         <li>The match data is synthetic, supplied for the hackathon.</li>
-        <li><code>GET /events</code>: the whole match, in time order.</li>
-        <li><code>GET /stream</code>: live insights over Server-Sent Events.</li>
-        <li><code>GET /health</code>: status and narration languages.</li>
+        <li><code className={CODE}>GET /events</code>: the whole match, in time order.</li>
+        <li><code className={CODE}>GET /stream</code>: live insights over Server-Sent Events.</li>
+        <li><code className={CODE}>GET /health</code>: status and narration languages.</li>
       </ul>
 
-      <h3>Pages</h3>
-      <ul className="plain">
-        <li><a className="link" href="#/">Live</a>: pitch and insight feed.</li>
-        <li><a className="link" href="#/recap">Timeline</a>: every insight by minute, plus the recap.</li>
-        <li><a className="link" href="#/announcers">Announcers</a>: on-air line, cue sheet and proof to fact-check.</li>
-        <li><a className="link" href="#/fans">Fans</a>: follow a team, share moments, see the proof.</li>
+      <h3 className={ui.h3}>Pages</h3>
+      <ul className="grid list-disc gap-1.5 pl-5">
+        <li><a className={ui.link} href="#/">Live</a>: pitch and insight feed.</li>
+        <li><a className={ui.link} href="#/recap">Timeline</a>: every insight by minute, plus the recap.</li>
+        <li><a className={ui.link} href="#/analytics">Analytics</a>: live stats and charts.</li>
+        <li><a className={ui.link} href="#/players">Players</a>: ratings, breakdowns and reviews.</li>
+        <li><a className={ui.link} href="#/announcers">Announcers</a>: on-air line, cue sheet and proof to fact-check.</li>
+        <li><a className={ui.link} href="#/fans">Fans</a>: follow a team, share moments, see the proof.</li>
       </ul>
     </section>
   );

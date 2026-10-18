@@ -1,6 +1,7 @@
-// web/src/Actions.tsx - small buttons that give feedback for a moment, then reset.
+// web/src/components/Actions.tsx - buttons that give feedback for a moment, then reset.
 import { useEffect, useState } from "react";
-import { copyText, shareText, type ShareResult } from "@/lib/share";
+import { copyText, shareText, type ShareResult } from "../lib/share";
+import { Button } from "./Button";
 
 function useReset<T extends string>(idle: T): [T, (v: T) => void] {
   const [value, setValue] = useState<T>(idle);
@@ -16,9 +17,9 @@ export function CopyButton({ text, label = "Copy" }: { text: string; label?: str
   const [state, setState] = useReset<"idle" | "done" | "failed">("idle");
   const onClick = async () => setState((await copyText(text)) ? "done" : "failed");
   return (
-    <button type="button" onClick={onClick}>
+    <Button onClick={onClick}>
       {state === "done" ? "Copied" : state === "failed" ? "Copy failed" : label}
-    </button>
+    </Button>
   );
 }
 
@@ -30,7 +31,5 @@ export function ShareButton({ text, url }: { text: string; url: string }) {
     : state === "shared" ? "Shared"
     : state === "failed" ? "Share failed"
     : "Share";
-  return (
-    <button type="button" onClick={onClick}>{label}</button>
-  );
+  return <Button onClick={onClick}>{label}</Button>;
 }

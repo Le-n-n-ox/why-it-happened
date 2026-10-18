@@ -19,3 +19,5 @@ export const getPlayer = (id: string) => getJson<unknown>(`/players/${encodeURIC
 export const getPlayerReview = (id: string, lang: string) =>
   getJson<unknown>(`/players/${encodeURIComponent(id)}/review?lang=${encodeURIComponent(lang)}`);
 export const getEventWhy = (id: string) => getJson<unknown>(`/events/${encodeURIComponent(id)}/why`);
+
+export const getMatchWhy = (lang: string) => getJson<unknown>(`/why?lang=${encodeURIComponent(lang)}`);

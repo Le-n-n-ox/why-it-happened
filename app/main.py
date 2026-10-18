@@ -6,8 +6,9 @@
   GET  /insights          insights stored so far (current stream)
   GET  /insights/history  saved insights from the database (?team=&limit=)
   GET  /recap             full-time recap text (?lang=)
-  GET  /players            player summaries derived from match events
-  GET  /players/{id}       one player's details
+  GET  /why               match-level explanation for WhyPanel (?lang=)
+  GET  /players           player summaries derived from match events
+  GET  /players/{id}      one player's details
   GET  /players/{id}/review written review placeholder (?lang=)
   GET  /stream            Server-Sent Events: replays the match and pushes insights live
 """
@@ -18,7 +19,7 @@ import re
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -154,10 +155,24 @@ def fouls():
 
 
 @app.get("/why")
-def match_why():
+def match_why(lang: str = Query("en")):
     events, found = _match_data()
+    result = why_they_won(events, found)
+    info = match_info(events)
+    summary = " ".join(reason["text"] for reason in result["reasons"])
+    if not summary:
+        if info["home"] and info["away"]:
+            home_score, away_score = info["score"].get(info["home"], 0), info["score"].get(info["away"], 0)
+            summary = (f"The match finished level at {info['home']} {home_score}-{away_score} {info['away']}."
+                       if home_score == away_score else "No goal causes were recorded.")
+        else:
+            summary = "No match result is available."
+    title = f"Why {result['winner']} won" if result["winner"] else "Why the match finished level"
     return {
-        "result": why_they_won(events, found),
+        **result,
+        "lang": lang,
+        "title": title,
+        "summary": summary,
         "turning_points": turning_points(events, found),
         "chains": causal_chains(events, found),
     }
@@ -244,12 +259,18 @@ def recap(lang: str = "en"):
     parts += teams
 
     info = match_info(events)
+    home = info.get("home")
+    away = info.get("away")
+    scores = info.get("score", {})
 
-    headline = ""
-    if info["home"] and info["away"]:
-        s = info["score"]
-        headline = f"Full time: {info['home']} {s[info['home']]}-{s[info['away']]} {info['away']}."
+    if not home or not away:
+        team_names = list(dict.fromkeys(event.team for event in events if event.team))
+        home = home or (team_names[0] if team_names else "Home")
+        away = away or (team_names[1] if len(team_names) > 1 else "Away")
+    scores.setdefault(home, 0)
+    scores.setdefault(away, 0)
 
+    headline = f"Full time: {home} {scores.get(home, 0)}-{scores.get(away, 0)} {away}."
 
     players = player_table(events, found)
     top_player = players[0] if players else None
@@ -259,6 +280,7 @@ def recap(lang: str = "en"):
 
     if key in _recap_cache:
         return _recap_cache[key]
+
     if ids and MODEL and os.getenv("NVIDIA_API_KEY") and model_available():
         try:
             summary = write_recap(
@@ -269,6 +291,7 @@ def recap(lang: str = "en"):
             return result
         except Exception as exc:
             print(f"[DEBUG] AI recap failed ({exc}); using the plain join")
+
     return {"lang": lang, "text": " ".join(([headline] if headline else []) + parts), "insight_ids": ids}
 
 

@@ -895,6 +895,7 @@ why-it-happened
 ├─ pytest.ini
 ├─ README.md
 ├─ requirements.txt
+├─ script.b64
 ├─ scripts
 ├─ tests
 └─ web
@@ -908,13 +909,10 @@ why-it-happened
    │  └─ icons.svg
    ├─ README.md
    ├─ src
-   │  ├─ analytics.ts
-   │  ├─ api.ts
    │  ├─ app
    │  │  ├─ App.tsx
    │  │  ├─ MatchProvider.tsx
    │  │  └─ routes.tsx
-   │  ├─ App.tsx
    │  ├─ components
    │  │  ├─ Actions.tsx
    │  │  ├─ analytics
@@ -955,7 +953,6 @@ why-it-happened
    │  │  ├─ players.ts
    │  │  ├─ share.ts
    │  │  └─ utils.ts
-   │  ├─ Loader.tsx
    │  ├─ main.tsx
    │  ├─ pages
    │  │  ├─ AboutPage.tsx
@@ -967,22 +964,14 @@ why-it-happened
    │  │  ├─ PlayerPage.tsx
    │  │  ├─ PlayersPage.tsx
    │  │  └─ RecapPage.tsx
-   │  ├─ PlayerName.tsx
-   │  ├─ players.ts
-   │  ├─ PowerSwitch.tsx
-   │  ├─ ReviewPanel.tsx
    │  ├─ styles
    │  │  └─ components.css
-   │  ├─ Switch.tsx
    │  ├─ types
    │  │  ├─ matchContext.ts
    │  │  └─ types.ts
-   │  ├─ types.ts
-   │  ├─ useApi.ts
    │  └─ vite-env.d.ts
    ├─ tsconfig.app.json
    ├─ tsconfig.json
    ├─ tsconfig.node.json
    └─ vite.config.ts
-
 ```

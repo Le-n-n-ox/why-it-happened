@@ -1,5 +1,6 @@
-import { teamColor } from "@/lib/match";
 import type { PlayerStat } from "@/lib/analytics";
+import { teamColor } from "@/lib/match";
+import { ui } from "@/lib/ui";
 
 interface MeterCellProps {
   value: number;
@@ -7,12 +8,21 @@ interface MeterCellProps {
   color: string;
 }
 
+const TH = "border-b border-line px-2.5 py-1.5 text-left font-semibold text-muted";
+const TD = "border-b border-line px-2.5 py-1.5 text-left";
+
+// The leader's bar stops short of full so it never reads as a perfect score.
 function MeterCell({ value, max, color }: MeterCellProps) {
-  const pct = Math.max(0, Math.min(100, (value / max) * 100));
+  const pct = Math.max(0, Math.min(95, (value / max) * 100));
   return (
-    <div className="cell-meter">
-      <span className="cell-meter__num">{value}</span>
-      <div className="meter" aria-hidden="true"><span style={{ width: `${pct}%`, background: color }} /></div>
+    <div className="flex min-w-[130px] items-center gap-2">
+      <span className="min-w-[3.5ch] text-right tabular-nums">{value}</span>
+      <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2" aria-hidden="true">
+        <span
+          className="block h-full animate-meter-in rounded-[inherit] transition-[width] duration-[600ms]"
+          style={{ width: `${pct}%`, background: color }}
+        />
+      </div>
     </div>
   );
 }
@@ -25,9 +35,9 @@ interface PlayerRankingProps {
 export function PlayerRanking({ players, teams }: PlayerRankingProps) {
   if (players.length === 0) {
     return (
-      <section className="panel" aria-label="Player ranking">
-        <h3>Player ranking</h3>
-        <p className="empty">
+      <section className={ui.panel} aria-label="Player ranking">
+        <h3 className={ui.h3}>Player ranking</h3>
+        <p className={ui.empty}>
           This match data has no player names yet, so player impact and distance can't be worked out. They
           appear automatically once events carry a player.
         </p>
@@ -37,25 +47,41 @@ export function PlayerRanking({ players, teams }: PlayerRankingProps) {
 
   const maxScore = Math.max(1, ...players.map((player) => player.score));
   const maxDistance = Math.max(1, ...players.map((player) => player.distanceM));
+
   return (
-    <section className="panel" aria-label="Player ranking">
-      <h3>Player ranking</h3>
-      <p className="empty">
+    <section className={ui.panel} aria-label="Player ranking">
+      <h3 className={ui.h3}>Player ranking</h3>
+      <p className={ui.empty}>
         Impact score is computed from the actions in the data (goals and shots count most, fouls count against).
         It is not an official rating. Distance is estimated from consecutive event locations.
       </p>
-      <div className="table-wrap">
-        <table>
-          <thead><tr><th>#</th><th>Player</th><th>Team</th><th>Actions</th><th>Goals</th><th>Shots</th><th>Impact</th><th>Est. distance (m)</th></tr></thead>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-[.85rem]">
+          <thead>
+            <tr>
+              <th className={TH}>#</th>
+              <th className={TH}>Player</th>
+              <th className={TH}>Team</th>
+              <th className={TH}>Actions</th>
+              <th className={TH}>Goals</th>
+              <th className={TH}>Shots</th>
+              <th className={TH}>Impact</th>
+              <th className={TH}>Est. distance (m)</th>
+            </tr>
+          </thead>
           <tbody>
             {players.map((player, index) => {
               const color = teamColor(player.team, teams);
               return (
                 <tr key={`${player.team}-${player.player}`}>
-                  <td>{index + 1}</td><td>{player.player}</td><td style={{ color }}>{player.team}</td>
-                  <td>{player.actions}</td><td>{player.goals}</td><td>{player.shots}</td>
-                  <td><MeterCell value={player.score} max={maxScore} color={color} /></td>
-                  <td><MeterCell value={player.distanceM} max={maxDistance} color={color} /></td>
+                  <td className={TD}>{index + 1}</td>
+                  <td className={TD}>{player.player}</td>
+                  <td className={TD} style={{ color }}>{player.team}</td>
+                  <td className={TD}>{player.actions}</td>
+                  <td className={TD}>{player.goals}</td>
+                  <td className={TD}>{player.shots}</td>
+                  <td className={TD}><MeterCell value={player.score} max={maxScore} color={color} /></td>
+                  <td className={TD}><MeterCell value={player.distanceM} max={maxDistance} color={color} /></td>
                 </tr>
               );
             })}

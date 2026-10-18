@@ -15,6 +15,7 @@ import {
   teamEventCounts,
 } from "@/lib/analytics";
 import { teamColor } from "@/lib/match";
+import { ui } from "@/lib/ui";
 import { useMatch } from "@/types/matchContext";
 
 export function AnalyticsPage() {
@@ -22,9 +23,9 @@ export function AnalyticsPage() {
 
   if (teams.length === 0) {
     return (
-      <section className="page">
-        <h2>Analytics</h2>
-        <p className="empty">Waiting for match data...</p>
+      <section className={ui.page}>
+        <h2 className={ui.h2}>Analytics</h2>
+        <p className={ui.empty}>Waiting for match data...</p>
       </section>
     );
   }
@@ -42,9 +43,9 @@ export function AnalyticsPage() {
   const players = playerStats(shown);
 
   return (
-    <section className="page page--wide">
-      <h2>Analytics</h2>
-      <p className="empty">Computed from {shown.length} events so far. Updates as the match plays.</p>
+    <section className={ui.pageWide}>
+      <h2 className={ui.h2}>Analytics</h2>
+      <p className={ui.empty}>Computed from {shown.length} events so far. Updates as the match plays.</p>
       <AnalyticsStats
         teams={teams}
         colors={colors}
