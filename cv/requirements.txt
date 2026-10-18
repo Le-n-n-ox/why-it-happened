@@ -1,0 +1,6 @@
+# Only for the computer-vision prototype. The main app does not need any of this.
+# Note: Ultralytics YOLO is licensed AGPL-3.0. Keep that in mind before publishing the repository.
+ultralytics>=8.3
+opencv-python>=4.9
+numpy>=1.26
+requests>=2.31
