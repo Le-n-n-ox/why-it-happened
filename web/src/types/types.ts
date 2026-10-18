@@ -79,7 +79,8 @@ export interface Action {
   insight_id?: string | null;
   evidence: string[];
   detail?: string | null;
-  factors?: string[]; // fouls: lost_ball_just_before, after_opponent_shot, stopping_an_attack, trailing, repeat_offender
+  factors?: string[];
+  quality?: unknown; // fouls: lost_ball_just_before, after_opponent_shot, stopping_an_attack, trailing, repeat_offender
 }
 export type PlayerAction = Action;
 
@@ -93,9 +94,10 @@ export interface WhyReason {
 }
 
 export interface MatchWhy {
-  result: { score: Record<string, number>; winner: string | null; reasons: WhyReason[] };
+  result: { score: Record<string, number>; winner: string | null; reasons: WhyReason[]; factors?: unknown };
   turning_points: CauseChain[]; // top 3, strongest first
   chains: CauseChain[];
+  factors?: unknown; // read with readFactors()
 }
 
 export interface Player {

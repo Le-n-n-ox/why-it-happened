@@ -13,7 +13,11 @@ interface AttackPanelProps {
   leader: string | null;
 }
 
+
 export function AttackPanel({ events, teams, colors, rows, leader }: AttackPanelProps) {
+
+export function AttackPanel({ events, teams, colors, rows, leader }: Omit<AttackPanelProps, 'zones'>) {
+
   const noAttacks = rows.every((row) => row.total === 0);
   return (
     <section className={ui.panel} aria-label="Where each team attacks">

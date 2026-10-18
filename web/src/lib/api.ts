@@ -44,6 +44,7 @@ export async function getWhy(lang = "en"): Promise<MatchWhy> {
     result: { ...result, reasons: result.reasons ?? [] },
     turning_points: w.turning_points ?? [],
     chains: w.chains ?? [],
+    factors: w.factors,
   };
 }
 
@@ -91,3 +92,8 @@ export async function getAssessment(team: string): Promise<Assessment> {
     evidence: a.evidence ?? [],
   };
 }
+
+
+export const getTactics = (team: string) => getJson<unknown>(`/team/${enc(team)}/tactics`);
+export const getPredict = () => getJson<unknown>("/predict");
+

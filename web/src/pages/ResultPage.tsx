@@ -1,11 +1,14 @@
-// web/src/pages/ResultPage.tsx - full-time summary: recap, three turning points, and one row per goal.
-import { ChainCard } from "@/components/ChainSteps";
+// web/src/pages/ResultPage.tsx - full-time summary: recap, win probability, turning points, goals, factors.
 import { Button } from "@/components/Button";
+import { ChainCard } from "@/components/ChainSteps";
+import { FactorsList } from "@/components/FactorsList";
 import { Loader } from "@/components/Loader";
 import { Pitch } from "@/components/Pitch";
 import { Recap } from "@/components/Recap";
+import { WinProbability } from "@/components/WinProbability";
 import { useApi } from "@/hooks/useApi";
 import { getWhy } from "@/lib/api";
+import { readFactors } from "@/lib/extras";
 import { eventsByIds, formatMinute, kindLabel, stripCitations, teamColor } from "@/lib/match";
 import { ui } from "@/lib/ui";
 import { cn } from "@/lib/utils";
@@ -17,6 +20,8 @@ function ResultBody() {
   const result = data?.result;
   const title = result ? (result.winner ? `Why ${result.winner} won` : "Why it finished level") : "Why the result happened";
   const selected = eventsByIds(pinned ?? [], byId);
+  const factors = readFactors(result?.factors ?? data?.factors);
+  const goals = (result?.reasons ?? []).map((r) => ({ minute: r.minute, team: r.team }));
 
   return (
     <section className={ui.pageWide}>
@@ -31,6 +36,7 @@ function ResultBody() {
       <div className={ui.split}>
         <div className="grid min-w-0 gap-4">
           <Recap lang={lang} />
+          <WinProbability goals={goals} />
 
           {data && data.turning_points.length > 0 && (
             <section className="grid gap-2.5" aria-label="Turning points">
@@ -88,6 +94,13 @@ function ResultBody() {
                 </ol>
               )}
               <p className={ui.empty}>Select a row to highlight its evidence on the pitch.</p>
+            </section>
+          )}
+
+          {factors.length > 0 && (
+            <section className="grid gap-2.5" aria-label="Factors">
+              <h3 className={ui.h3}>Factors</h3>
+              <FactorsList items={factors} />
             </section>
           )}
         </div>
