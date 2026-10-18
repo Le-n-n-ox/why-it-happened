@@ -13,4 +13,12 @@ export const ui = {
   chip: "rounded-full bg-bg px-2 py-px text-[.72rem] text-muted",
   tag: "ml-2 rounded bg-surface-2 px-1.5 py-px align-middle text-[.65rem] text-muted",
   actions: "flex flex-wrap items-center gap-2.5",
+  quiet: "rounded bg-surface-2 px-1.5 py-px text-[.7rem] text-muted",
+  marker: "rounded bg-warn px-1.5 py-px text-[.7rem] font-semibold text-black",
+  banner: "m-0 rounded-card bg-warn px-3.5 py-2.5 text-black",
+  bannerButton: "border-black bg-white text-black hover:bg-white/80",
+  th: "border-b border-line px-2.5 py-1.5 text-left font-semibold text-muted",
+  td: "border-b border-line px-2.5 py-1.5 text-left",
+  split: "grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] items-start gap-4 max-[1000px]:grid-cols-1",
+  side: "sticky top-[90px] grid gap-2 max-[1000px]:static max-[1000px]:-order-1",
 } as const;

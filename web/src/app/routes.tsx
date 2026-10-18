@@ -1,36 +1,41 @@
+// web/src/app/routes.tsx - hash routes: "#/team/Reds" -> path "/team/Reds".
 import { AboutPage } from "@/pages/AboutPage";
 import { AnalyticsPage } from "@/pages/AnalyticsPage";
 import { AnnouncersPage } from "@/pages/AnnouncersPage";
 import { FansPage } from "@/pages/FansPage";
+import { FoulsPage } from "@/pages/FoulsPage";
 import { InsightPage } from "@/pages/InsightPage";
 import { LivePage } from "@/pages/LivePage";
 import { PlayerPage } from "@/pages/PlayerPage";
 import { PlayersPage } from "@/pages/PlayersPage";
 import { RecapPage } from "@/pages/RecapPage";
+import { ResultPage } from "@/pages/ResultPage";
+import { TeamPage } from "@/pages/TeamPage";
 
 const INSIGHT_PREFIX = "/insight/";
 const PLAYER_PREFIX = "/player/";
+const TEAM_PREFIX = "/team/";
 
-function safeDecode(value: string): string {
+function safeDecode(s: string): string {
   try {
-    return decodeURIComponent(value);
+    return decodeURIComponent(s);
   } catch {
-    return value;
+    return s;
   }
 }
 
 export function RoutePage({ path }: { path: string }) {
+  if (path === "/result") return <ResultPage />;
   if (path === "/recap") return <RecapPage />;
-  if (path === "/analytics") return <AnalyticsPage />;
+  if (path === "/teams") return <TeamPage />;
+  if (path.startsWith(TEAM_PREFIX)) return <TeamPage team={safeDecode(path.slice(TEAM_PREFIX.length))} />;
   if (path === "/players") return <PlayersPage />;
-  if (path.startsWith(PLAYER_PREFIX)) {
-    return <PlayerPage id={safeDecode(path.slice(PLAYER_PREFIX.length))} />;
-  }
+  if (path.startsWith(PLAYER_PREFIX)) return <PlayerPage id={safeDecode(path.slice(PLAYER_PREFIX.length))} />;
+  if (path === "/fouls") return <FoulsPage />;
+  if (path === "/analytics") return <AnalyticsPage />;
   if (path === "/announcers") return <AnnouncersPage />;
   if (path === "/fans") return <FansPage />;
   if (path === "/about") return <AboutPage />;
-  if (path.startsWith(INSIGHT_PREFIX)) {
-    return <InsightPage id={safeDecode(path.slice(INSIGHT_PREFIX.length))} />;
-  }
+  if (path.startsWith(INSIGHT_PREFIX)) return <InsightPage id={safeDecode(path.slice(INSIGHT_PREFIX.length))} />;
   return <LivePage />;
 }

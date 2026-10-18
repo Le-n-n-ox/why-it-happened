@@ -1,9 +1,8 @@
-// web/src/components/InsightCard.tsx - one insight. A real <button>, so keyboard and screen readers just work.
+// web/src/components/InsightCard.tsx - one insight: narration, then its four-step chain.
 import { memo } from "react";
-import { ChainInline } from "@/components/Chain";
+import { ChainSteps } from "@/components/ChainSteps";
 import { factChips, formatMinute, kindLabel, lacksLang, pickText, stripCitations } from "@/lib/match";
 import { ui } from "@/lib/ui";
-import { normalizeChain } from "@/lib/why";
 import type { Insight } from "@/types/types";
 
 interface Props {
@@ -36,13 +35,17 @@ export const InsightCard = memo(function InsightCard({ insight, lang, color, sel
           {stripCitations(pickText(insight, lang))}
           {fallback && <span className={ui.tag}>EN</span>}
         </span>
-        <ChainInline steps={normalizeChain(insight.chain)} />
+        <ChainSteps chain={insight.chain} />
         <span className={ui.chips}>
           {factChips(insight).map((c) => (
             <span key={c} className={ui.chip}>{c}</span>
           ))}
         </span>
-        <span className="text-xs text-muted">Evidence: {insight.evidence.join(", ")}</span>
+        <span className={ui.chips}>
+          {insight.evidence.map((e) => (
+            <span key={e} className={`${ui.chip} font-mono`}>{e}</span>
+          ))}
+        </span>
       </button>
     </li>
   );

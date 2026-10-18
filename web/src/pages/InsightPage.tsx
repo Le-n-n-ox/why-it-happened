@@ -1,59 +1,35 @@
+// web/src/pages/InsightPage.tsx - one insight in full: pitch, narration, chain, players, facts, evidence.
 import { useState } from "react";
-import { InsightEvidenceTable } from "@/components/insights/InsightEvidenceTable";
-import { NameList } from "@/components/PlayerName";
-import { Pitch } from "@/components/Pitch";
-import { Chain } from "@/components/Chain";
 import { Button } from "@/components/Button";
-import { getEventWhy, getPlayers } from "@/lib/api";
-import { evidenceEvents, eventsByIds, formatMinute, kindLabel, languageName, stripCitations, teamColor } from "@/lib/match";
-import { normalizeAction, normalizePlayers, playerNames } from "@/lib/players";
-import { normalizeChain } from "@/lib/why";
-import { ui } from "@/lib/ui";
+import { ChainSteps } from "@/components/ChainSteps";
+import { EventWhyCard } from "@/components/EventWhyCard";
+import { Pitch } from "@/components/Pitch";
+import { NameList, PlayerName } from "@/components/PlayerName";
 import { useApi } from "@/hooks/useApi";
+import { getPlayers } from "@/lib/api";
+import {
+  eventsByIds, evidenceEvents, formatMinute, isDisplayableFact, kindLabel, languageName, stripCitations, teamColor,
+} from "@/lib/match";
+import { playerNames } from "@/lib/players";
+import { ui } from "@/lib/ui";
 import { useMatch } from "@/types/matchContext";
-import type { PlayerAction } from "@/types/types";
-
-type WhyState =
-  | { status: "loading" }
-  | { status: "error" }
-  | { status: "ok"; action: PlayerAction | null };
 
 const PLAYER_KEYS = new Set(["players", "starter", "finisher"]);
 
-const FACTS = "m-0 flex flex-wrap gap-2.5";
-const FACT = "rounded-card border border-line bg-surface px-3.5 py-2";
-const DT = "text-[.7rem] uppercase text-muted";
-const DD = "m-0 font-bold tabular-nums";
-
-function formatFact(value: unknown): string {
-  if (Array.isArray(value)) {
-    return value.map((item) => typeof item === "string" || typeof item === "number" ? String(item) : JSON.stringify(item)).join(", ");
-  }
-  return typeof value === "object" && value !== null ? JSON.stringify(value) : String(value);
+function formatFact(v: unknown): string {
+  if (Array.isArray(v)) return v.map((x) => (typeof x === "object" ? JSON.stringify(x) : String(x))).join(", ");
+  if (typeof v === "object" && v !== null) return JSON.stringify(v);
+  return String(v);
 }
 
 export function InsightPage({ id }: { id: string }) {
-  const { insights, byId, allEvents, teams, status } = useMatch();
+  const { insights, byId, allEvents, teams, status, pinned } = useMatch();
   const playersState = useApi(getPlayers, "all");
-  const [why, setWhy] = useState<Partial<Record<string, WhyState>>>({});
-  const [focus, setFocus] = useState<string[] | null>(null);
-  
-  const insight = insights.find((item) => item.id === id);
-  const players = playersState.data === null ? [] : normalizePlayers(playersState.data);
+  const [eventId, setEventId] = useState<string | null>(null);
+  const insight = insights.find((i) => i.id === id);
+  const players = playersState.data ?? [];
 
-  const askWhy = (eventId: string) => {
-    const current = why[eventId];
-    if (current !== undefined && current.status !== "loading") {
-      setWhy((previous) => Object.fromEntries(Object.entries(previous).filter(([key]) => key !== eventId)));
-      return;
-    }
-    setWhy((previous) => ({ ...previous, [eventId]: { status: "loading" } }));
-    getEventWhy(eventId)
-      .then((raw) => setWhy((previous) => ({ ...previous, [eventId]: { status: "ok", action: normalizeAction(raw) } })))
-      .catch(() => setWhy((previous) => ({ ...previous, [eventId]: { status: "error" } })));
-  };
-
-  if (insight === undefined) {
+  if (!insight) {
     const waiting = status === "connecting" || status === "live";
     return (
       <section className={ui.page}>
@@ -66,13 +42,13 @@ export function InsightPage({ id }: { id: string }) {
   }
 
   const evidence = evidenceEvents(insight, byId);
+  const selected = pinned ? eventsByIds(pinned, byId) : evidence;
+  const skipped = insight.evidence.length - evidence.length;
   const color = teamColor(insight.team, teams);
   const starter = playerNames(insight.facts["starter"]);
   const finisher = playerNames(insight.facts["finisher"]);
   const involved = playerNames(insight.facts["players"]);
-  
-  const steps = normalizeChain(insight.chain);
-  const shownEvidence = focus ? eventsByIds(focus, byId) : evidence;
+  const hasPlayers = starter.length + finisher.length + involved.length > 0;
 
   return (
     <section className={ui.page}>
@@ -81,20 +57,12 @@ export function InsightPage({ id }: { id: string }) {
         <span className={ui.minute}>{formatMinute(insight.minute)}</span>{" "}
         <span style={{ color }}>{insight.team}</span> · {kindLabel(insight.kind)}
       </h2>
-      <Pitch events={allEvents} selected={shownEvidence} teams={teams} />
-      
-      {steps.length > 0 && (
-        <section className="grid gap-2.5" aria-label="How it happened">
-          <h3 className={ui.h3}>How it happened</h3>
-          <Chain steps={steps} onShow={setFocus} />
-          {focus !== null && (
-            <div><Button onClick={() => setFocus(null)}>Show all evidence</Button></div>
-          )}
-        </section>
-      )}
+
+      <Pitch events={allEvents} selected={selected} teams={teams} onEventClick={setEventId} />
+      {eventId !== null && <EventWhyCard eventId={eventId} onClose={() => setEventId(null)} />}
 
       <h3 className={ui.h3}>Narration</h3>
-      <ul className="m-0 grid list-disc gap-1.5 pl-5">
+      <ul className="grid list-disc gap-1.5 pl-5">
         {Object.entries(insight.narration).map(([code, text]) => (
           <li key={code}>
             <strong>{languageName(code)}: </strong>
@@ -102,47 +70,83 @@ export function InsightPage({ id }: { id: string }) {
           </li>
         ))}
       </ul>
-      {(starter.length + finisher.length + involved.length > 0) && (
+      <div className={ui.chips}>
+        {insight.evidence.map((e) => <span key={e} className={`${ui.chip} font-mono`}>{e}</span>)}
+      </div>
+
+      {insight.chain && (
+        <>
+          <h3 className={ui.h3}>How it happened</h3>
+          <div className="grid gap-2 rounded-card border border-line bg-surface p-3.5">
+            <ChainSteps chain={insight.chain} />
+            {insight.chain.summary && <p className="m-0 text-muted">{insight.chain.summary}</p>}
+          </div>
+        </>
+      )}
+
+      {hasPlayers && (
         <>
           <h3 className={ui.h3}>Players</h3>
-          <dl className={FACTS}>
-            {starter.length > 0 && (
-              <div className={FACT}>
-                <dt className={DT}>Started the move</dt>
-                <dd className={DD}><NameList names={starter} players={players} /></dd>
-              </div>
-            )}
-            {finisher.length > 0 && (
-              <div className={FACT}>
-                <dt className={DT}>Finished it</dt>
-                <dd className={DD}><NameList names={finisher} players={players} /></dd>
-              </div>
-            )}
-            {involved.length > 0 && (
-              <div className={FACT}>
-                <dt className={DT}>Involved</dt>
-                <dd className={DD}><NameList names={involved} players={players} /></dd>
-              </div>
+          <dl className="m-0 flex flex-wrap gap-2.5">
+            {[
+              ["Started the move", starter],
+              ["Finished it", finisher],
+              ["Involved", involved],
+            ].map(([label, names]) =>
+              names.length > 0 ? (
+                <div key={label as string} className="rounded-card border border-line bg-surface px-3.5 py-2">
+                  <dt className="text-[.7rem] text-muted uppercase">{label as string}</dt>
+                  <dd className="m-0 font-bold"><NameList names={names as string[]} players={players} /></dd>
+                </div>
+              ) : null,
             )}
           </dl>
         </>
       )}
+
       <h3 className={ui.h3}>Facts</h3>
-      <dl className={FACTS}>
+      <dl className="m-0 flex flex-wrap gap-2.5">
         {Object.entries(insight.facts)
-          .filter(([key]) => !PLAYER_KEYS.has(key))
-          .map(([key, value]) => (
-            <div key={key} className={FACT}>
-              <dt className={DT}>{key.replace(/_/g, " ")}</dt>
-              <dd className={DD}>{formatFact(value)}</dd>
+          .filter(([k]) => !PLAYER_KEYS.has(k) && isDisplayableFact(k))
+          .map(([k, v]) => (
+            <div key={k} className="rounded-card border border-line bg-surface px-3.5 py-2">
+              <dt className="text-[.7rem] text-muted uppercase">{k.replace(/_/g, " ")}</dt>
+              <dd className="m-0 font-bold tabular-nums">{formatFact(v)}</dd>
             </div>
           ))}
       </dl>
+
       <h3 className={ui.h3}>Evidence</h3>
-      <InsightEvidenceTable evidence={evidence} players={players} why={why} onAskWhy={askWhy} />
-      {insight.evidence.length > evidence.length && (
-        <p className={ui.empty}>{insight.evidence.length - evidence.length} cited event(s) were not found in /events.</p>
-      )}
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-[.85rem]">
+          <thead>
+            <tr>
+              {["#", "Id", "Team", "Player", "Type", "Minute", "Outcome", "Why"].map((h) => (
+                <th key={h} className={ui.th}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {evidence.map((e, n) => (
+              <tr key={e.id}>
+                <td className={ui.td}>{n + 1}</td>
+                <td className={`${ui.td} font-mono`}>{e.id}</td>
+                <td className={ui.td}>{e.team}</td>
+                <td className={ui.td}>{e.player ? <PlayerName name={e.player} players={players} /> : "-"}</td>
+                <td className={ui.td}>{e.type}</td>
+                <td className={ui.td}>{formatMinute(e.minute)}</td>
+                <td className={ui.td}>{e.outcome ?? "-"}</td>
+                <td className={ui.td}>
+                  <Button aria-pressed={eventId === e.id} onClick={() => setEventId(eventId === e.id ? null : e.id)}>
+                    Why?
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {skipped > 0 && <p className={ui.empty}>{skipped} cited event(s) were not found in /events.</p>}
     </section>
   );
 }

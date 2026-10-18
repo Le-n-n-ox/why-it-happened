@@ -1,10 +1,13 @@
 // web/src/pages/FansPage.tsx - fan view: pick a team, follow its moments, share them.
 import { useState } from "react";
-import { ShareButton } from "../components/Actions";
-import { Button } from "../components/Button";
-import { formatMinute, kindLabel, lacksLang, pickText, stripCitations, teamColor } from "../lib/match";
-import { ui } from "../lib/ui";
-import { useMatch } from "../types/matchContext";
+import { ShareButton } from "@/components/Actions";
+import { Button } from "@/components/Button";
+import { ScoreLine } from "@/components/ScoreLine";
+import { useApi } from "@/hooks/useApi";
+import { getWhy } from "@/lib/api";
+import { formatMinute, kindLabel, lacksLang, pickText, stripCitations, teamColor } from "@/lib/match";
+import { ui } from "@/lib/ui";
+import { useMatch } from "@/types/matchContext";
 
 const FAV = "border-2 px-4 py-2 aria-pressed:bg-surface-2 aria-pressed:shadow-[0_0_0_2px_var(--accent)]";
 
@@ -16,18 +19,35 @@ function initialFav(): string {
   }
 }
 
-function shareUrl(id: string): string {
-  return `${window.location.origin}${window.location.pathname}#/insight/${encodeURIComponent(id)}`;
+const shareUrl = (id: string): string =>
+  `${window.location.origin}${window.location.pathname}#/insight/${encodeURIComponent(id)}`;
+
+/** One row per goal, from /why: the browser never counts goals itself. */
+function Goals() {
+  const { teams } = useMatch();
+  const { data, loading } = useApi(getWhy, "now");
+  const reasons = data?.result.reasons ?? [];
+  if (loading) return <p className={ui.empty}>Loading goals...</p>;
+  if (reasons.length === 0) return <p className={ui.empty}>No goals.</p>;
+  return (
+    <ul className="grid list-disc gap-1.5 pl-5">
+      {reasons.map((r, i) => (
+        <li key={`${i}-${r.minute}`}>
+          <span className={ui.minute}>{formatMinute(r.minute)}</span>{" "}
+          <span style={{ color: teamColor(r.team, teams) }}>{r.team}</span> goal
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 export function FansPage() {
-  const { insights, teams, shown, score, lang, ended } = useMatch();
+  const { insights, teams, lang, ended } = useMatch();
   const [fav, setFav] = useState(initialFav);
   const [cheered, setCheered] = useState<Set<string>>(new Set());
 
   const active = teams.includes(fav) ? fav : "all";
   const list = active === "all" ? insights : insights.filter((i) => i.team === active);
-  const goals = shown.filter((e) => e.type === "goal");
 
   const chooseFav = (team: string) => {
     setFav(team);
@@ -48,9 +68,7 @@ export function FansPage() {
       <p>Pick your team and see the moments that explain the match, with the proof one tap away.</p>
 
       <div className="flex flex-wrap gap-2" role="group" aria-label="Favourite team">
-        <Button className={FAV} aria-pressed={active === "all"} onClick={() => chooseFav("all")}>
-          Both teams
-        </Button>
+        <Button className={FAV} aria-pressed={active === "all"} onClick={() => chooseFav("all")}>Both teams</Button>
         {teams.map((t) => (
           <Button
             key={t}
@@ -66,30 +84,17 @@ export function FansPage() {
 
       <div className="grid gap-2 rounded-card border border-line bg-surface px-[18px] py-3.5">
         <p className="m-0 font-heading text-[1.6rem] font-bold tabular-nums">
-          {teams.map((t) => `${t} ${score[t]}`).join(" - ")}
+          <ScoreLine />
           {ended && " · Full time"}
         </p>
-        {goals.length > 0 ? (
-          <ul className="grid list-disc gap-1.5 pl-5">
-            {goals.map((g) => (
-              <li key={g.id}>
-                <span className={ui.minute}>{formatMinute(g.minute)}</span>{" "}
-                <span style={{ color: teamColor(g.team, teams) }}>{g.team}</span> goal
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className={ui.empty}>No goals yet.</p>
-        )}
+        {ended ? <Goals /> : <p className={ui.empty}>The goals are listed at full time.</p>}
       </div>
 
       <h3 className={ui.h3}>{active === "all" ? "Key moments" : `${active} moments`}</h3>
 
       {list.length === 0 ? (
         <p className={ui.empty}>
-          {insights.length === 0
-            ? "Waiting for the first moment..."
-            : `No moments for ${active} yet.`}
+          {insights.length === 0 ? "Waiting for the first moment..." : `No moments for ${active} yet.`}
         </p>
       ) : (
         <ul className="grid gap-3">
@@ -115,13 +120,8 @@ export function FansPage() {
                     {lacksLang(i, lang) && <span className={ui.tag}>EN</span>}
                   </p>
                   <div className={ui.actions}>
-                    <a className={ui.link} href={`#/insight/${encodeURIComponent(i.id)}`}>
-                      See it on the pitch →
-                    </a>
-                    <ShareButton
-                      text={`${formatMinute(i.minute)} ${i.team}: ${text} #WhyItHappened`}
-                      url={shareUrl(i.id)}
-                    />
+                    <a className={ui.link} href={`#/insight/${encodeURIComponent(i.id)}`}>See it on the pitch →</a>
+                    <ShareButton text={`${formatMinute(i.minute)} ${i.team}: ${text} #WhyItHappened`} url={shareUrl(i.id)} />
                     <Button aria-pressed={cheer} onClick={() => toggleCheer(i.id)}>
                       {cheer ? "Cheered" : "Cheer"}
                     </Button>

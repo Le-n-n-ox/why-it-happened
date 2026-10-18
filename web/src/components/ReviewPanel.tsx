@@ -1,69 +1,38 @@
-// web/src/components/ReviewPanel.tsx - the player's written review in the selected language.
-import { useEffect, useState } from "react";
-import { getPlayerReview } from "../lib/api";
-import { stripCitations } from "../lib/match";
-import { formatRating, normalizeReview } from "../lib/players";
-import { ui } from "../lib/ui";
-import type { PlayerReview } from "../types/types";
-import { Button } from "./Button";
-import { Skeleton } from "./Skeleton";
+// web/src/components/ReviewPanel.tsx - the player's written review: text, rating and the evidence it cites.
+import { Button } from "@/components/Button";
+import { Loader } from "@/components/Loader";
+import { useApi } from "@/hooks/useApi";
+import { getPlayerReview } from "@/lib/api";
+import { stripCitations } from "@/lib/match";
+import { formatRating } from "@/lib/players";
+import { ui } from "@/lib/ui";
+import { useMatch } from "@/types/matchContext";
 
-type ReviewState =
-  | { status: "loading" }
-  | { status: "error" }
-  | { status: "ok"; review: PlayerReview | null };
+const loadReview = (key: string) => {
+  const [id, lang] = key.split("\n");
+  return getPlayerReview(id, lang);
+};
 
-interface Props {
-  id: string;
-  lang: string;
-  onShow: (ids: string[], label: string) => void;
-}
-
-export function ReviewPanel({ id, lang, onShow }: Props) {
-  const [state, setState] = useState<ReviewState>({ status: "loading" });
-
-  useEffect(() => {
-    let cancelled = false;
-    setState({ status: "loading" });
-    getPlayerReview(id, lang)
-      .then((raw) => {
-        if (!cancelled) setState({ status: "ok", review: normalizeReview(raw) });
-      })
-      .catch(() => {
-        if (!cancelled) setState({ status: "error" });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [id, lang]);
+export function ReviewPanel({ id, lang }: { id: string; lang: string }) {
+  const { pin } = useMatch();
+  const { data, loading, error, notFound } = useApi(loadReview, `${id}\n${lang}`);
 
   return (
     <section className={ui.panel} aria-label="Player review">
       <h3 className={ui.h3}>Review</h3>
-      {state.status === "loading" && <Skeleton />}
-      {state.status === "error" && <p className={ui.empty}>The review isn't available right now.</p>}
-      {state.status === "ok" && state.review === null && (
-        <p className={ui.empty}>No review for this player yet.</p>
-      )}
-      {state.status === "ok" && state.review !== null && (
+      {loading && <Loader label="Loading review" />}
+      {notFound && <p className={ui.empty}>Player not found.</p>}
+      {error !== null && !notFound && <p className={ui.empty}>The review isn't available right now.</p>}
+      {data && (
         <>
-          <p className="m-0 text-[1.05rem] leading-snug" lang={state.review.lang || lang}>
-            {stripCitations(state.review.text)}
-            {state.review.lang !== "" && state.review.lang !== lang && (
-              <span className={ui.tag}>{state.review.lang.toUpperCase()}</span>
-            )}
-          </p>
+          <p className="m-0 text-[1.05rem] leading-snug" lang={lang}>{stripCitations(data.text)}</p>
           <div className={ui.chips}>
-            {state.review.rating !== null && (
-              <span className={ui.chip}>Rating {formatRating(state.review.rating)}</span>
-            )}
-            {state.review.evidence.map((e) => <span key={e} className={ui.chip}>{e}</span>)}
+            {data.rating !== null && <span className={ui.chip}>Rating {formatRating(data.rating)}</span>}
+            {data.evidence.map((e) => <span key={e} className={`${ui.chip} font-mono`}>{e}</span>)}
           </div>
-          {state.review.evidence.length > 0 && (
+          {data.evidence.length > 0 && (
             <div>
-              <Button onClick={() => onShow(state.review ? state.review.evidence : [], "review evidence")}>
-                Show evidence on pitch
-              </Button>
+              <Button onClick={() => pin(data.evidence)}>Highlight evidence on pitch</Button>
             </div>
           )}
         </>

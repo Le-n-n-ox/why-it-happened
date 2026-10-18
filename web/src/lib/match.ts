@@ -1,40 +1,33 @@
+// web/src/lib/match.ts - small pure helpers. No React, and no match statistics: those come from the API.
 import { playerNames } from "@/lib/players";
 import type { Insight, MatchEvent } from "@/types/types";
+
 export const PITCH_W = 105;
 export const PITCH_H = 68;
 
-/** Where to draw an event. `leftTeam` attacks to the right; the other team is rotated 180 degrees. */
-export function toPitch(ev: Pick<MatchEvent, "x" | "y" | "team">, leftTeam: string) {
-  const isLeft = ev.team === leftTeam;
-  const x = isLeft ? ev.x : 100 - ev.x;
-  const y = isLeft ? ev.y : 100 - ev.y;
-  return { px: (x / 100) * PITCH_W, py: (y / 100) * PITCH_H };
+/** Both teams attack toward x = 100, so the first team is drawn as is and the second team's x is flipped. */
+export function toPitch(ev: Pick<MatchEvent, "x" | "y" | "team">, firstTeam: string) {
+  const x = ev.team === firstTeam ? ev.x : 100 - ev.x;
+  return { px: (x / 100) * PITCH_W, py: (ev.y / 100) * PITCH_H };
 }
 
-/** Teams in first-seen order. The first team is "home" and plays left to right. */
+/** Teams in first-seen order. Used only until /match has loaded. */
 export function teamsFrom(events: MatchEvent[]): string[] {
   return [...new Set(events.map((e) => e.team))];
 }
 
-export function scoreFrom(events: MatchEvent[], teams: string[]): Record<string, number> {
-  const score: Record<string, number> = Object.fromEntries(teams.map((t) => [t, 0]));
-  for (const e of events) {
-    if (e.type === "goal" && e.team in score) score[e.team] += 1;
-  }
-  return score;
-}
-
 export const formatMinute = (minute: number): string => `${Math.floor(minute)}'`;
 
+// One place for kind names. An unknown kind falls back to the kind with underscores replaced by spaces.
 const KIND_LABELS: Record<string, string> = {
   counter_attack: "Counter-attack",
-  high_press: "High press",
-  player_standout: "Standout player",
   turnover_shot: "Turnover shot",
   high_press_turnover: "High-press turnover",
+  goal_buildup: "Goal build-up",
+  shot_pressure: "Shot pressure",
+  foul_turning_point: "Foul turning point",
 };
-export const kindLabel = (kind: string): string =>
-  KIND_LABELS[kind] ?? kind.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+export const kindLabel = (kind: string): string => KIND_LABELS[kind] ?? kind.replace(/_/g, " ");
 
 /** Text in the chosen language, else English, else whatever exists. */
 export function pickText(insight: Insight, lang: string): string {
@@ -42,7 +35,6 @@ export function pickText(insight: Insight, lang: string): string {
   return n[lang] ?? n["en"] ?? Object.values(n)[0] ?? "";
 }
 
-/** True when the insight has no text in `lang` (so pickText fell back). */
 export const lacksLang = (insight: Insight, lang: string): boolean => !(lang in insight.narration);
 
 /** Language codes from /health (`extra`), the insights, and the current choice. English first. */
@@ -57,22 +49,11 @@ export function eventsByIds(ids: string[], byId: Map<string, MatchEvent>): Match
   return ids.map((id) => byId.get(id)).filter((e): e is MatchEvent => e !== undefined);
 }
 
-/** The events an insight cites, in the order it cites them. */
 export function evidenceEvents(
   insight: Insight | undefined,
   byId: Map<string, MatchEvent>,
 ): MatchEvent[] {
   return insight ? eventsByIds(insight.evidence, byId) : [];
-}
-
-/** Fallback recap with no LLM: the most important moments, in match order. */
-export function keyMoments(insights: Insight[], limit = 5): Insight[] {
-  const weight = (i: Insight) =>
-    i.facts["ended_in"] === "goal" ? 3 : i.kind === "high_press" ? 1 : 2;
-  return [...insights]
-    .sort((a, b) => weight(b) - weight(a) || a.minute - b.minute)
-    .slice(0, limit)
-    .sort((a, b) => a.minute - b.minute);
 }
 
 // CSS variables, so colours stay defined in index.css only.
@@ -81,9 +62,12 @@ export function teamColor(team: string, teams: string[]): string {
   return TEAM_COLORS[teams.indexOf(team)] ?? "var(--muted)";
 }
 
-/** Drops "[e1, e2]" citations and a leading "10'" (the card shows the minute separately). */
+/** Drops the trailing "[d17, d18]" citation and a leading "9'" (cards show the minute and the ids separately). */
 export const stripCitations = (text: string): string =>
   text.replace(/\s*\[[^\]]*\]/g, "").replace(/^\s*\d+'\s*/, "").trim();
+
+/** Raw positions and pitch distances are never shown: start_x, end_x, forward_gain and the like are for drawing only. */
+export const isDisplayableFact = (key: string): boolean => !/(^|_)(x|y)$|distance|gain/.test(key);
 
 /** Short chips from an insight's facts, e.g. ["12s", "2 passes", "ends in shot", "started: Ada"]. */
 export function factChips(insight: Insight): string[] {
@@ -93,7 +77,9 @@ export function factChips(insight: Insight): string[] {
   if (typeof f["passes"] === "number") {
     out.push(`${f["passes"]} ${f["passes"] === 1 ? "pass" : "passes"}`);
   }
-  if (f["ended_in"] !== undefined) out.push(`ends in ${String(f["ended_in"]).replace(/_/g, " ")}`);
+  if (f["ended_in"] !== undefined && f["ended_in"] !== null) {
+    out.push(`ends in ${String(f["ended_in"]).replace(/_/g, " ")}`);
+  }
 
   const starter = playerNames(f["starter"])[0];
   const finisher = playerNames(f["finisher"])[0];
@@ -110,19 +96,6 @@ export function factChips(insight: Insight): string[] {
     out.push(`${involved.slice(0, 3).join(", ")}${more > 0 ? ` +${more}` : ""}`);
   }
   return out;
-}
-
-/**
- * Match minute for the clock when the backend sends no "tick" events:
- * the latest minute mentioned by any insight or by the events it cites.
- */
-export function clockFromInsights(insights: Insight[], byId: Map<string, MatchEvent>): number {
-  let minute = 0;
-  for (const i of insights) {
-    minute = Math.max(minute, i.minute);
-    for (const id of i.evidence) minute = Math.max(minute, byId.get(id)?.minute ?? 0);
-  }
-  return minute;
 }
 
 /** "sw" -> "Swahili". Falls back to the code itself. */

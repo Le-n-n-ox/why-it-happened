@@ -1,48 +1,18 @@
-// web/src/components/Recap.tsx - full-time recap: /recap if the backend has it, else a local key-moments list.
-import { useEffect, useState } from "react";
-import { getRecap } from "../lib/api";
-import { formatMinute, keyMoments, pickText, stripCitations } from "../lib/match";
-import { ui } from "../lib/ui";
-import { cn } from "../lib/utils";
-import type { Insight, Recap as RecapData } from "../types/types";
+// web/src/components/Recap.tsx - full-time recap text from /recap. The server writes it, so nothing is added here.
+import { Loader } from "@/components/Loader";
+import { useApi } from "@/hooks/useApi";
+import { getRecap } from "@/lib/api";
+import { stripCitations } from "@/lib/match";
+import { ui } from "@/lib/ui";
 
-interface Props {
-  insights: Insight[];
-  lang: string;
-  ended: boolean;
-}
-
-export function Recap({ insights, lang, ended }: Props) {
-  const [recap, setRecap] = useState<RecapData | null>(null);
-
-  useEffect(() => {
-    if (!ended) {
-      setRecap(null);
-      return;
-    }
-    let cancelled = false;
-    getRecap(lang)
-      .then((r) => { if (!cancelled) setRecap(r); })
-      .catch(() => { if (!cancelled) setRecap(null); }); // no /recap yet: fallback below
-    return () => { cancelled = true; };
-  }, [ended, lang]);
-
-  if (!ended) return null;
-
+export function Recap({ lang }: { lang: string }) {
+  const { data, loading, error } = useApi(getRecap, lang);
   return (
     <section className="rounded-card border border-line bg-surface px-[18px] py-3.5" aria-label="Full-time recap">
-      <h2 className={cn(ui.h2, "mb-2")}>Full-time recap</h2>
-      {recap?.text ? (
-        <p lang={lang}>{stripCitations(recap.text)}</p>
-      ) : (
-        <ul className="grid list-disc gap-1.5 pl-5">
-          {keyMoments(insights).map((i) => (
-            <li key={i.id}>
-              {formatMinute(i.minute)} {i.team}: {stripCitations(pickText(i, lang))}
-            </li>
-          ))}
-        </ul>
-      )}
+      <h2 className={`${ui.h2} mb-2`}>Full-time recap</h2>
+      {loading && <Loader label="Loading recap" />}
+      {error !== null && <p className={ui.empty}>The recap isn't available yet.</p>}
+      {data && <p className="m-0" lang={lang}>{stripCitations(data.text)}</p>}
     </section>
   );
 }
