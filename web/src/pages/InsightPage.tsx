@@ -1,5 +1,5 @@
 // web/src/pages/InsightPage.tsx - one insight in full: pitch, narration, chain, players, facts, evidence.
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Button } from "@/components/Button";
 import { ChainSteps } from "@/components/ChainSteps";
 import { EventWhyCard } from "@/components/EventWhyCard";
@@ -42,6 +42,7 @@ export function InsightPage({ id }: { id: string }) {
   }
 
   const evidence = evidenceEvents(insight, byId);
+  const eventWhyIsInline = eventId !== null && evidence.some((event) => event.id === eventId);
   const selected = pinned ? eventsByIds(pinned, byId) : evidence;
   const skipped = insight.evidence.length - evidence.length;
   const color = teamColor(insight.team, teams);
@@ -59,7 +60,7 @@ export function InsightPage({ id }: { id: string }) {
       </h2>
 
       <Pitch events={allEvents} selected={selected} teams={teams} onEventClick={setEventId} />
-      {eventId !== null && <EventWhyCard eventId={eventId} onClose={() => setEventId(null)} />}
+      {eventId !== null && !eventWhyIsInline && <EventWhyCard eventId={eventId} onClose={() => setEventId(null)} />}
 
       <h3 className={ui.h3}>Narration</h3>
       <ul className="grid list-disc gap-1.5 pl-5">
@@ -128,20 +129,29 @@ export function InsightPage({ id }: { id: string }) {
           </thead>
           <tbody>
             {evidence.map((e, n) => (
-              <tr key={e.id}>
-                <td className={ui.td}>{n + 1}</td>
-                <td className={`${ui.td} font-mono`}>{e.id}</td>
-                <td className={ui.td}>{e.team}</td>
-                <td className={ui.td}>{e.player ? <PlayerName name={e.player} players={players} /> : "-"}</td>
-                <td className={ui.td}>{e.type}</td>
-                <td className={ui.td}>{formatMinute(e.minute)}</td>
-                <td className={ui.td}>{e.outcome ?? "-"}</td>
-                <td className={ui.td}>
-                  <Button aria-pressed={eventId === e.id} onClick={() => setEventId(eventId === e.id ? null : e.id)}>
-                    Why?
-                  </Button>
-                </td>
-              </tr>
+              <Fragment key={e.id}>
+                <tr>
+                  <td className={ui.td}>{n + 1}</td>
+                  <td className={`${ui.td} font-mono`}>{e.id}</td>
+                  <td className={ui.td}>{e.team}</td>
+                  <td className={ui.td}>{e.player ? <PlayerName name={e.player} players={players} /> : "-"}</td>
+                  <td className={ui.td}>{e.type}</td>
+                  <td className={ui.td}>{formatMinute(e.minute)}</td>
+                  <td className={ui.td}>{e.outcome ?? "-"}</td>
+                  <td className={ui.td}>
+                    <Button aria-pressed={eventId === e.id} onClick={() => setEventId(eventId === e.id ? null : e.id)}>
+                      {eventId === e.id ? "Hide" : "Why?"}
+                    </Button>
+                  </td>
+                </tr>
+                {eventId === e.id && (
+                  <tr>
+                    <td className={`${ui.td} bg-surface-2`} colSpan={8}>
+                      <EventWhyCard eventId={e.id} onClose={() => setEventId(null)} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
           </tbody>
         </table>
