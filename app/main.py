@@ -37,6 +37,7 @@ from app.detectors import detect_all
 from app.events import EventType, MatchEvent, from_official, load_events
 from app.matchinfo import match_info
 from app.players import involvement, player_actions, player_stats, player_table, rating, review_insight
+from app.positions import positions as player_positions
 from app.narrator import (make_client, model_available, model_status, narrate_all, register_players,
                           write_recap)
 from app.simulate import replay
@@ -179,6 +180,13 @@ def team_tactics(team: str, lang: str = "en"):
         "text": narration.get(used) or next(iter(narration.values())),
         "evidence": insight.evidence,
     }
+
+
+@app.get("/positions")
+def positions(minute: float | None = None):
+    """Where each player was last seen (and the ball), up to `minute`. Not live tracking: see `note`."""
+    events, _ = _match_data()
+    return player_positions(events, minute)
 
 
 @app.get("/predict")
