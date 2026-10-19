@@ -13,7 +13,8 @@ ENV PYTHONUNBUFFERED=1 \
     DB_PATH=/data/insights.db
 WORKDIR /app
 COPY requirements.txt .
-RUN pip install --default-timeout=100 --retries 5 --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip && \
+    pip install --default-timeout=120 --retries 10 -r requirements.txt
 COPY app/ app/
 COPY data/ data/
 COPY --from=web /web/dist web/dist

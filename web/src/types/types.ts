@@ -224,9 +224,21 @@ export interface SecondHalf {
   xg_second?: { for: number; against: number };
 }
 
+export interface FormationPlayer {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+}
+
 export interface FormationEstimate {
   available: boolean;
   reason?: string; // show this instead of inventing a shape
+  shape?: string;
+  players?: FormationPlayer[];
+  base?: string;
+  in_possession?: string;
+  out_of_possession?: string;
   [key: string]: unknown;
 }
 

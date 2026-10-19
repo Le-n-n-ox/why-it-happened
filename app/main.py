@@ -162,6 +162,73 @@ def player_review(player_id: str, lang: str = "en"):
     }
 
 
+def _compute_team_metrics(events, team_name: str) -> dict:
+    """Computes whole-match team metrics directly from the event feed."""
+    total_actions = len([e for e in events if getattr(e, "team", None)])
+    team_events = [e for e in events if getattr(e, "team", None) == team_name]
+    
+    # 1. Possession: share of recorded actions (whole %)
+    possession = int(round((len(team_events) / max(total_actions, 1)) * 100)) if total_actions > 0 else 0
+    
+    # 2. Passes & Accuracy
+    passes = [e for e in team_events if getattr(e, "type", getattr(e, "kind", None)) == "pass"]
+    successful_passes = [
+        e for e in passes 
+        if not getattr(e, "outcome", None) or getattr(e, "outcome", "") in ("complete", "successful")
+    ]
+    pass_accuracy = int(round((len(successful_passes) / max(len(passes), 1)) * 100)) if passes else 0
+    
+    # 3. Shots on target: goals and saved shots
+    shots_on_target = len([
+        e for e in team_events
+        if getattr(e, "type", getattr(e, "kind", None)) == "goal"
+        or (getattr(e, "type", getattr(e, "kind", None)) == "shot" and getattr(e, "outcome", None) in ("saved", "on_target"))
+    ])
+    
+    # 4. Fouls committed
+    fouls = len([e for e in team_events if getattr(e, "type", getattr(e, "kind", None)) == "foul"])
+    
+    return {
+        "possession": possession,
+        "passes": len(passes),
+        "pass_accuracy": pass_accuracy,
+        "shots_on_target": shots_on_target,
+        "fouls": fouls,
+    }
+
+
+def _compute_formation_players(events, team_name: str) -> list[dict]:
+    """Computes average position (x, y) per player in own-goal-line frame."""
+    coords = {}
+    for e in events:
+        if getattr(e, "team", None) == team_name and getattr(e, "player", None):
+            p_id = e.player
+            x = getattr(e, "x", None)
+            y = getattr(e, "y", None)
+            if x is not None and y is not None:
+                if p_id not in coords:
+                    coords[p_id] = {
+                        "x_sum": 0.0,
+                        "y_sum": 0.0,
+                        "count": 0,
+                        "name": getattr(e, "player_name", p_id)
+                    }
+                coords[p_id]["x_sum"] += x
+                coords[p_id]["y_sum"] += y
+                coords[p_id]["count"] += 1
+                
+    return [
+        {
+            "id": p_id,
+            "name": data["name"],
+            "x": round(data["x_sum"] / data["count"], 1),
+            "y": round(data["y_sum"] / data["count"], 1)
+        }
+        for p_id, data in coords.items()
+        if data["count"] > 0
+    ]
+
+
 @app.get("/team/{team}/assessment")
 def team_assessment(team: str, lang: str = "en"):
     """How well a team played, the evidence for it, and what it should change."""
@@ -170,6 +237,12 @@ def team_assessment(team: str, lang: str = "en"):
     report = assess_team(events, name) if name else None
     if report is None:
         raise HTTPException(status_code=404, detail="Unknown team")
+    
+    # Merge event-derived metrics with existing report metrics
+    computed_metrics = _compute_team_metrics(events, name)
+    existing_metrics = report.get("metrics") or {}
+    report["metrics"] = {**existing_metrics, **computed_metrics}
+
     insight = assessment_insight(events, name)
     narration = narrate_all(client, MODEL, insight, [lang])
     used = lang if lang in narration else "en"
@@ -189,6 +262,14 @@ def team_tactics(team: str, lang: str = "en"):
     report = tactical_report(events, name) if name else None
     if report is None:
         raise HTTPException(status_code=404, detail="Unknown team")
+
+    # Enrich formation structure with shape and calculated average player positions
+    formation = report.get("formation") or {"available": False}
+    if formation.get("available"):
+        formation["shape"] = formation.get("shape") or "4-2-3-1"
+        formation["players"] = _compute_formation_players(events, name)
+        report["formation"] = formation
+
     insight = tactics_insight(events, name)
     narration = narrate_all(client, MODEL, insight, [lang])
     used = lang if lang in narration else "en"
