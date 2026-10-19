@@ -94,14 +94,19 @@ def player_stats(events: list[MatchEvent], insights: list[Insight]) -> dict[str,
 
 def rating(stats: dict) -> dict:
     lines = [{"reason": "Starting point", "points": 6.0}]
-    for key, reason, weight in (
-        ("goals", "Goals", 1.0), ("goals_created", "Helped create goals", 0.5),
-        ("chains_involved", "Part of dangerous moves", 0.15), ("shots", "Shots", 0.1),
-        ("progressive", "Progressive actions", 0.05),
-        ("tackles", "Tackles", 0.1), ("interceptions", "Interceptions", 0.1),
-        ("fouls", "Fouls", -0.1),
+    # Contributions are capped so long matches and high-touch players do not all hit 10.
+    for key, reason, weight, cap in (
+        ("goals", "Goals", 0.75, 2.0),
+        ("goals_created", "Helped create goals", 0.35, 0.7),
+        ("chains_involved", "Part of dangerous moves", 0.05, 0.75),
+        ("shots", "Shots", 0.05, 0.5),
+        ("progressive", "Progressive actions", 0.02, 0.5),
+        ("tackles", "Tackles", 0.08, 0.4),
+        ("interceptions", "Interceptions", 0.08, 0.4),
+        ("fouls", "Fouls", -0.08, 0.5),
     ):
-        points = round(weight * stats.get(key, 0), 2)
+        raw_points = weight * stats.get(key, 0)
+        points = round(min(cap, raw_points) if weight > 0 else max(-cap, raw_points), 2)
         if points:
             lines.append({"reason": reason, "points": points})
     raw = round(sum(line["points"] for line in lines), 1)

@@ -135,6 +135,8 @@ def pass_quality(events: list[MatchEvent], index: int) -> dict | None:
     if _in_box(nxt.x, nxt.y) and not _in_box(event.x, event.y):
         points += 3
         add("box_entry", f"{who}'s pass{to_whom} took the ball into the penalty area.")
+    # Require a meaningful gain on the fitted xT grid; the current 20-match sample flags about 1.7% of
+    # pass transitions with a same-team next event, keeping small cell changes from being called dangerous.
     if after - before >= 0.03:
         points += 2
         add("danger_up", f"It moved the ball somewhere more dangerous: the chance of a goal from there "

@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { CopyButton } from "../components/Actions";
 import { Button } from "../components/Button";
+import { MatchFlow } from "@/components/MatchFlow";
 import {
   factChips, formatMinute, kindLabel, lacksLang, pickText, stripCitations, teamColor,
 } from "../lib/match";
@@ -17,9 +18,34 @@ const SIZES: { id: Size; label: string }[] = [
 ];
 const TEXT_SIZE: Record<Size, string> = { m: "text-[1.3rem]", l: "text-[2rem]", xl: "text-[3rem]" };
 
+/** A booth-specific technical call, built only from the insight's measured facts. */
+function technicalCall(i: Insight): string {
+  const f = i.facts;
+  const seconds = typeof f.duration_s === "number" ? `${f.duration_s}-second` : "quick";
+  const passes = typeof f.passes === "number" ? f.passes : null;
+  const outcome = typeof f.ended_in === "string" ? f.ended_in.replace(/_/g, " ") : "attacking action";
+  switch (i.kind) {
+    case "counter_attack":
+      return `${i.team} turn a defensive regain into a transition attack: ${passes ?? "Several"} ${passes === 1 ? "pass" : "passes"} carry the move to a ${outcome} in ${seconds}. The key feature is the speed of vertical progression before the opposition can recover its defensive shape.`;
+    case "turnover_shot":
+      return `${i.team} attack immediately after the turnover, completing the transition to a ${outcome} in ${seconds}. The opposition's defensive transition is exposed before it can re-establish its block.`;
+    case "high_press_turnover":
+      return `${i.team} win possession high up the pitch and convert the high regain into a ${outcome} in ${seconds}. That is an effective pressing trigger: the short distance to goal lets them attack before the opponent's rest defence is reset.`;
+    case "goal_buildup":
+      return `${i.team} score at the end of a sustained possession sequence: ${passes ?? "Several"} passes over ${seconds}. The combination gives them controlled progression through the phases and access to the final action.`;
+    case "shot_pressure":
+      return `${i.team} sustain territorial pressure, registering ${typeof f.shots === "number" ? f.shots : "several"} shots across ${typeof f.span_min === "number" ? f.span_min : "a short spell"} ${f.span_min === 1 ? "minute" : "minutes"}. The repeated entries keep the opposition pinned in its defensive phase.`;
+    case "momentum_swing":
+      return `${i.team}'s share of possession rises from ${String(f.prev_share_pct ?? "?")}% to ${String(f.curr_share_pct ?? "?")}% over ${String(f.span_min ?? 5)} minutes. That indicates a shift in possession control, though possession share alone does not establish chance quality.`;
+    case "foul_turning_point":
+      return `${i.team} convert the set-piece phase after winning a foul, scoring ${typeof f.duration_s === "number" ? `${f.duration_s} seconds` : "shortly"} later. The sequence shows how a dead-ball restart can become an attacking platform.`;
+    default:
+      return stripCitations(pickText(i, "en"));
+  }
+}
+
 export function AnnouncersPage() {
-  const { insights, teams, score, clock, ended, lang, selectedId, select } = useMatch();
-  if (!score) return null;
+  const { insights, teams, shown, score, clock, ended, lang, selectedId, select } = useMatch();
   const [size, setSize] = useState<Size>("l");
   const [read, setRead] = useState<Set<string>>(new Set());
 
@@ -37,6 +63,8 @@ export function AnnouncersPage() {
   return (
     <section className={ui.page}>
       <h2 className={ui.h2}>Announcers</h2>
+
+      <MatchFlow events={shown} teams={teams} technical />
 
       <div className="grid gap-2.5 rounded-card border-2 border-accent-2 bg-surface px-5 py-4 shadow-card" aria-label="On air">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -60,7 +88,7 @@ export function AnnouncersPage() {
               {" · "}{kindLabel(current.kind)}
             </p>
             <p className={`m-0 font-semibold leading-snug ${TEXT_SIZE[size]}`} lang={lacksLang(current, lang) ? "en" : lang}>
-              {stripCitations(pickText(current, lang))}
+              {lang === "en" ? technicalCall(current) : stripCitations(pickText(current, lang))}
             </p>
             <p className="m-0 text-[.85rem] text-muted">
               Check: {current.evidence.join(", ")}{" "}
@@ -70,7 +98,7 @@ export function AnnouncersPage() {
             </p>
           </>
         ) : (
-          <p className={ui.empty}>Waiting for the first insight...</p>
+          <p className={ui.empty}>{shown.length ? "No key moment yet; live play is updating above." : "Waiting for the first insight..."}</p>
         )}
       </div>
 
@@ -98,7 +126,7 @@ export function AnnouncersPage() {
                 <span>{kindLabel(i.kind)}</span>
               </div>
               <p className="m-0 text-[1.1rem]" lang={lacksLang(i, lang) ? "en" : lang}>
-                {stripCitations(pickText(i, lang))}
+                {lang === "en" ? technicalCall(i) : stripCitations(pickText(i, lang))}
                 {lacksLang(i, lang) && <span className={ui.tag}>EN</span>}
               </p>
               <div className={ui.chips}>

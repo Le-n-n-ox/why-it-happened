@@ -45,6 +45,7 @@ export interface Insight {
 
 export interface Health {
   status: string;
+  source?: string;
   llm_configured: boolean;
   languages: string[];
   model?: string | null;
@@ -53,6 +54,7 @@ export interface Health {
 }
 
 export interface MatchInfo {
+  source?: string;
   home: string | null;
   away: string | null;
   duration_min: number;

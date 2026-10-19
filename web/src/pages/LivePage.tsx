@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { EventWhyCard } from "@/components/EventWhyCard";
 import { InsightCard } from "@/components/InsightCard";
+import { MatchFlow } from "@/components/MatchFlow";
 import { Pitch } from "@/components/Pitch";
 import { Recap } from "@/components/Recap";
 import { Skeleton } from "@/components/Skeleton";
@@ -39,9 +40,10 @@ export function LivePage() {
         aria-live="polite"
         aria-label="Live insights"
       >
+        <MatchFlow events={shown} teams={teams} />
         {insights.length === 0 && status !== "error" && (
           <>
-            <p className={ui.empty}>Waiting for the first insight...</p>
+            <p className={ui.empty}>{shown.length ? "No key moment yet; live match flow is shown above." : "Waiting for the first insight..."}</p>
             <div className="mt-2.5 grid gap-2.5">
               <Skeleton />
               <Skeleton />

@@ -15,10 +15,11 @@ Encode path parameters such as team names and player IDs with `encodeURIComponen
 
 | Method and path | Parameters | Response and use |
 |---|---|---|
-| `GET /health` | — | API/model status, configured languages, model name, narration state. |
-| `GET /match` | — | `{home, away, duration_min, events, score}`. |
+| `GET /health` | — | API/model status, configured languages, model name, narration state, and a `source` label. |
+| `GET /match` | — | `{home, away, duration_min, events, score, source}`. |
 | `GET /events` | — | Event array. Each event has `id`, `minute`, `team`, `player`, `type`, `x`, `y`, and `outcome`. Coordinates use the app's 0–100 pitch scale. |
 | `GET /events/{event_id}/why` | Path: `event_id` | Explanation with `action`, `why`, and `evidence`; pass events can also include `quality`. Unknown IDs return 404. |
+| `GET /goals/{goal_id}/hypotheses` | Path: `goal_id`; `mode=auto\|sweep` | Goal summary and hypotheses tested against match events. `auto` asks the model for claims when configured, then verifies them with rules; `sweep` uses the rules-only baseline. |
 | `GET /stream` | `source=file\|live`, `delay`, `speed` | Server-sent events. Messages include event ticks, prediction updates, insights, and a final `done`. |
 | `GET /live/status` | — | `{live, events, ended}` for the ingest stream. |
 | `POST /events` | JSON `MatchEvent`; optional `X-Ingest-Token` header | Add an app-format live event. Duplicate IDs are ignored; events must arrive in clock order. |
@@ -39,6 +40,7 @@ Encode path parameters such as team names and player IDs with `encodeURIComponen
 | `GET /team/{team}/tactics` | Path: `team`; `lang` (default `en`) | Tactical report, second-half comparison, formation estimate, narration text, and evidence. Unknown teams return 404. |
 | `GET /positions` | `minute` (optional number) | `{minute, source, exact, ball, players, note}`. Each player includes last-seen coordinates, event, time since seen, freshness, trail, average position, action count, and on-ball status. These are event locations, not live player tracking. |
 | `GET /predict` | `minute` (optional number) | Win-probability fields plus `timeline`. If fewer than two teams are present, returns `available: false` and a reason. |
+| `GET /validation` | — | Latest persisted real-match validation report, or `{available: false, reason}` until one has been written by the validation script. |
 | `GET /ask` | Required `q` (max 300 chars); optional `lang` (default `en`), `mode` (default `auto`; `rules` skips the model) | `{question, mode, router, analyses, facts, evidence, answerable, answer}`. |
 
 ## Players
@@ -59,10 +61,11 @@ Encode path parameters such as team names and player IDs with `encodeURIComponen
 ## Frontend notes
 
 - The configured match is selected with `EVENTS_FILE` (default `data/sample_match.json`). Restart the API after changing it.
+- `GET /match` and `GET /health` identify StatsBomb files as `StatsBomb Open Data`; set `DATA_SOURCE` to label other configured files. Live ingested events use `LIVE_DATA_SOURCE` or `Live event feed`.
+- `scripts/validate_on_statsbomb.py` writes `data/validation_report.json` by default; `GET /validation` reads that file. The Docker image copies it with `data/` when present at build time.
 - With `INGEST_TOKEN` configured, include its value as `X-Ingest-Token` on all event-ingest and live-control POSTs.
 - `/stream` sends `tick` and `prediction` as named SSE events, insight payloads as default messages, then the named `done` event.
-- `GET /validation` is not currently implemented.
 
-## Known route-definition cleanup
+## Route maintenance
 
-`app/main.py` currently contains duplicate decorators for `GET /why`, `/fouls`, `/team/{team}/assessment`, `/team/{team}/tactics`, `/predict`, `/ask`, and `/health`. Earlier full implementations appear before later stub implementations. Starlette normally dispatches the first matching route, while duplicate registrations can make generated OpenAPI documentation misleading. Remove the stubs or consolidate each route before treating `/docs` as the authoritative response schema.
+Keep route response descriptions in sync with `app/main.py` and the functions that build each response. The retired placeholder route implementations have been removed; check for duplicate decorators before adding a route so `/docs` and runtime behavior stay aligned.

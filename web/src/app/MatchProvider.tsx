@@ -12,10 +12,6 @@ const speedParam = Number(params.get("speed"));
 const speed = params.has("speed") && Number.isFinite(speedParam) ? speedParam : undefined;
 const source = params.get("source") === "live" ? "live" : undefined;
 
-// /match returns the whole match, so a replay would show the final score at 0'.
-// true: the header score waits for full time. false: show /match's score from the start.
-const SPOILER_FREE_REPLAY = true;
-
 function initialLang(): string {
   const fromUrl = params.get("lang");
   if (fromUrl) return fromUrl;
@@ -51,15 +47,11 @@ export function MatchProvider({ children }: { children: ReactNode }) {
 
   const ended = status === "ended";
   const lastTick = ticks.length ? ticks[ticks.length - 1] : null;
-  const tickKey = lastTick ? `${lastTick.id}:${lastTick.type}` : "";
 
-  // The score always comes from /match. Re-ask it at full time and, for a live feed, after each goal.
+  // Refresh match metadata at full time. The displayed score is derived from goals seen in the stream.
   useEffect(() => {
     if (ended) refreshMatch();
   }, [ended, refreshMatch]);
-  useEffect(() => {
-    if (source === "live" && tickKey.endsWith(":goal")) refreshMatch();
-  }, [tickKey, refreshMatch]);
 
   // A pinned highlight belongs to the page it was made on.
   useEffect(() => {
@@ -76,8 +68,17 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     [insights, health, lang],
   );
 
-  const scoreVisible = ended || source === "live" || !SPOILER_FREE_REPLAY;
-  const score = scoreVisible && match ? match.score : null;
+  const score = useMemo(() => {
+    if (teams.length < 2) return null;
+    const current: Record<string, number> = Object.fromEntries(teams.map((team) => [team, 0]));
+    const seenGoals = new Set<string>();
+    for (const event of ticks) {
+      if (event.type !== "goal" || seenGoals.has(event.id)) continue;
+      seenGoals.add(event.id);
+      if (event.team in current) current[event.team] += 1;
+    }
+    return current;
+  }, [teams, ticks]);
   const clock = lastTick ? lastTick.minute : 0;
 
   const latestId = insights[0]?.id ?? null;

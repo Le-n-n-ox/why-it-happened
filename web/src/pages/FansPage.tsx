@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { ShareButton } from "@/components/Actions";
 import { Button } from "@/components/Button";
+import { MatchFlow } from "@/components/MatchFlow";
 import { ScoreLine } from "@/components/ScoreLine";
 import { useApi } from "@/hooks/useApi";
 import { getWhy } from "@/lib/api";
@@ -42,7 +43,7 @@ function Goals() {
 }
 
 export function FansPage() {
-  const { insights, teams, lang, ended } = useMatch();
+  const { insights, teams, shown, lang, ended } = useMatch();
   const [fav, setFav] = useState(initialFav);
   const [cheered, setCheered] = useState<Set<string>>(new Set());
 
@@ -90,11 +91,15 @@ export function FansPage() {
         {ended ? <Goals /> : <p className={ui.empty}>The goals are listed at full time.</p>}
       </div>
 
+      <MatchFlow events={shown} teams={teams} />
+
       <h3 className={ui.h3}>{active === "all" ? "Key moments" : `${active} moments`}</h3>
 
       {list.length === 0 ? (
         <p className={ui.empty}>
-          {insights.length === 0 ? "Waiting for the first moment..." : `No moments for ${active} yet.`}
+          {insights.length === 0
+            ? shown.length ? "No key moment yet; follow the live play above." : "Waiting for the first moment..."
+            : `No moments for ${active} yet.`}
         </p>
       ) : (
         <ul className="grid gap-3">

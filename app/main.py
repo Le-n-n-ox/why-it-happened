@@ -35,6 +35,7 @@ from app.causes import (attach_why, causal_chains, chain_for, explain_event, fou
 from app.db import get_insights, init_db
 from app.detectors import detect_all
 from app.events import EventType, MatchEvent, from_official, load_events
+from app.hypotheses import hypotheses as goal_hypotheses
 from app.matchinfo import match_info
 from app.players import involvement, player_actions, player_stats, player_table, rating, review_insight
 from app.positions import positions as player_positions
@@ -89,6 +90,23 @@ store.clear()    # start clean once per server start (not on every /stream)
 def _current_events() -> list[MatchEvent]:
     """The live match if a feed has pushed events in, otherwise the match file."""
     return list(live_match_events) if live_match_events else load_events(EVENTS_FILE)
+
+
+def _data_source() -> str:
+    """A displayable provenance label without exposing local file paths or credentials."""
+    if live_match_events:
+        return os.getenv("LIVE_DATA_SOURCE", "Live event feed")
+    configured = os.getenv("DATA_SOURCE")
+    if configured:
+        return configured
+    filename = Path(EVENTS_FILE).name.casefold()
+    if filename.startswith("sb_"):
+        return "StatsBomb Open Data"
+    if filename == "demo_match.json":
+        return "Built-in demo match"
+    if filename == "sample_match.json":
+        return "Built-in sample match"
+    return "Configured match file"
 
 
 def _match_data():
@@ -244,58 +262,38 @@ def event_why(event_id: str):
     return result
 
 
-
-@app.get("/why")
-def get_match_why(lang: str = Query("en")):
-    """
-    Match-level explanation for the frontend WhyPanel.
-    Stubbed to prevent 404s until the backend narrator is wired up.
-    """
-    return {
-        "status": "ok",
-        "lang": lang,
-        "summary": "The AI narrator is currently analyzing the match.",
-        "factors": [],
-        "chain": []
+@app.get("/goals/{goal_id}/hypotheses")
+def goal_hypothesis_report(goal_id: str, mode: str = "auto"):
+    """Test possible explanations for one goal; mode=sweep uses only the rules baseline."""
+    events, found = _match_data()
+    goal = next((e for e in events if e.id == goal_id and e.type == EventType.GOAL), None)
+    if goal is None:
+        raise HTTPException(status_code=404, detail="Unknown goal")
+    reports = goal_hypotheses(events, found, model=MODEL, mode=mode, goal_id=goal_id)
+    return reports[0] if reports else {
+        "goal_id": goal_id, "team": goal.team, "minute": goal.minute,
+        "summary": "No cause summary is available for this goal.", "source": "sweep",
+        "alpha": None, "hypotheses": [],
     }
 
 
-@app.get("/fouls")
-def get_fouls():
-    """Stubbed endpoint to prevent 404s for the frontend fouls component."""
-    return []
-
-
-@app.get("/team/{team_id}/assessment")
-def get_team_assessment(team_id: str):
-    """Stubbed endpoint for frontend team assessment."""
-    return {
-        "status": "ok",
-        "team": team_id,
-        "assessment": "Tactical assessment is currently unavailable.",
-        "score": 0
-    }
-
-@app.get("/team/{team_id}/tactics")
-def get_team_tactics(team_id: str):
-    """Stubbed endpoint for frontend team tactics."""
-    return {
-        "status": "ok",
-        "team": team_id,
-        "tactics": "Tactical data is currently offline.",
-        "formations": []
-    }
-
-
-@app.get("/predict")
-def get_prediction():
-    """Stubbed endpoint for frontend prediction fetching."""
-    return {
-        "status": "ok",
-        "prediction": "AI prediction models are currently offline.",
-        "confidence": 0
-    }
-
+@app.get("/validation")
+def validation():
+    """Return the latest persisted real-match validation report, if available."""
+    report_path = Path(os.getenv("VALIDATION_REPORT_FILE", "data/validation_report.json"))
+    if not report_path.is_file():
+        return {
+            "available": False,
+            "source": "StatsBomb Open Data",
+            "matches": 0,
+            "reason": "Run scripts/validate_on_statsbomb.py on downloaded match files to create this report.",
+        }
+    try:
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {"available": False, "source": "StatsBomb Open Data", "matches": 0,
+                "reason": "The validation report could not be read; rerun the validation script."}
+    return report
 
 
 @app.get("/ask")
@@ -311,6 +309,7 @@ def health():
     status = model_status()
     return {
         "status": "ok",
+        "source": _data_source(),
         "llm_configured": configured,
         "languages": LANGS,
         "model": MODEL,
@@ -331,7 +330,7 @@ def events():
 
 @app.get("/match")
 def match():
-    return match_info(_current_events())
+    return {**match_info(_current_events()), "source": _data_source()}
 
 
 def _check_token(token: str | None) -> None:

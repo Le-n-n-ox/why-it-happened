@@ -26,9 +26,10 @@ interface HeaderProps {
 }
 
 export function Header({ menuButton, open, onOpenMenu }: HeaderProps) {
-  const { teams, score, clock, ended, status, lang, languages, changeLang, follow, toggleFollow, restart } =
-    useMatch();
+  const { teams, score, clock, ended, status, lang, languages, changeLang, follow, toggleFollow, restart,
+    match, health } = useMatch();
   const [home, away] = teams;
+  const source = match?.source ?? health?.source;
 
   return (
     <header className="sticky top-0 z-20 flex flex-wrap items-center gap-x-3.5 gap-y-2.5 border-b border-line bg-bg px-4 py-2.5 supports-[backdrop-filter]:bg-bg/80 supports-[backdrop-filter]:backdrop-blur-[14px]">
@@ -75,6 +76,7 @@ export function Header({ menuButton, open, onOpenMenu }: HeaderProps) {
         {status}
       </span>
       <NarrationBadge />
+      {source && <span className="text-xs text-muted">Data: {source}</span>}
 
       <div className="ml-auto flex flex-wrap items-center gap-2 max-[900px]:ml-0 max-[900px]:w-full">
         <select value={lang} onChange={(e) => changeLang(e.target.value)} aria-label="Language">

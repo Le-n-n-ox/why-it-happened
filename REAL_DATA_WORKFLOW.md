@@ -67,7 +67,7 @@ if (-not $files) { throw 'No downloaded data/sb_<match_id>.json event files foun
 .\.venv-research\Scripts\python.exe scripts/validate_on_statsbomb.py @files
 ```
 
-`fit_xt.py` saves the learned grid to `data/xt_grid.json`; the app reads it automatically. The validator compares shot values, formations, and win probabilities with the StatsBomb reference data and prints the results. Treat a small-sample validation as an indication, not a guarantee of model accuracy.
+`fit_xt.py` saves the learned grid to `data/xt_grid.json`; the app reads it automatically. The validator compares shot values, formations, and win probabilities with the StatsBomb reference data, prints the results, and writes `data/validation_report.json` for `GET /validation`. Treat a small-sample validation as an indication, not a guarantee of model accuracy.
 
 ## 5. Make match visuals
 
