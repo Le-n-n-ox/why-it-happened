@@ -27,6 +27,7 @@ insights.db
 .kilo
 
 !REAL_DATA_WORKFLOW.md
+!API_REFERENCE.md
 
 # Temporary AI scripts
 edit*.py
