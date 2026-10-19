@@ -15,6 +15,7 @@ import math
 from app.assessment import SHOTS, _other, _punishing_shot, team_metrics
 from app.detectors import Insight, detect_counter_attacks, detect_shot_pressure
 from app.events import EventType, MatchEvent
+from app.xt import xt_value
 
 DEFENSIVE = (EventType.TACKLE, EventType.INTERCEPTION)
 HALF_TIME = 45.0
@@ -66,6 +67,12 @@ def danger(x: float, y: float) -> float:
     return round(min(0.95, 0.7 * math.exp(-distance / 9) * min(1.0, angle / 0.5)), 3)
 
 
+def ball_value(x: float, y: float) -> float:
+    """What having the ball here is worth: the learned xT grid when data/xt_grid.json exists, else danger()."""
+    value = xt_value(x, y)
+    return danger(x, y) if value is None else round(value, 3)
+
+
 def team_xg(events: list[MatchEvent], team: str, lo: float = 0.0, hi: float = 1e9) -> float:
     return round(sum(danger(e.x, e.y) for e in events
                      if e.team == team and e.type in SHOTS and lo <= e.minute < hi), 2)
@@ -100,7 +107,7 @@ def pass_quality(events: list[MatchEvent], index: int) -> dict | None:
     nxt = events[index + 1] if index + 1 < len(events) else None
     if nxt is None:
         return {"rating": "routine", "reasons": [], "evidence": evidence,
-                "danger_before": danger(event.x, event.y), "danger_after": None}
+                "danger_before": ball_value(event.x, event.y), "danger_after": None}
 
     if nxt.team != event.team:                              # the pass did not reach a team-mate
         evidence.append(nxt.id)
@@ -117,9 +124,9 @@ def pass_quality(events: list[MatchEvent], index: int) -> dict | None:
                             "principle": PRINCIPLES["punished"]})
         rating = "poor" if (event.x < 33 or shot) else "unsuccessful"
         return {"rating": rating, "reasons": reasons, "evidence": evidence,
-                "danger_before": danger(event.x, event.y), "danger_after": None}
+                "danger_before": ball_value(event.x, event.y), "danger_after": None}
 
-    before, after = danger(event.x, event.y), danger(nxt.x, nxt.y)
+    before, after = ball_value(event.x, event.y), ball_value(nxt.x, nxt.y)
     receiver = nxt.player if nxt.player and nxt.player != event.player else None
     to_whom = f" to {receiver}" if receiver else ""
     evidence.append(nxt.id)
@@ -130,8 +137,8 @@ def pass_quality(events: list[MatchEvent], index: int) -> dict | None:
         add("box_entry", f"{who}'s pass{to_whom} took the ball into the penalty area.")
     if after - before >= 0.03:
         points += 2
-        add("danger_up", f"It raised the chance of scoring from a shot at that spot from "
-                         f"{_pct(before)} to {_pct(after)}.")
+        add("danger_up", f"It moved the ball somewhere more dangerous: the chance of a goal from there "
+                         f"rose from {_pct(before)} to {_pct(after)}.")
     shot = None
     for later in events[index + 1:]:
         if later.team != event.team or later.minute - event.minute > 20 / 60:

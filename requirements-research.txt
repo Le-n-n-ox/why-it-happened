@@ -1,0 +1,9 @@
+# Real-data research tools. Not needed to run the app or the Docker image.
+# If pip fails on a very new Python, make a second venv with Python 3.12 just for these.
+-r requirements.txt
+statsbombpy>=1.12
+socceraction>=1.5
+mplsoccer>=1.4
+matplotlib>=3.8
+pandas>=2.1
+numpy>=1.26
