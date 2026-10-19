@@ -1,0 +1,45 @@
+{
+ "teams": [
+  "Tottenham Hotspur",
+  "AFC Bournemouth"
+ ],
+ "score": {
+  "Tottenham Hotspur": 3,
+  "AFC Bournemouth": 0
+ },
+ "formations": {
+  "Tottenham Hotspur": "4-2-3-1",
+  "AFC Bournemouth": "4-4-2"
+ },
+ "shifts": [
+  {
+   "team": "Tottenham Hotspur",
+   "minute": 90.1,
+   "formation": "4-2-3-1"
+  }
+ ],
+ "xg": {
+  "s29": 0.12888715,
+  "s435": 0.10207344,
+  "s586": 0.019351551,
+  "s652": 0.15241206,
+  "s748": 0.060566295,
+  "s1213": 0.021076806,
+  "s1330": 0.014186583,
+  "s1391": 0.0071685114,
+  "s1624": 0.1066246,
+  "s1683": 0.035122048,
+  "s1923": 0.053705662,
+  "s2098": 0.028420696,
+  "s2101": 0.6160112,
+  "s2705": 0.14782605,
+  "s3026": 0.017211357,
+  "s3239": 0.13966918,
+  "s3304": 0.06994204,
+  "s3457": 0.014327681,
+  "s3564": 0.024015278,
+  "s3698": 0.02907804
+ },
+ "second_half_start": 45.0,
+ "source": "StatsBomb Open Data (credit StatsBomb when you show it)"
+}

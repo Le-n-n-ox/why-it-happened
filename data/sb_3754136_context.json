@@ -1,0 +1,48 @@
+{
+ "teams": [
+  "Newcastle United",
+  "Aston Villa"
+ ],
+ "score": {
+  "Newcastle United": 1,
+  "Aston Villa": 1
+ },
+ "formations": {
+  "Newcastle United": "4-2-3-1",
+  "Aston Villa": "4-1-2-1-2"
+ },
+ "shifts": [
+  {
+   "team": "Aston Villa",
+   "minute": 61.0,
+   "formation": "4-1-4-1"
+  },
+  {
+   "team": "Newcastle United",
+   "minute": 71.1,
+   "formation": "4-2-3-1"
+  }
+ ],
+ "xg": {
+  "s795": 0.019967088,
+  "s1145": 0.0841084,
+  "s1363": 0.024666738,
+  "s1367": 0.15036368,
+  "s1393": 0.04343671,
+  "s1612": 0.010047587,
+  "s1702": 0.023792285,
+  "s1722": 0.2171973,
+  "s1971": 0.053313516,
+  "s2129": 0.13185254,
+  "s2222": 0.092802145,
+  "s2235": 0.037364755,
+  "s2366": 0.019906523,
+  "s2691": 0.19924778,
+  "s2969": 0.06621966,
+  "s3111": 0.07241161,
+  "s3223": 0.21160483,
+  "s3269": 0.007185629
+ },
+ "second_half_start": 45.0,
+ "source": "StatsBomb Open Data (credit StatsBomb when you show it)"
+}

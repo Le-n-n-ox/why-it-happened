@@ -1,0 +1,59 @@
+{
+ "teams": [
+  "Liverpool",
+  "Swansea City"
+ ],
+ "score": {
+  "Liverpool": 1,
+  "Swansea City": 0
+ },
+ "formations": {
+  "Liverpool": "4-3-3",
+  "Swansea City": "4-4-1-1"
+ },
+ "shifts": [
+  {
+   "team": "Swansea City",
+   "minute": 0.0,
+   "formation": "4-1-4-1"
+  },
+  {
+   "team": "Liverpool",
+   "minute": 67.2,
+   "formation": "4-1-4-1"
+  },
+  {
+   "team": "Swansea City",
+   "minute": 76.0,
+   "formation": "4-2-3-1"
+  },
+  {
+   "team": "Liverpool",
+   "minute": 94.1,
+   "formation": "3-5-1-1"
+  }
+ ],
+ "xg": {
+  "s328": 0.09843861,
+  "s988": 0.06939855,
+  "s1112": 0.033496827,
+  "s1174": 0.05618398,
+  "s1873": 0.081441686,
+  "s2027": 0.007026824,
+  "s2238": 0.033030916,
+  "s2303": 0.010196323,
+  "s2323": 0.25389424,
+  "s2484": 0.03122004,
+  "s2489": 0.09072634,
+  "s2656": 0.08047935,
+  "s2667": 0.7835,
+  "s3028": 0.06981137,
+  "s3115": 0.06018776,
+  "s3186": 0.0164725,
+  "s3261": 0.024244875,
+  "s3263": 0.109172046,
+  "s3711": 0.02442388
+ },
+ "second_half_start": 45.0,
+ "source": "StatsBomb Open Data (credit StatsBomb when you show it)"
+}
