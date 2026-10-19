@@ -1,7 +1,7 @@
 // web/src/types/matchContext.ts - shared match state, so every page reads one stream.
 import { createContext, useContext } from "react";
 import type { StreamStatus } from "@/hooks/useMatchStream";
-import type { Health, Insight, MatchEvent, MatchInfo } from "@/types/types";
+import type { Health, Insight, MatchEvent, MatchInfo, Prediction } from "@/types/types";
 
 export interface MatchState {
   insights: Insight[]; // newest minute first
@@ -11,6 +11,7 @@ export interface MatchState {
   teams: string[]; // [home, away] from /match
   byId: Map<string, MatchEvent>;
   shown: MatchEvent[]; // ticks so far: the events that have happened
+  predictions: Prediction[];
   ball: MatchEvent | null; // the latest tick
   health: Health | null;
   match: MatchInfo | null;

@@ -8,6 +8,7 @@ import { defineConfig } from "vite";
 const BACKEND = "http://127.0.0.1:8001";
 
 export default defineConfig({
+  base: "/", // Guarantees static assets are served from root (/assets/...) regardless of subpath
   plugins: [react(), tailwindcss()],
   resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
   server: {
@@ -24,7 +25,8 @@ export default defineConfig({
       "/players": BACKEND,
       "/fouls": BACKEND,
       "/team": BACKEND,
-     "/predict": BACKEND,
+      "/predict": BACKEND,
+      "/validation": BACKEND,
     },
   },
 });

@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/Skeleton";
 import { eventsByIds, evidenceEvents, teamColor } from "@/lib/match";
 import { ui } from "@/lib/ui";
 import { useMatch } from "@/types/matchContext";
+import { WinProbability } from "@/components/WinProbability";
 
 export function LivePage() {
   const { insights, status, teams, shown, ball, byId, lang, ended, selectedId, select, pinned } = useMatch();
@@ -30,6 +31,8 @@ export function LivePage() {
           {selectedId && (
             <a className={ui.link} href={`#/insight/${encodeURIComponent(selectedId)}`}>
               Open full detail for this insight →
+              <WinProbability />
+
             </a>
           )}
         </div>

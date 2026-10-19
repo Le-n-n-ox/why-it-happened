@@ -1,12 +1,13 @@
-// web/src/hooks/useMatchStream.ts - live insights and one tick per match event.
+// web/src/hooks/useMatchStream.ts - live insights, one tick per match event, and win-probability predictions.
 import { useCallback, useEffect, useState } from "react";
 import { API } from "@/lib/api";
-import type { Insight, MatchEvent } from "@/types/types";
+import type { Insight, MatchEvent, Prediction } from "@/types/types";
 
 export type StreamStatus = "connecting" | "live" | "ended" | "error";
 
 // Newest minute first. Order by minute, never by arrival: narration can land a second after its tick.
 const byMinuteDesc = (a: Insight, b: Insight) => b.minute - a.minute || a.id.localeCompare(b.id);
+const byMinuteAsc = (a: Prediction, b: Prediction) => (a.minute ?? 0) - (b.minute ?? 0);
 
 function parse<T>(raw: string): T | null {
   try {
@@ -20,12 +21,14 @@ function parse<T>(raw: string): T | null {
 export function useMatchStream(speed?: number, source?: string) {
   const [insights, setInsights] = useState<Insight[]>([]);
   const [ticks, setTicks] = useState<MatchEvent[]>([]);
+  const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [status, setStatus] = useState<StreamStatus>("connecting");
   const [run, setRun] = useState(0); // bump to replay the match
 
   useEffect(() => {
     setInsights([]);
     setTicks([]);
+    setPredictions([]);
     setStatus("connecting");
     let finished = false;
 
@@ -52,6 +55,14 @@ export function useMatchStream(speed?: number, source?: string) {
       setTicks((prev) => (prev.some((t) => t.id === tick.id) ? prev : [...prev, tick]));
     });
 
+    // New win, draw and loss probabilities, sent after each shot or goal once both teams have appeared.
+    stream.addEventListener("prediction", (e: Event) => {
+      markLive();
+      const p = parse<Prediction>((e as MessageEvent<string>).data);
+      if (!p || p.available === false || p.minute === undefined || !p.probabilities) return;
+      setPredictions((prev) => [...prev.filter((x) => x.minute !== p.minute), p].sort(byMinuteAsc));
+    });
+
     // End of match: close it, or the browser would reconnect and replay the match.
     stream.addEventListener("done", () => {
       finished = true;
@@ -74,5 +85,5 @@ export function useMatchStream(speed?: number, source?: string) {
   }, [run, speed, source]);
 
   const replay = useCallback(() => setRun((n) => n + 1), []);
-  return { insights, ticks, status, replay };
+  return { insights, ticks, predictions, status, replay };
 }

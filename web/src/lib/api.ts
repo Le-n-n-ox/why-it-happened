@@ -1,6 +1,6 @@
 // web/src/lib/api.ts - the only file that knows the server address and the endpoint paths.
 import type {
-  Action, Assessment, Health, MatchEvent, MatchInfo, MatchWhy, Player, PlayerDetail, PlayerReview, Recap,
+  Action, Assessment, Health, MatchEvent, MatchInfo, MatchWhy, Player, PlayerDetail, PlayerReview, PredictResponse, Recap, Tactics, Validation,
 } from "@/types/types";
 
 // Dev: empty, so requests go through the Vite proxy. Production same-origin build: also empty.
@@ -36,17 +36,6 @@ export const getHealth = () => getJson<Health>("/health");
 export const getMatch = () => getJson<MatchInfo>("/match");
 export const getEvents = () => getJson<MatchEvent[]>("/events");
 export const getRecap = (lang: string) => getJson<Recap>(`/recap?lang=${enc(lang)}`);
-
-export async function getWhy(lang = "en"): Promise<MatchWhy> {
-  const w = await getJson<MatchWhy>(`/why?lang=${enc(lang)}`);
-  const result = w.result ?? { score: {}, winner: null, reasons: [] };
-  return {
-    result: { ...result, reasons: result.reasons ?? [] },
-    turning_points: w.turning_points ?? [],
-    chains: w.chains ?? [],
-    factors: w.factors,
-  };
-}
 
 export async function getEventWhy(id: string): Promise<Action> {
   const a = await getJson<Action>(`/events/${enc(id)}/why`);
@@ -93,7 +82,36 @@ export async function getAssessment(team: string): Promise<Assessment> {
   };
 }
 
+export async function getWhy(): Promise<MatchWhy> {
+  const w = await getJson<MatchWhy>("/why");
+  const result = w.result ?? { score: {}, winner: null, reasons: [] };
+  return {
+    result: { ...result, reasons: result.reasons ?? [] },
+    turning_points: w.turning_points ?? [],
+    chains: w.chains ?? [],
+    factors: w.factors ?? [],
+  };
+}
 
-export const getTactics = (team: string) => getJson<unknown>(`/team/${enc(team)}/tactics`);
-export const getPredict = () => getJson<unknown>("/predict");
+export async function getTactics(team: string): Promise<Tactics> {
+  const t = await getJson<Tactics>(`/team/${enc(team)}/tactics`);
+  return {
+    ...t,
+    tactics: (t.tactics ?? []).map((x) => ({ ...x, evidence: x.evidence ?? [] })),
+    second_half: t.second_half ?? { available: false },
+    second_half_story: t.second_half_story ?? [],
+    formation: t.formation ?? { available: false },
+    evidence: t.evidence ?? [],
+  };
+}
 
+export const getPredict = () => getJson<PredictResponse>("/predict");
+
+/** Until the validation script has run on real matches the server answers { available: false }: show nothing. */
+export async function getValidation(): Promise<Validation> {
+  try {
+    return await getJson<Validation>("/validation");
+  } catch {
+    return { available: false };
+  }
+}

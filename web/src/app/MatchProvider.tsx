@@ -23,7 +23,7 @@ function initialLang(): string {
 }
 
 export function MatchProvider({ children }: { children: ReactNode }) {
-  const { insights, ticks, status, replay } = useMatchStream(speed, source);
+  const { insights, ticks, predictions, status, replay } = useMatchStream(speed, source);
   const [allEvents, setAllEvents] = useState<MatchEvent[]>([]);
   const [eventsFailed, setEventsFailed] = useState(false);
   const [health, setHealth] = useState<Health | null>(null);
@@ -108,10 +108,10 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     refreshMatch();
   }, [replay, refreshMatch]);
 
-  const value: MatchState = {
-    insights, status, allEvents, eventsFailed, teams, byId, shown: ticks, ball: lastTick, health, match, score,
-    languages, lang, changeLang, clock, ended, restart, follow, toggleFollow, selectedId, select, pinned, pin,
-  };
+ const value: MatchState = {
+  insights, status, allEvents, eventsFailed, teams, byId, shown: ticks, predictions, ball: lastTick, health, match, score,
+  languages, lang, changeLang, clock, ended, restart, follow, toggleFollow, selectedId, select, pinned, pin,
+};
 
   return <MatchContext.Provider value={value}>{children}</MatchContext.Provider>;
 }

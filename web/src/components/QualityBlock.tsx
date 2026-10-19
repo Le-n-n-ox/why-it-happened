@@ -1,45 +1,75 @@
-// web/src/components/QualityBlock.tsx - the quality block on a pass's detail view. Shows only what the server sent.
-import { readQuality } from "@/lib/extras";
-import { ui } from "@/lib/ui";
+// web/src/components/QualityBlock.tsx - pass quality inside the event detail. Routine passes need no badge.
+import { EvidenceChips } from "@/components/EvidenceChips";
 import { cn } from "@/lib/utils";
+import type { PassQuality } from "@/types/types";
 
-const round2 = (n: number): number => Math.round(n * 100) / 100;
+const BADGE: Record<string, string> = {
+  excellent: "bg-accent text-accent-ink",
+  good: "bg-accent/25 text-fg",
+  unsuccessful: "bg-surface-3 text-fg",
+  poor: "bg-warn text-black",
+};
 
-export function QualityBlock({ raw, title = "Quality" }: { raw: unknown; title?: string }) {
-  const q = readQuality(raw);
-  if (!q) return null;
+const pct = (n: number): number => Math.min(100, Math.max(0, n * 100));
+
+/** danger_before / danger_after are 0 to 1: the chance of a goal from the ball's position. */
+function Danger({ before, after }: { before: number; after: number }) {
+  const rows = [["Before", before], ["After", after]] as const;
   return (
-    <div className="grid gap-2 rounded-card border border-line bg-surface-2 px-3.5 py-3" role="group" aria-label={title}>
+    <div
+      className="grid gap-1"
+      role="img"
+      aria-label={`Chance of a goal from the ball's position: ${Math.round(pct(before))}% before, ${Math.round(pct(after))}% after`}
+    >
+      <p className="m-0 text-[.75rem] font-semibold text-muted">Chance of a goal from there</p>
+      {rows.map(([label, v]) => (
+        <div key={label} className="grid grid-cols-[3.5rem_minmax(0,1fr)_3.5ch] items-center gap-2 text-[.75rem] text-muted">
+          <span>{label}</span>
+          <div className="h-1.5 overflow-hidden rounded-full bg-surface-3">
+            <span className="block h-full rounded-full bg-accent" style={{ width: `${Math.max(pct(v), 1.5)}%` }} />
+          </div>
+          <span className="text-right tabular-nums">{Math.round(pct(v))}%</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function QualityBlock({ quality }: { quality: PassQuality | null | undefined }) {
+  if (!quality) return null;
+  const badge = BADGE[quality.rating]; // "routine" has none
+  const reasons = quality.reasons ?? [];
+  if (badge === undefined && reasons.length === 0) return null;
+  const before = quality.danger_before;
+  const after = quality.danger_after;
+
+  return (
+    <div className="grid gap-2 rounded-card border border-line bg-surface-2 px-3.5 py-3" role="group" aria-label="Pass quality">
       <p className="m-0 flex flex-wrap items-center gap-2">
-        <span className="font-semibold">{title}</span>
-        {q.label && (
-          <span className="rounded-full bg-surface-3 px-2.5 py-0.5 text-xs font-bold tracking-wide uppercase">{q.label}</span>
+        <span className="font-semibold">Pass quality</span>
+        {badge !== undefined && (
+          <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-bold tracking-wide uppercase", badge)}>
+            {quality.rating}
+          </span>
         )}
-        {q.score !== undefined && <span className="font-heading font-bold tabular-nums">{round2(q.score)}</span>}
       </p>
-      {q.text && <p className="m-0 text-[.95rem]">{q.text}</p>}
-      {q.lines.length > 0 && (
-        <ul className="grid gap-1.5 text-[.9rem]">
-          {q.lines.map((l, i) => (
-            <li key={`${i}-${l.reason}`} className="flex items-baseline gap-2">
-              <span>{l.reason}</span>
-              {l.value !== undefined && (
-                <>
-                  <span className="min-w-4 flex-1 border-b border-dotted border-line" aria-hidden="true" />
-                  <span className={cn("font-mono tabular-nums", l.value >= 0 ? "text-accent" : "text-warn")}>
-                    {l.value > 0 ? "+" : ""}{round2(l.value)}
-                  </span>
-                </>
-              )}
+      {reasons.length > 0 && (
+        <ul className="grid list-disc gap-1.5 pl-5 text-[.95rem]">
+          {reasons.map((r, i) => (
+            <li key={`${i}-${r.code}`}>
+              <span
+                title={r.principle}
+                tabIndex={r.principle ? 0 : undefined}
+                className={cn(r.principle && "cursor-help decoration-dotted underline-offset-4 hover:underline")}
+              >
+                {r.text}
+              </span>
             </li>
           ))}
         </ul>
       )}
-      {q.evidence.length > 0 && (
-        <div className={ui.chips}>
-          {q.evidence.map((e) => <span key={e} className={`${ui.chip} font-mono`}>{e}</span>)}
-        </div>
-      )}
+      {typeof before === "number" && typeof after === "number" && <Danger before={before} after={after} />}
+      <EvidenceChips ids={quality.evidence ?? []} />
     </div>
   );
 }

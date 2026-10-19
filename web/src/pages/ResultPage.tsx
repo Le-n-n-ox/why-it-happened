@@ -1,14 +1,13 @@
-// web/src/pages/ResultPage.tsx - full-time summary: recap, win probability, turning points, goals, factors.
+// web/src/pages/ResultPage.tsx - full-time summary: recap, win probability, turning points, goals, the football reasons.
 import { Button } from "@/components/Button";
 import { ChainCard } from "@/components/ChainSteps";
-import { FactorsList } from "@/components/FactorsList";
+import { FactorsPanel } from "@/components/FactorsPanel";
 import { Loader } from "@/components/Loader";
 import { Pitch } from "@/components/Pitch";
 import { Recap } from "@/components/Recap";
 import { WinProbability } from "@/components/WinProbability";
 import { useApi } from "@/hooks/useApi";
 import { getWhy } from "@/lib/api";
-import { readFactors } from "@/lib/extras";
 import { eventsByIds, formatMinute, kindLabel, stripCitations, teamColor } from "@/lib/match";
 import { ui } from "@/lib/ui";
 import { cn } from "@/lib/utils";
@@ -20,7 +19,6 @@ function ResultBody() {
   const result = data?.result;
   const title = result ? (result.winner ? `Why ${result.winner} won` : "Why it finished level") : "Why the result happened";
   const selected = eventsByIds(pinned ?? [], byId);
-  const factors = readFactors(result?.factors ?? data?.factors);
   const goals = (result?.reasons ?? []).map((r) => ({ minute: r.minute, team: r.team }));
 
   return (
@@ -48,6 +46,8 @@ function ResultBody() {
               </ol>
             </section>
           )}
+
+          {data && <FactorsPanel factors={data.factors} winner={data.result.winner} />}
 
           {result && (
             <section className="grid gap-2.5" aria-label="Why the result happened">
@@ -94,13 +94,6 @@ function ResultBody() {
                 </ol>
               )}
               <p className={ui.empty}>Select a row to highlight its evidence on the pitch.</p>
-            </section>
-          )}
-
-          {factors.length > 0 && (
-            <section className="grid gap-2.5" aria-label="Factors">
-              <h3 className={ui.h3}>Factors</h3>
-              <FactorsList items={factors} />
             </section>
           )}
         </div>
