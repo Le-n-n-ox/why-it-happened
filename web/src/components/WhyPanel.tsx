@@ -72,9 +72,20 @@ function WhyBody({ title }: { title: string }) {
 
 export function WhyPanel() {
   const { teams, score, ended } = useMatch();
+
   if (!ended || teams.length < 2 || score === null) return null;
+
+  if (!ended || teams.length < 2) return null;
+  
+
   const [home, away] = teams;
-  const diff = score[home] - score[away];
+  
+  // Safely extract scores with a 0 fallback to satisfy strict TypeScript null checks
+  const homeScore = score?.[home] ?? 0;
+  const awayScore = score?.[away] ?? 0;
+  const diff = homeScore - awayScore;
+  
   const title = diff === 0 ? "Why it finished level" : `Why ${diff > 0 ? home : away} won`;
+  
   return <WhyBody title={title} />;
 }

@@ -19,6 +19,7 @@ const TEXT_SIZE: Record<Size, string> = { m: "text-[1.3rem]", l: "text-[2rem]", 
 
 export function AnnouncersPage() {
   const { insights, teams, score, clock, ended, lang, selectedId, select } = useMatch();
+  if (!score) return null;
   const [size, setSize] = useState<Size>("l");
   const [read, setRead] = useState<Set<string>>(new Set());
 

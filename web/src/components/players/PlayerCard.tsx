@@ -29,12 +29,14 @@ export function PlayerCard({ player, rank, teams }: PlayerCardProps) {
         <div className={ui.meta}>
           <span className="font-bold" style={{ color }}>{player.team}</span>
         </div>
+
         <div className={ui.chips}>
           <span className={ui.chip}>{player.goals} goals</span>
           <span className={ui.chip}>{player.shots} shots</span>
           <span className={ui.chip}>{player.passes} passes</span>
           <span className={ui.chip}>{player.touches} touches</span>
         </div>
+
       </div>
       <div className="grid justify-items-end gap-1.5 max-[600px]:col-span-full max-[600px]:justify-items-stretch">
         <span

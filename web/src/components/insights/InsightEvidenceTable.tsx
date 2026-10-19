@@ -3,7 +3,8 @@ import { Button } from "@/components/Button";
 import { formatMinute } from "@/lib/match";
 import { PlayerName } from "@/components/PlayerName";
 import { ui } from "@/lib/ui";
-import type { MatchEvent, PlayerAction, PlayerSummary } from "@/types/types";
+import type { MatchEvent, PlayerSummary } from "@/types/types";
+import type { Action as PlayerAction } from "@/types/types";
 
 type WhyState =
   | { status: "loading" }
@@ -76,8 +77,13 @@ export function InsightEvidenceTable({ evidence, players, why, onAskWhy }: Insig
                               <span key={id} className={ui.chip}>{id}</span>
                             ))}
                           </div>
+
                           {current.action.insight_id && (
                             <a className={ui.link} href={`#/insight/${encodeURIComponent(current.action.insight_id)}`}>
+
+                          {current.action.insight_id !== undefined && (
+                            <a className={ui.link} href={`#/insight/${encodeURIComponent(current.action.insight_id ?? "")}`}>
+
                               Open insight →
                             </a>
                           )}

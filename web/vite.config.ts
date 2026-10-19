@@ -24,6 +24,7 @@ export default defineConfig({
       "/players": BACKEND,
       "/fouls": BACKEND,
       "/team": BACKEND,
+     "/predict": BACKEND,
     },
   },
 });

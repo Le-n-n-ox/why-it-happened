@@ -8,6 +8,7 @@ import { formatMinute } from "@/lib/match";
 import { prettyKey } from "@/lib/players";
 import { ui } from "@/lib/ui";
 import { useMatch } from "@/types/matchContext";
+import { QualityBlock } from "@/components/QualityBlock";
 
 export function EventWhyCard({ eventId, onClose }: { eventId: string; onClose?: () => void }) {
   const { pin } = useMatch();
@@ -47,6 +48,7 @@ export function EventWhyCard({ eventId, onClose }: { eventId: string; onClose?: 
           </p>
           <p className="m-0 leading-snug">{data.why}</p>
           {data.detail && <p className="m-0 text-[.9rem] text-muted">{data.detail}</p>}
+          <QualityBlock raw={data.quality} title={data.action === "pass" ? "Pass quality" : "Quality"} />
           {(data.factors ?? []).length > 0 && (
             <div className={ui.chips}>
               {(data.factors ?? []).map((f) => <span key={f} className={ui.chip}>{prettyKey(f)}</span>)}
