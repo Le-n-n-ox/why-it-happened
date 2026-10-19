@@ -77,13 +77,8 @@ export function InsightEvidenceTable({ evidence, players, why, onAskWhy }: Insig
                               <span key={id} className={ui.chip}>{id}</span>
                             ))}
                           </div>
-
                           {current.action.insight_id && (
                             <a className={ui.link} href={`#/insight/${encodeURIComponent(current.action.insight_id)}`}>
-
-                          {current.action.insight_id !== undefined && (
-                            <a className={ui.link} href={`#/insight/${encodeURIComponent(current.action.insight_id ?? "")}`}>
-
                               Open insight →
                             </a>
                           )}

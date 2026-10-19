@@ -29,6 +29,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.assessment import assess_team, assessment_insight
+from app.ask import answer as ask_answer
 from app.causes import (attach_why, causal_chains, chain_for, explain_event, foul_explanations,
                         turning_points, why_they_won)
 from app.db import get_insights, init_db
@@ -287,6 +288,13 @@ def get_prediction():
         "confidence": 0
     }
 
+
+
+@app.get("/ask")
+def ask(q: str = Query(..., max_length=300), lang: str = "en", mode: str = "auto"):
+    """Answer a free-form question from the match facts. mode=rules skips the model (for side-by-side)."""
+    events, found = _match_data()
+    return ask_answer(events, found, q, lang=lang, mode=mode, model=MODEL)
 
 
 @app.get("/health")

@@ -2,22 +2,17 @@ import { CHANNEL_NAMES } from "@/lib/analytics";
 import { Pitch } from "@/components/Pitch";
 import { ui } from "@/lib/ui";
 import type { MatchEvent } from "@/types/types";
-import type { AttackRow, ZoneCell } from "@/lib/analytics";
+import type { AttackRow } from "@/lib/analytics";
 
 interface AttackPanelProps {
   events: MatchEvent[];
   teams: string[];
   colors: string[];
-  zones: ZoneCell[];
   rows: AttackRow[];
   leader: string | null;
 }
 
-
 export function AttackPanel({ events, teams, colors, rows, leader }: AttackPanelProps) {
-
-export function AttackPanel({ events, teams, colors, rows, leader }: Omit<AttackPanelProps, 'zones'>) {
-
   const noAttacks = rows.every((row) => row.total === 0);
   return (
     <section className={ui.panel} aria-label="Where each team attacks">
