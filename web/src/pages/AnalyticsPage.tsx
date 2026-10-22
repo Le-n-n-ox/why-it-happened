@@ -7,6 +7,7 @@ import { Button } from "@/components/Button";
 import { Donut, GroupedBars, Legend, type Series } from "@/components/charts";
 import { Loader } from "@/components/Loader";
 import { Verdict } from "@/components/Verdict";
+import { TeamStats } from "@/components/TeamStats";
 import { useApi } from "@/hooks/useApi";
 import { getAssessment } from "@/lib/api";
 import {
@@ -74,7 +75,7 @@ export function AnalyticsPage() {
 
       {reports.length > 0 && (
         <>
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
+          <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
             {reports.map((r) => (
               <a
                 key={r.team}
@@ -88,7 +89,9 @@ export function AnalyticsPage() {
             ))}
           </div>
 
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))] gap-4">
+          {reports.length === 2 && <TeamStats reports={reports} />}
+
+          <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))] gap-4">
             {keys.length > 0 && (
               <section className={`${ui.panel} min-w-0`} aria-label="Team metrics">
                 <h3 className="m-0 text-base font-bold">Team metrics</h3>
