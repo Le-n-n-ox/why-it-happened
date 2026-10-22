@@ -19,7 +19,7 @@ Encode path parameters such as team names and player IDs with `encodeURIComponen
 | `GET /match` | — | `{home, away, duration_min, events, score, source}`. |
 | `GET /events` | — | Event array. Each event has `id`, `minute`, `team`, `player`, `type`, `x`, `y`, and `outcome`. Coordinates use the app's 0–100 pitch scale. |
 | `GET /events/{event_id}/why` | Path: `event_id` | Explanation with `action`, `why`, and `evidence`; pass events can also include `quality`. Unknown IDs return 404. |
-| `GET /goals/{goal_id}/hypotheses` | Path: `goal_id`; `mode=auto\|sweep` | Goal summary and hypotheses tested against match events. `auto` asks the model for claims when configured, then verifies them with rules; `sweep` uses the rules-only baseline. |
+| `GET /goals/{goal_id}/hypotheses` | Path: `goal_id`; `mode=auto\|sweep` | Goal summary and hypotheses tested against match events. `auto` asks the model for claims when configured, then verifies them with rules; `sweep` uses the rules-only baseline. Each claim carries its `verdict` (`supported`, `not supported`, `too little data`), the `p_value`, the counts behind the test, the evidence ids, and `text`: the finding written by the rules from the test's own numbers. The goal id is the last id of the cause chain. |
 | `GET /stream` | `source=file\|live`, `delay`, `speed` | Server-sent events. Messages include event ticks, prediction updates, insights, and a final `done`. |
 | `GET /live/status` | — | `{live, events, ended}` for the ingest stream. |
 | `POST /events` | JSON `MatchEvent`; optional `X-Ingest-Token` header | Add an app-format live event. Duplicate IDs are ignored; events must arrive in clock order. |
@@ -65,6 +65,37 @@ Encode path parameters such as team names and player IDs with `encodeURIComponen
 - `scripts/validate_on_statsbomb.py` writes `data/validation_report.json` by default; `GET /validation` reads that file. The Docker image copies it with `data/` when present at build time.
 - With `INGEST_TOKEN` configured, include its value as `X-Ingest-Token` on all event-ingest and live-control POSTs.
 - `/stream` sends `tick` and `prediction` as named SSE events, insight payloads as default messages, then the named `done` event.
+
+## Frontend surface
+
+Every endpoint above is called from `web/src/lib/api.ts`. This is where each one is used, so a
+new endpoint with no home is visible here.
+
+| Endpoint | Called by | Shown on |
+|---|---|---|
+| `GET /ask` | `getAsk` | Ask the match (`#/ask`), with an Auto / Rules-only comparison |
+| `GET /goals/{id}/hypotheses` | `getGoalHypotheses` | Why the result (`#/result`), under each goal |
+| `GET /positions` | `getPositions` | Positions (`#/positions`), with a minute scrubber |
+| `GET /insights` | `getInsights` | Seeds the insight list so a shared `#/insight/{id}` link resolves at once |
+| `GET /insights/history` | `getInsightHistory` | History (`#/history`) and the fallback for an old shared link |
+| `GET /why` | `getWhy` | Why the result, Timeline, Fans |
+| `GET /recap` | `getRecap` | Timeline, Why the result |
+| `GET /events` | `getEvents` | Live (the whole match, for the pitch) |
+| `GET /stream` | `useMatchStream` | Live |
+| `GET /health` | `getHealth` | Header (model state, languages) |
+| `GET /match` | `getMatch` | Header (teams, source) |
+| `GET /events/{id}/why` | `getEventWhy` | Live, Timeline, Insight detail |
+| `GET /fouls` | `getFouls` | Fouls |
+| `GET /players`, `GET /players/{id}` | `getPlayers`, `getPlayer` | Players, Player detail |
+| `GET /players/{id}/review` | `getPlayerReview` | Player detail |
+| `GET /team/{team}/assessment` | `getAssessment` | Teams, Team detail, Analytics |
+| `GET /team/{team}/tactics` | `getTactics` | Team detail |
+| `GET /predict` | `getPredict` | Live, Why the result |
+| `GET /validation` | `getValidation` | Team detail |
+
+Not yet used by the frontend: `POST /events`, `POST /events/official`, `POST /live/end`,
+`POST /live/reset`, `GET /live/status`. They are the ingest side of the service, for a feed to
+push into, not for the dashboard to call.
 
 ## Route maintenance
 

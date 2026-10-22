@@ -166,7 +166,9 @@ def keyword_plan(question: str, events: list[MatchEvent]) -> list[dict]:
     plan: list[dict] = []
     if names:
         plan.append({"name": "player", "player": names[0]})
-    if re.search(r"\b(won|win|winner|result|score|why did .* (win|lose))\b", q):
+    # "why did the match end as it did" and "how did it finish" ask for the summary, like "who won".
+    if re.search(r"\b(won|win|winner|result|score|end(?:s|ed|ing)?|finish(?:es|ed|ing)?|happen(?:s|ed|ing)?)\b"
+                 r"|why .*\b(win|lose|end|finish)", q):
         plan.append({"name": "match_summary"})
     if re.search(r"tactic|press|style|formation|defend", q):
         plan += [{"name": "team_tactics", "team": t} for t in teams]

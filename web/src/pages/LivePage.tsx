@@ -29,11 +29,12 @@ export function LivePage() {
             <p className={ui.empty}>Click any event on the pitch to see why it mattered.</p>
           )}
           {selectedId && (
-            <a className={ui.link} href={`#/insight/${encodeURIComponent(selectedId)}`}>
-              Open full detail for this insight →
+            <>
+              <a className={ui.link} href={`#/insight/${encodeURIComponent(selectedId)}`}>
+                Open full detail for this insight →
+              </a>
               <WinProbability />
-
-            </a>
+            </>
           )}
         </div>
       )}

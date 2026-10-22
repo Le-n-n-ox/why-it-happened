@@ -7,12 +7,15 @@ const NAV: { href: string; path: string; label: string; icon: IconName; prefixes
   { href: "#/", path: "/", label: "Live", icon: "live", prefixes: ["/insight/"] },
   { href: "#/result", path: "/result", label: "Why the result", icon: "result" },
   { href: "#/recap", path: "/recap", label: "Timeline", icon: "timeline" },
+  { href: "#/ask", path: "/ask", label: "Ask the match", icon: "ask" },
+  { href: "#/positions", path: "/positions", label: "Positions", icon: "positions" },
   { href: "#/teams", path: "/teams", label: "Teams", icon: "teams", prefixes: ["/team/"] },
   { href: "#/players", path: "/players", label: "Players", icon: "players", prefixes: ["/player/"] },
   { href: "#/fouls", path: "/fouls", label: "Fouls", icon: "fouls" },
   { href: "#/analytics", path: "/analytics", label: "Analytics", icon: "analytics" },
   { href: "#/announcers", path: "/announcers", label: "Announcers", icon: "mic" },
   { href: "#/fans", path: "/fans", label: "Fans", icon: "fans" },
+  { href: "#/history", path: "/history", label: "History", icon: "history" },
   { href: "#/about", path: "/about", label: "How it works", icon: "info" },
 ];
 

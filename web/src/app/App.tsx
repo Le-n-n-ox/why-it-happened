@@ -7,6 +7,7 @@ import { useHashRoute } from "@/hooks/useHashRoute";
 import { useTheme } from "@/hooks/useTheme";
 import { Header } from "@/layout/Header";
 import { Sidebar } from "@/layout/Sidebar";
+import { pageTitle } from "@/lib/titles";
 import { useMatch } from "@/types/matchContext";
 
 const BANNER = "m-0 rounded-card bg-warn px-3.5 py-2.5 text-black";
@@ -51,6 +52,11 @@ function Shell() {
   }, [open]);
 
   const closeMenu = useCallback(() => setOpen(false), []);
+
+  // Hash routing leaves every tab with the same title, so the route names it.
+  useEffect(() => {
+    document.title = pageTitle(path);
+  }, [path]);
 
   return (
     <div

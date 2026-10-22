@@ -1,7 +1,9 @@
 // web/src/pages/ResultPage.tsx - full-time summary: recap, win probability, turning points, goals, the football reasons.
+import { useState } from "react";
 import { Button } from "@/components/Button";
 import { ChainCard } from "@/components/ChainSteps";
 import { FactorsPanel } from "@/components/FactorsPanel";
+import { GoalHypotheses } from "@/components/GoalHypotheses";
 import { Loader } from "@/components/Loader";
 import { Pitch } from "@/components/Pitch";
 import { Recap } from "@/components/Recap";
@@ -16,6 +18,7 @@ import { useMatch } from "@/types/matchContext";
 function ResultBody() {
   const { teams, lang, allEvents, byId, pinned, pin } = useMatch();
   const { data, loading, error, retry } = useApi(getWhy, "now");
+  const [openGoal, setOpenGoal] = useState<string | null>(null);
   const result = data?.result;
   const title = result ? (result.winner ? `Why ${result.winner} won` : "Why it finished level") : "Why the result happened";
   const selected = eventsByIds(pinned ?? [], byId);
@@ -58,6 +61,8 @@ function ResultBody() {
                 <ol className="grid gap-2.5">
                   {result.reasons.map((r, i) => {
                     const on = pinned !== null && pinned.join() === r.evidence.join();
+                    // The goal itself is the last id of the chain, so that is what the backend expects.
+                    const goalId = r.evidence[r.evidence.length - 1];
                     return (
                       <li
                         key={`${i}-${r.minute}`}
@@ -82,7 +87,16 @@ function ResultBody() {
                         </button>
                         <div className={ui.chips}>
                           {r.evidence.map((e) => <span key={e} className={`${ui.chip} font-mono`}>{e}</span>)}
+                          {goalId && (
+                            <Button
+                              aria-pressed={openGoal === goalId}
+                              onClick={() => setOpenGoal(openGoal === goalId ? null : goalId)}
+                            >
+                              {openGoal === goalId ? "Hide the claims" : "Why?"}
+                            </Button>
+                          )}
                         </div>
+                        {openGoal === goalId && <GoalHypotheses goalId={goalId} teams={teams} />}
                         {r.insight_id && (
                           <a className={ui.link} href={`#/insight/${encodeURIComponent(r.insight_id)}`}>
                             Open insight →

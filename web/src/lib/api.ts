@@ -1,6 +1,7 @@
 // web/src/lib/api.ts - the only file that knows the server address and the endpoint paths.
 import type {
-  Action, Assessment, Health, MatchEvent, MatchInfo, MatchWhy, Player, PlayerDetail, PlayerReview, PredictResponse, Recap, Tactics, Validation,
+  Action, Assessment, AskResponse, GoalHypotheses, Health, Insight, InsightRecord, MatchEvent, MatchInfo, MatchWhy,
+  Player, PlayerDetail, PlayerReview, PositionsResponse, PredictResponse, Recap, Tactics, Validation,
 } from "@/types/types";
 
 // Dev: empty, so requests go through the Vite proxy. Production same-origin build: also empty.
@@ -114,4 +115,45 @@ export async function getValidation(): Promise<Validation> {
   } catch {
     return { available: false };
   }
+}
+
+/* ---------- Ask, hypotheses, positions, history ---------- */
+
+/**
+ * Ask the match a question. `mode` is "auto" (the model answers when it is configured) or "rules"
+ * (the same facts joined by the rules), so the two answers can be put side by side.
+ */
+export function getAsk(q: string, lang: string, mode: "auto" | "rules" = "auto"): Promise<AskResponse> {
+  return getJson<AskResponse>(`/ask?q=${enc(q)}&lang=${enc(lang)}&mode=${enc(mode)}`);
+}
+
+/** Claims tested against the match events for one goal. `mode` is "auto" or "sweep" (rules only). */
+export function getGoalHypotheses(goalId: string, mode: "auto" | "sweep" = "auto"): Promise<GoalHypotheses> {
+  return getJson<GoalHypotheses>(`/goals/${enc(goalId)}/hypotheses?mode=${enc(mode)}`);
+}
+
+/** Where each player was last seen. These are event locations, not live tracking. */
+export function getPositions(minute?: number): Promise<PositionsResponse> {
+  const qs = minute === undefined ? "" : `?minute=${minute}`;
+  return getJson<PositionsResponse>(`/positions${qs}`);
+}
+
+/** The insights the server has collected, independent of the live stream. */
+export async function getInsights(): Promise<Insight[]> {
+  const list = await getJson<unknown>("/insights");
+  return Array.isArray(list) ? (list as Insight[]) : [];
+}
+
+/** Saved insights from the database, newest minute first. */
+export async function getInsightHistory(team?: string, limit = 20): Promise<InsightRecord[]> {
+  const params = new URLSearchParams();
+  if (team) params.set("team", team);
+  params.set("limit", String(limit));
+  const list = await getJson<unknown>(`/insights/history?${params.toString()}`);
+  if (!Array.isArray(list)) return [];
+  return (list as InsightRecord[]).map((r) => ({
+    ...r,
+    evidence: r.evidence ?? [],
+    facts: r.facts ?? {},
+  }));
 }

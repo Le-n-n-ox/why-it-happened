@@ -27,6 +27,10 @@ export default defineConfig({
       "/team": BACKEND,
       "/predict": BACKEND,
       "/validation": BACKEND,
+      "/ask": BACKEND,
+      "/goals": BACKEND,
+      "/positions": BACKEND,
+      "/live": BACKEND,
     },
   },
 });

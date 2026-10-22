@@ -2,12 +2,15 @@
 import { AboutPage } from "@/pages/AboutPage";
 import { AnalyticsPage } from "@/pages/AnalyticsPage";
 import { AnnouncersPage } from "@/pages/AnnouncersPage";
+import { AskPage } from "@/pages/AskPage";
 import { FansPage } from "@/pages/FansPage";
 import { FoulsPage } from "@/pages/FoulsPage";
+import { HistoryPage } from "@/pages/HistoryPage";
 import { InsightPage } from "@/pages/InsightPage";
 import { LivePage } from "@/pages/LivePage";
 import { PlayerPage } from "@/pages/PlayerPage";
 import { PlayersPage } from "@/pages/PlayersPage";
+import { PositionsPage } from "@/pages/PositionsPage";
 import { RecapPage } from "@/pages/RecapPage";
 import { ResultPage } from "@/pages/ResultPage";
 import { TeamPage } from "@/pages/TeamPage";
@@ -27,6 +30,9 @@ function safeDecode(s: string): string {
 export function RoutePage({ path }: { path: string }) {
   if (path === "/result") return <ResultPage />;
   if (path === "/recap") return <RecapPage />;
+  if (path === "/ask") return <AskPage />;
+  if (path === "/positions") return <PositionsPage />;
+  if (path === "/history") return <HistoryPage />;
   if (path === "/teams") return <TeamPage />;
   if (path.startsWith(TEAM_PREFIX)) return <TeamPage team={safeDecode(path.slice(TEAM_PREFIX.length))} />;
   if (path === "/players") return <PlayersPage />;

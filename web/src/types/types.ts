@@ -267,3 +267,119 @@ export interface Validation {
   formation?: { matched?: number; teams?: number };
   win_probability?: Record<string, { matches?: number; ours?: number; base_rate?: number }>;
 }
+
+/* ---------- Ask, goal hypotheses, positions, insight history ---------- */
+
+/** One fact the router chose to answer with. */
+export interface AskFact {
+  text: string;
+  evidence: string[];
+}
+
+/** One analysis the router picked out of the fixed catalogue. */
+export interface AskStep {
+  name: string; // match_summary | team_tactics | second_half_change | team_assessment | win_probability | best_passes | fouls | player
+  team?: string | null;
+  player?: string | null;
+  minute?: number | null;
+}
+
+/** GET /ask - a free-form question answered from the match facts. */
+export interface AskResponse {
+  question: string;
+  mode: "model" | "rules"; // "model" only when the model answered; otherwise the facts were joined
+  router: "model" | "keywords";
+  analyses: AskStep[];
+  facts: AskFact[];
+  evidence: string[];
+  answerable: boolean;
+  answer: string;
+}
+
+/** The part of the pitch a claim is about. */
+export interface ClaimWhere {
+  types?: string[]; // event types: pass, carry, shot, ...
+  x?: [number, number]; // range of the 0-100 x scale
+  y?: [number, number];
+}
+
+/** One hypothesis the model proposed and the rules tested. */
+export interface HypothesisClaim {
+  statement: string; // may be empty in sweep mode
+  team: string;
+  where: ClaimWhere;
+  from: number;
+  to: number;
+  measure: "share" | "rate";
+  versus: "rest_of_match" | "opponent";
+  direction: "higher" | "lower";
+  baseline_label: string;
+  n: number;
+  hits: number;
+  baseline_n: number;
+  baseline_hits: number;
+  evidence: string[];
+  verdict: "supported" | "not supported" | "too little data";
+  p_value: number | null;
+  value?: number; // the measured share or rate
+  baseline?: number; // the same measure for the baseline
+  text?: string; // the finding, written by the rules from the test's own numbers
+}
+
+/** GET /goals/{goal_id}/hypotheses - claims tested against the match events. */
+export interface GoalHypotheses {
+  goal_id: string;
+  team: string;
+  minute: number;
+  summary: string;
+  source: "model" | "sweep"; // "model" = the model proposed them, "sweep" = rules-only grid
+  alpha: number | null; // the corrected significance threshold
+  hypotheses: HypothesisClaim[];
+}
+
+/** One place a player was seen. */
+export interface PositionSpot {
+  x: number;
+  y: number;
+  minute: number;
+  event: string;
+  type: string;
+}
+
+/** Where a player was last seen, with the honesty fields the backend insists on. */
+export interface PositionedPlayer {
+  player: string;
+  team: string;
+  x: number;
+  y: number;
+  minute: number;
+  event: string;
+  type: string;
+  since: number; // minutes since they were last seen
+  fresh: boolean; // seen within a minute: draw solid
+  trail: PositionSpot[]; // the places before that
+  average: { x: number; y: number }; // where they usually operate
+  actions: number;
+  on_ball: boolean;
+}
+
+/** GET /positions - last-seen positions. `exact` is always false: these are event locations, not tracking. */
+export interface PositionsResponse {
+  minute: number;
+  source: string;
+  exact: boolean;
+  ball: { x: number; y: number; team: string; player: string | null; minute: number; event: string } | null;
+  players: PositionedPlayer[];
+  note: string;
+}
+
+/** GET /insights/history - a saved insight from the database. */
+export interface InsightRecord {
+  id: string;
+  kind: string;
+  team: string;
+  minute: number;
+  evidence: string[];
+  facts: Record<string, unknown>;
+  narration: string;
+}

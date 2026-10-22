@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 export type IconName =
   | "live" | "result" | "timeline" | "teams" | "players" | "fouls" | "analytics" | "mic" | "fans" | "info"
+  | "ask" | "positions" | "history"
   | "menu" | "close" | "sun" | "moon" | "chevrons" | "replay";
 
 const PATHS: Record<IconName, ReactNode> = {
@@ -41,6 +42,28 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <circle cx="12" cy="12" r="9" />
       <path d="M12 11v5M12 8h.01" />
+    </>
+  ),
+  ask: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.2 9.3a2.8 2.8 0 0 1 5.5.7c0 1.9-2.7 2.1-2.7 4M12 17.5h.01" />
+    </>
+  ),
+  positions: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="1.5" />
+      <path d="M12 4v16M3 12h18" />
+      <circle cx="7" cy="8" r="1.4" />
+      <circle cx="17" cy="8" r="1.4" />
+      <circle cx="7" cy="16" r="1.4" />
+      <circle cx="17" cy="16" r="1.4" />
+    </>
+  ),
+  history: (
+    <>
+      <path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1M3.5 4v4h4" />
+      <path d="M12 7.5V12l3 2" />
     </>
   ),
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,

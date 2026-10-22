@@ -56,6 +56,22 @@ def test_rules_mode_answers_a_fixed_phrase_from_real_facts():
     assert out["answer"].rstrip().endswith("]")
 
 
+def test_the_rules_router_understands_the_questions_the_frontend_offers():
+    """The keyword router must reach the same analyses the model would pick for the stock questions."""
+    for question, analysis in [
+        ("Why did the match end as it did?", "match_summary"),
+        ("How did the teams play in the second half?", "second_half_change"),
+        ("How well did each team play?", "team_assessment"),
+        ("Which passes created the most?", "best_passes"),
+        ("Which fouls mattered?", "fouls"),
+        ("Who is likely to win?", "win_probability"),
+    ]:
+        out = run(FakeModel("unused"), question, mode="rules")
+        assert out["answerable"], question
+        assert analysis in [step["name"] for step in out["analyses"]], question
+        assert set(out["evidence"]) <= real_ids(), question
+
+
 def test_rules_cannot_understand_an_open_question_but_the_model_can():
     question = "How did Blues manage to get back into it?"
     assert run(FakeModel("unused"), question, mode="rules")["answerable"] is False

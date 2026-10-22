@@ -1,10 +1,10 @@
 // web/src/app/MatchProvider.tsx - owns the stream, /match, /health, language and selection.
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useMatchStream } from "@/hooks/useMatchStream";
-import { getEvents, getHealth, getMatch } from "@/lib/api";
+import { getEvents, getHealth, getInsights, getMatch } from "@/lib/api";
 import { languagesFrom, teamsFrom } from "@/lib/match";
 import { MatchContext, type MatchState } from "@/types/matchContext";
-import type { Health, MatchEvent, MatchInfo } from "@/types/types";
+import type { Health, Insight, MatchEvent, MatchInfo } from "@/types/types";
 
 // Demo mode: open /?speed=0.3&lang=en. /?source=live follows a match pushed in by a feed.
 const params = new URLSearchParams(window.location.search);
@@ -23,7 +23,8 @@ function initialLang(): string {
 }
 
 export function MatchProvider({ children }: { children: ReactNode }) {
-  const { insights, ticks, predictions, status, replay } = useMatchStream(speed, source);
+  const { insights: streamInsights, ticks, predictions, status, replay } = useMatchStream(speed, source);
+  const [serverInsights, setServerInsights] = useState<Insight[]>([]);
   const [allEvents, setAllEvents] = useState<MatchEvent[]>([]);
   const [eventsFailed, setEventsFailed] = useState(false);
   const [health, setHealth] = useState<Health | null>(null);
@@ -42,8 +43,17 @@ export function MatchProvider({ children }: { children: ReactNode }) {
       .then((e) => { setAllEvents(e); setEventsFailed(false); })
       .catch(() => { setAllEvents([]); setEventsFailed(true); });
     getHealth().then(setHealth).catch(() => setHealth(null));
+    // The insights the server already has, so a shared link resolves before the match replays.
+    getInsights().then(setServerInsights).catch(() => setServerInsights([]));
     refreshMatch();
   }, [refreshMatch]);
+
+  // The live stream wins for an id both know: it carries the freshest narration.
+  const insights = useMemo(() => {
+    const byId = new Map(serverInsights.map((i) => [i.id, i]));
+    for (const insight of streamInsights) byId.set(insight.id, insight);
+    return [...byId.values()].sort((a, b) => b.minute - a.minute || a.id.localeCompare(b.id));
+  }, [serverInsights, streamInsights]);
 
   const ended = status === "ended";
   const lastTick = ticks.length ? ticks[ticks.length - 1] : null;

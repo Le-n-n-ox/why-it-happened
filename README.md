@@ -30,10 +30,31 @@ Check the model works with `python scripts/smoke_nvidia.py`.
 ## Frontend
 
 ```bash
-npm create vite@latest web -- --template react-ts
-cp frontend-starter/types.ts frontend-starter/useInsightStream.ts frontend-starter/App.tsx web/src/
 cd web && npm install && npm run dev      # http://localhost:5173
 ```
+
+The Vite dev server proxies the API to `http://127.0.0.1:8001` (see `web/vite.config.ts`);
+set `VITE_API_URL` when the frontend and the API are on different origins.
+
+### Pages
+
+| Route | What it shows |
+| ----- | ------------- |
+| `#/` | Live: the pitch, the ball, and insights as they are detected |
+| `#/result` | Why the result happened, with the tested claims behind each goal |
+| `#/recap` | Every insight by minute, plus the full-time recap |
+| `#/ask` | Ask the match a question; compares the model answer with the rules answer |
+| `#/positions` | Where each player was last seen, with a minute scrubber |
+| `#/teams`, `#/team/{name}` | Team report, tactics, formation estimate, second-half story |
+| `#/players`, `#/player/{id}` | Ratings, breakdowns, reviews, heatmaps, side-by-side comparison |
+| `#/fouls` | Every foul, its situation and what followed |
+| `#/analytics` | Team metrics, where each team attacks from, player ranking |
+| `#/announcers` | The on-air line, a cue sheet and the proof to fact-check |
+| `#/fans` | Follow a team, cheer a moment, share it |
+| `#/history` | Insights saved in the database |
+| `#/about` | How it works, for judges |
+
+`API_REFERENCE.md` maps every backend endpoint to the page that uses it.
 
 ## Layout
 
@@ -43,7 +64,7 @@ data/           sample match events (replace with the official synthetic data)
 tests/          pytest
 scripts/        smoke_nvidia.py
 frontend-starter/  starter files to copy into web/src
-web/            Vite + React + TypeScript app (created by you, see above)
+web/            Vite + React + TypeScript app
 ```
 
 ## Endpoints
@@ -53,7 +74,14 @@ web/            Vite + React + TypeScript app (created by you, see above)
 | `GET /health`   | status, whether an LLM is configured                        |
 | `GET /events`   | the events being replayed                                   |
 | `GET /insights` | insights stored so far                                      |
+| `GET /insights/history` | the insights saved in the database                    |
 | `GET /stream`   | Server-Sent Events: replays the match, pushes insights live |
+| `GET /why`      | why the result happened, with the football reasons          |
+| `GET /ask`      | a question answered from the match facts                    |
+| `GET /positions` | where each player was last seen                            |
+| `GET /goals/{id}/hypotheses` | the claims tested for one goal                  |
+
+`API_REFERENCE.md` has the full contract and maps every endpoint to the page that uses it.
 
 ## Status
 
