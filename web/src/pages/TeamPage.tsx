@@ -1,5 +1,6 @@
 import { Button } from "@/components/Button";
 import { Loader } from "@/components/Loader";
+import { StyleClaimsPanel } from "@/components/StyleClaimsPanel";
 import { TacticsPanel } from "@/components/TacticsPanel";
 import { Verdict } from "@/components/Verdict";
 import { useApi } from "@/hooks/useApi";
@@ -95,6 +96,7 @@ function TeamReport({ team }: { team: string }) {
       <Findings title="Strengths" items={data.strengths} />
       <Findings title="Issues" items={data.issues} advice />
       <TacticsPanel team={data.team} />
+      <StyleClaimsPanel team={data.team} />
 
       {data.evidence.length > 0 && (
         <div className={ui.chips}>

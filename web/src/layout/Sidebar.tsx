@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 const NAV: { href: string; path: string; label: string; icon: IconName; prefixes?: string[] }[] = [
   { href: "#/", path: "/", label: "Live", icon: "live", prefixes: ["/insight/"] },
   { href: "#/result", path: "/result", label: "Why the result", icon: "result" },
+  { href: "#/momentum", path: "/momentum", label: "Momentum", icon: "momentum" },
+  { href: "#/halftime", path: "/halftime", label: "Half-time", icon: "halftime" },
   { href: "#/recap", path: "/recap", label: "Timeline", icon: "timeline" },
   { href: "#/ask", path: "/ask", label: "Ask the match", icon: "ask" },
   { href: "#/positions", path: "/positions", label: "Positions", icon: "positions" },

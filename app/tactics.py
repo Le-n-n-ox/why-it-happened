@@ -300,6 +300,157 @@ def shift_story(team: str, shifts: dict) -> list[str]:
     return lines
 
 
+# ---------------------------------------------------------------- 6. what the first half showed
+
+def first_half_brief(events: list[MatchEvent], team: str) -> dict:
+    """What the first half showed for one team: what worked, what didn't, and what to watch.
+
+    The rules pick the facts and rank them. Nothing here is a guess about intent: every line is a
+    count over the first half's events, and every line carries the events behind it.
+    """
+    opp = _other(team, events)
+    last = _last_minute(events)
+    if last < HALF_TIME - 5:
+        return {"available": False, "reason": "The first half has not been played yet."}
+    inside = [e for e in events if e.minute < HALF_TIME]
+    mine = [e for e in inside if e.team == team]
+    if len(mine) < MIN_HALF_EVENTS:
+        return {"available": False,
+                "reason": f"{team} have {len(mine)} actions so far, which is too few to judge a half."}
+    me = team_metrics(inside, team)
+    them = team_metrics(inside, opp) if any(e.team == opp for e in inside) else None
+    first = profile(events, team, 0.0, HALF_TIME)
+    xg_for, xg_against = first["xg_for"], first["xg_against"]
+    entries, converted = me["final_third_entries"], me["entries_with_shot"]
+    worked: list[dict] = []
+    didnt: list[dict] = []
+    watch: list[dict] = []
+
+    def finding(code, title, detail, evidence, weight):
+        return {"code": code, "title": title, "detail": detail, "evidence": list(dict.fromkeys(evidence))[:6],
+                "principle": PRINCIPLES.get(code, ""), "weight": weight}
+
+    # ---- what worked
+    if me["shots"] >= 1:
+        worked.append(finding(
+            "chance_quality", "They had chances worth something",
+            f"{team} had {me['shots']} shot{'s' if me['shots'] != 1 else ''} in the first half, worth "
+            f"{xg_for:.1f} expected goals against {xg_against:.1f} conceded.",
+            [e.id for e in mine if e.type in SHOTS][:4], 4 if xg_for >= xg_against else 2))
+    if me["goals"]:
+        worked.append(finding(
+            "finishing", "They scored",
+            f"{team} scored {me['goals']} from chances worth {xg_for:.1f} expected goals.",
+            [e.id for e in inside if e.team == team and e.type == EventType.GOAL][:3], 5))
+    if entries >= 2 and converted / entries >= 0.4:
+        worked.append(finding(
+            "final_third", "They made things of their entries",
+            f"{team} reached the final third {entries} times and {converted} of those spells ended in a shot.",
+            me["_entry_evidence"], 4))
+    if len(me["high_wins"]) >= 3:
+        worked.append(finding(
+            "high_press", "They won the ball high up the pitch",
+            f"{team} won the ball in the final third {len(me['high_wins'])} times in the first half.",
+            me["high_wins"][:4], 3))
+    share = len(mine) / len(inside) if inside else 0.0
+    if share >= 0.55:
+        worked.append(finding(
+            "possession", "They had more of the game",
+            f"{team} made {_pct(share)} of the recorded actions in the first half.",
+            [e.id for e in mine][:3], 2))
+
+    # ---- what did not
+    if entries >= 2 and converted / entries < 0.34:
+        didnt.append(finding(
+            "final_third", "Their entries did not end in shots",
+            f"{team} reached the final third {entries} times but only {converted} of those spells ended in a shot.",
+            me["_entry_evidence"], 4))
+    if len(me["punished_losses"]) >= 1:
+        didnt.append(finding(
+            "turnovers", "Losing the ball cost them",
+            f"{team} lost the ball in their own third {len(me['punished_losses'])} times in ways that gave "
+            f"{opp} a shot within 15 seconds.",
+            [i for loss in me["punished_losses"] for i in loss], 4))
+    if len(me["own_third_fouls"]) >= 1 and me["punished_fouls"]:
+        didnt.append(finding(
+            "discipline", "Fouls in dangerous places",
+            f"{team} fouled {len(me['own_third_fouls'])} times in their own third, and {len(me['punished_fouls'])} "
+            f"of them led to a {opp} shot.",
+            [i for pair in me["punished_fouls"] for i in pair], 3))
+    if them is not None and xg_against > xg_for:
+        didnt.append(finding(
+            "chance_quality", "The chances went against them",
+            f"{opp}'s chances were worth {xg_against:.1f} expected goals against {xg_for:.1f} for {team}.",
+            [e.id for e in inside if e.team == opp and e.type in SHOTS][:4], 4))
+    if me["shots"] == 0:
+        didnt.append(finding(
+            "chance_quality", "They did not have a shot",
+            f"{team} did not have a shot in the first half.",
+            [e.id for e in mine][:3], 3))
+
+    # ---- what to watch: the advice the data gives for the second half
+    if entries >= 2 and converted / entries < 0.34:
+        watch.append(finding(
+            "final_third", "Whether they turn entries into shots",
+            f"{team} got into the final third {entries} times and only shot {converted} of those times, so "
+            f"the second half shows whether they are getting closer to goal or only closer to the box.",
+            me["_entry_evidence"], 3))
+    if me["punished_losses"]:
+        watch.append(finding(
+            "turnovers", "How they protect the ball in their own third",
+            f"{team} lost the ball in their own third {len(me['punished_losses'])} times in ways that were "
+            f"punished, and that is where the second half can be won or lost.",
+            [i for loss in me["punished_losses"] for i in loss][:4], 3))
+    if them is not None and xg_against > xg_for:
+        watch.append(finding(
+            "chance_quality", "How they stop conceding chances",
+            f"{opp}'s chances were worth more than {team}'s in the first half, so the second half shows "
+            f"whether that changes.",
+            [e.id for e in inside if e.team == opp and e.type in SHOTS][:4], 3))
+    if me["shots"] == 0:
+        watch.append(finding(
+            "chance_quality", "Whether they can get a shot away",
+            f"{team} had no shot before the break, so the second half shows whether the ball can get "
+            f"into the box at all.",
+            [e.id for e in mine][:3], 3))
+
+    worked.sort(key=lambda f: -f["weight"])
+    didnt.sort(key=lambda f: -f["weight"])
+    watch.sort(key=lambda f: -f["weight"])
+    score = {team: 0, opp: 0}
+    for e in inside:
+        if e.type == EventType.GOAL:
+            score[e.team] += 1
+    return {
+        "available": True, "team": team, "opponent": opp,
+        "worked": worked[:3], "didnt": didnt[:3], "watch": watch[:3],
+        "halftime_score": score,
+        "stats": {"shots": me["shots"], "xg_for": xg_for, "xg_against": xg_against,
+                  "final_third_entries": entries, "entries_with_shot": converted,
+                  "actions": len(mine), "possession": round(share, 3)},
+    }
+
+
+def halftime_insight(events: list[MatchEvent], team: str, brief: dict) -> Insight:
+    """The half-time brief as an Insight, so the model words it and the template can too."""
+    story: list[str] = []
+    evidence: list[str] = []
+    for finding in brief["worked"]:
+        story.append(f"{finding['title']}: {finding['detail']}")
+        evidence += finding["evidence"]
+    for finding in brief["didnt"]:
+        story.append(f"{finding['title']}: {finding['detail']}")
+        evidence += finding["evidence"]
+    for finding in brief["watch"]:
+        story.append(f"Watch: {finding['detail']}")
+        evidence += finding["evidence"]
+    if not story:
+        story = [f"There is not enough of the first half to say much about {team}."]
+    last = max((e for e in events if e.team == team), key=lambda e: e.minute)
+    return Insight(kind="halftime_brief", team=team, minute=last.minute,
+                   evidence=list(dict.fromkeys(evidence))[:12] or [last.id], facts={"story": story})
+
+
 # ---------------------------------------------------------------- 3. which tactics, and did they work?
 
 def tactic_verdicts(events: list[MatchEvent], team: str) -> list[dict]:

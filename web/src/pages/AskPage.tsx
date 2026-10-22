@@ -82,13 +82,16 @@ export function AskPage() {
   const [question, setQuestion] = useState("");
   const [mode, setMode] = useState<AskMode>("auto");
   const [asked, setAsked] = useState("");
+  const [previous, setPrevious] = useState<string | undefined>();
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
     const q = question.trim();
     if (q === "" || loading) return;
+    // The last question rides along, so a follow-up like "and in the second half?" can lean on it.
+    void ask(q, lang, mode, asked || undefined);
+    setPrevious(asked || undefined);
     setAsked(q);
-    void ask(q, lang, mode);
   };
 
   // Ctrl+Enter sends, so a long question does not need the mouse.
@@ -160,7 +163,7 @@ export function AskPage() {
       {error !== null && (
         <p role="alert" className={ui.banner}>
           Couldn&apos;t ask that question ({error}).{" "}
-          <Button className={ui.bannerButton} onClick={() => void ask(asked, lang, mode)}>
+          <Button className={ui.bannerButton} onClick={() => void ask(asked, lang, mode, previous)}>
             Retry
           </Button>
         </p>
@@ -176,7 +179,12 @@ export function AskPage() {
                 {answer.mode === "model" ? "Written by the model" : "Joined by the rules"}
               </Badge>
               <Badge>{answer.router === "model" ? "Model router" : "Keyword router"}</Badge>
+              {answer.follow_up && <Badge>Follow-up</Badge>}
             </div>
+
+            {answer.follow_up && answer.resolved && answer.resolved !== answer.question && (
+              <p className="m-0 text-[.88rem] text-muted">Read as: {answer.resolved}</p>
+            )}
 
             {answer.answerable ? (
               <p className="m-0 text-[1.15rem] leading-snug" lang={lang}>
@@ -192,7 +200,7 @@ export function AskPage() {
             {answer.answerable && (
               <div className="flex flex-wrap items-center gap-2.5">
                 {canCompare && (
-                  <Button disabled={comparing} onClick={() => void compareWithRules(asked, lang)}>
+                  <Button disabled={comparing} onClick={() => void compareWithRules(asked, lang, previous)}>
                     {comparing ? "Comparing..." : "Compare with the rules"}
                   </Button>
                 )}

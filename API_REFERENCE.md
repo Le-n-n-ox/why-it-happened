@@ -19,7 +19,7 @@ Encode path parameters such as team names and player IDs with `encodeURIComponen
 | `GET /match` | — | `{home, away, duration_min, events, score, source}`. |
 | `GET /events` | — | Event array. Each event has `id`, `minute`, `team`, `player`, `type`, `x`, `y`, and `outcome`. Coordinates use the app's 0–100 pitch scale. |
 | `GET /events/{event_id}/why` | Path: `event_id` | Explanation with `action`, `why`, and `evidence`; pass events can also include `quality`. Unknown IDs return 404. |
-| `GET /goals/{goal_id}/hypotheses` | Path: `goal_id`; `mode=auto\|sweep` | Goal summary and hypotheses tested against match events. `auto` asks the model for claims when configured, then verifies them with rules; `sweep` uses the rules-only baseline. Each claim carries its `verdict` (`supported`, `not supported`, `too little data`), the `p_value`, the counts behind the test, the evidence ids, and `text`: the finding written by the rules from the test's own numbers. The goal id is the last id of the cause chain. |
+| `GET /goals/{goal_id}/hypotheses` | Path: `goal_id`; `mode=auto\|sweep` | Goal summary and hypotheses tested against match events. `auto` asks the model for claims when configured, then verifies them with rules; `sweep` uses the rules-only baseline. Each claim carries its `verdict` (`supported`, `not supported`, `too little data`), the `p_value`, the counts behind the test, the evidence ids, the `candidates` the rules offered, and `text`: the finding written by the rules from the test's own numbers. The goal id is the last id of the cause chain. |
 | `GET /stream` | `source=file\|live`, `delay`, `speed` | Server-sent events. Messages include event ticks, prediction updates, insights, and a final `done`. |
 | `GET /live/status` | — | `{live, events, ended}` for the ingest stream. |
 | `POST /events` | JSON `MatchEvent`; optional `X-Ingest-Token` header | Add an app-format live event. Duplicate IDs are ignored; events must arrive in clock order. |
@@ -41,7 +41,11 @@ Encode path parameters such as team names and player IDs with `encodeURIComponen
 | `GET /positions` | `minute` (optional number) | `{minute, source, exact, ball, players, note}`. Each player includes last-seen coordinates, event, time since seen, freshness, trail, average position, action count, and on-ball status. These are event locations, not live player tracking. |
 | `GET /predict` | `minute` (optional number) | Win-probability fields plus `timeline`. If fewer than two teams are present, returns `available: false` and a reason. |
 | `GET /validation` | — | Latest persisted real-match validation report, or `{available: false, reason}` until one has been written by the validation script. |
-| `GET /ask` | Required `q` (max 300 chars); optional `lang` (default `en`), `mode` (default `auto`; `rules` skips the model) | `{question, mode, router, analyses, facts, evidence, answerable, answer}`. |
+| `GET /ask` | Required `q` (max 300 chars); optional `lang` (default `en`), `mode` (default `auto`; `rules` skips the model), `prev` (max 300 chars) | `{question, mode, router, analyses, facts, evidence, answerable, answer}`, plus `follow_up` and `resolved` when the question leaned on the one before it. |
+| `GET /momentum` | `mode=auto\|sweep` | The biggest jumps in the win-probability line, each with the event that turned the match and the claims tested for it. Same grammar, same tests as the goals. |
+| `GET /team/{team}/claims` | Path: `team`; `mode=auto\|sweep` | Claims about how a team played across the whole match, not one spell. The window is long, so the same tests have more data behind them. Unknown teams return 404. |
+| `GET /halftime` | `lang` (default `en`) | What the first half showed for each team: what worked, what did not, and what to watch in the second half. The rules pick and rank the facts; the model only words them. |
+| `GET /voices` | `lang` (default `en`) | The same match facts written three ways, for a fan, an announcer and an analyst. Every voice cites the same evidence. |
 
 ## Players
 
@@ -73,8 +77,12 @@ new endpoint with no home is visible here.
 
 | Endpoint | Called by | Shown on |
 |---|---|---|
-| `GET /ask` | `getAsk` | Ask the match (`#/ask`), with an Auto / Rules-only comparison |
+| `GET /ask` | `getAsk` | Ask the match (`#/ask`), with an Auto / Rules-only comparison and follow-up questions |
 | `GET /goals/{id}/hypotheses` | `getGoalHypotheses` | Why the result (`#/result`), under each goal |
+| `GET /momentum` | `getMomentum` | Momentum (`#/momentum`), the biggest swings in the win-probability line |
+| `GET /team/{team}/claims` | `getTeamClaims` | Team detail (`#/team/{name}`), the claims about how they played |
+| `GET /halftime` | `getHalftime` | Half-time (`#/halftime`), what the first half showed |
+| `GET /voices` | `getVoices` | Why the result (`#/result`), the same facts in three voices |
 | `GET /positions` | `getPositions` | Positions (`#/positions`), with a minute scrubber |
 | `GET /insights` | `getInsights` | Seeds the insight list so a shared `#/insight/{id}` link resolves at once |
 | `GET /insights/history` | `getInsightHistory` | History (`#/history`) and the fallback for an old shared link |

@@ -1,5 +1,6 @@
 """Hypotheses: the model proposes, the rules test. Nothing the model writes becomes a number."""
 import json
+import math
 import os
 
 from app import hypotheses as hyp
@@ -37,6 +38,17 @@ def test_exact_tails():
     assert abs(hyp._binom_tail(0, 4, 0.5, False) - 1 / 16) < 1e-12
     assert abs(hyp._poisson_tail(0, 2.0, False) - 0.1353352832) < 1e-9
     assert abs(hyp._poisson_tail(1, 2.0, True) - (1 - 0.1353352832)) < 1e-9
+
+
+def test_the_tails_survive_a_whole_match_window():
+    """A long window holds thousands of events: the coefficient no longer fits in a float."""
+    assert 0.0 <= hyp._binom_tail(400, 1200, 0.3, True) <= 1.0
+    assert 0.0 <= hyp._binom_tail(200, 1200, 0.3, False) <= 1.0
+    assert 0.0 <= hyp._poisson_tail(50, 900.0, True) <= 1.0
+    assert 0.0 <= hyp._poisson_tail(100, 900.0, False) <= 1.0
+    # a long window must still give the same answer as the direct sum
+    direct = sum(math.comb(300, i) * 0.5 ** i * 0.5 ** (300 - i) for i in range(100, 301))
+    assert abs(hyp._binom_tail(100, 300, 0.5, True) - direct) < 1e-9
 
 
 def test_supported_claim_has_numbers_evidence_and_a_plain_sentence():
@@ -109,11 +121,19 @@ def test_model_ideas_are_tested_and_refuted_ones_stay_visible():
         {**PRESSURE, "where": {"x": [0, 33]}, "statement": "Reds were stuck deep."},
         {**PRESSURE, "team": "Nobody FC"}]})
     out, fake = run(reply, goal_id="d134")
-    assert len(out) == 1 and out[0]["source"] == "model" and fake.calls == 1
+    assert len(out) == 1 and out[0]["source"] == "model"
+    assert fake.calls == 2                                # the proposals, then the evidence picker
     verdicts = [h["verdict"] for h in out[0]["hypotheses"]]
     assert verdicts == ["supported", "not supported"]          # the invalid claim never reaches the tests
     assert all(h["text"] and "evidence" in h for h in out[0]["hypotheses"])
     assert out[0]["alpha"] == round(0.05 / 2, 4)
+
+
+def test_the_sweep_never_calls_the_model():
+    out, fake = run("not json at all", goal_id="d134")
+    assert out[0]["source"] == "sweep" and fake.calls == 1  # only the proposals, which failed
+    assert all(h["candidates"] for h in out[0]["hypotheses"])
+    assert all(h["evidence"] for h in out[0]["hypotheses"])
 
 
 def test_without_a_working_model_the_sweep_takes_over():

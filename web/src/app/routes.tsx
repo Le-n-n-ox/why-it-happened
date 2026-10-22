@@ -5,9 +5,11 @@ import { AnnouncersPage } from "@/pages/AnnouncersPage";
 import { AskPage } from "@/pages/AskPage";
 import { FansPage } from "@/pages/FansPage";
 import { FoulsPage } from "@/pages/FoulsPage";
+import { HalftimePage } from "@/pages/HalftimePage";
 import { HistoryPage } from "@/pages/HistoryPage";
 import { InsightPage } from "@/pages/InsightPage";
 import { LivePage } from "@/pages/LivePage";
+import { MomentumPage } from "@/pages/MomentumPage";
 import { PlayerPage } from "@/pages/PlayerPage";
 import { PlayersPage } from "@/pages/PlayersPage";
 import { PositionsPage } from "@/pages/PositionsPage";
@@ -30,6 +32,8 @@ function safeDecode(s: string): string {
 export function RoutePage({ path }: { path: string }) {
   if (path === "/result") return <ResultPage />;
   if (path === "/recap") return <RecapPage />;
+  if (path === "/momentum") return <MomentumPage />;
+  if (path === "/halftime") return <HalftimePage />;
   if (path === "/ask") return <AskPage />;
   if (path === "/positions") return <PositionsPage />;
   if (path === "/history") return <HistoryPage />;

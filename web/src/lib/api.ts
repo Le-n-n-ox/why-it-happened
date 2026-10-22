@@ -1,7 +1,8 @@
 // web/src/lib/api.ts - the only file that knows the server address and the endpoint paths.
 import type {
-  Action, Assessment, AskResponse, GoalHypotheses, Health, Insight, InsightRecord, MatchEvent, MatchInfo, MatchWhy,
-  Player, PlayerDetail, PlayerReview, PositionsResponse, PredictResponse, Recap, Tactics, Validation,
+  Action, Assessment, AskResponse, GoalHypotheses, HalftimeResponse, Health, Insight, InsightRecord, MatchEvent,
+  MatchInfo, MatchWhy, MomentumResponse, Player, PlayerDetail, PlayerReview, PositionsResponse, PredictResponse, Recap,
+  StyleClaims, Tactics, Validation, VoicesResponse,
 } from "@/types/types";
 
 // Dev: empty, so requests go through the Vite proxy. Production same-origin build: also empty.
@@ -121,15 +122,38 @@ export async function getValidation(): Promise<Validation> {
 
 /**
  * Ask the match a question. `mode` is "auto" (the model answers when it is configured) or "rules"
- * (the same facts joined by the rules), so the two answers can be put side by side.
+ * (the same facts joined by the rules), so the two answers can be put side by side. `previous` is the
+ * question before this one, so a follow-up like "and in the second half?" can be read against it.
  */
-export function getAsk(q: string, lang: string, mode: "auto" | "rules" = "auto"): Promise<AskResponse> {
-  return getJson<AskResponse>(`/ask?q=${enc(q)}&lang=${enc(lang)}&mode=${enc(mode)}`);
+export function getAsk(q: string, lang: string, mode: "auto" | "rules" = "auto",
+                      previous?: string): Promise<AskResponse> {
+  const prev = previous ? `&prev=${enc(previous)}` : "";
+  return getJson<AskResponse>(`/ask?q=${enc(q)}&lang=${enc(lang)}&mode=${enc(mode)}${prev}`);
 }
 
 /** Claims tested against the match events for one goal. `mode` is "auto" or "sweep" (rules only). */
 export function getGoalHypotheses(goalId: string, mode: "auto" | "sweep" = "auto"): Promise<GoalHypotheses> {
   return getJson<GoalHypotheses>(`/goals/${enc(goalId)}/hypotheses?mode=${enc(mode)}`);
+}
+
+/** The biggest jumps in the win-probability line, each with the claims tested for it. */
+export function getMomentum(mode: "auto" | "sweep" = "auto"): Promise<MomentumResponse> {
+  return getJson<MomentumResponse>(`/momentum?mode=${enc(mode)}`);
+}
+
+/** Claims about how a team played across the whole match, tested by the same rules. */
+export function getTeamClaims(team: string, mode: "auto" | "sweep" = "auto"): Promise<StyleClaims> {
+  return getJson<StyleClaims>(`/team/${enc(team)}/claims?mode=${enc(mode)}`);
+}
+
+/** What the first half showed for each team. */
+export function getHalftime(lang: string): Promise<HalftimeResponse> {
+  return getJson<HalftimeResponse>(`/halftime?lang=${enc(lang)}`);
+}
+
+/** The same match facts, written for a fan, an announcer and an analyst. */
+export function getVoices(lang: string): Promise<VoicesResponse> {
+  return getJson<VoicesResponse>(`/voices?lang=${enc(lang)}`);
 }
 
 /** Where each player was last seen. These are event locations, not live tracking. */

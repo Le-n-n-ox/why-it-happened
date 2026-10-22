@@ -31,6 +31,9 @@ export default defineConfig({
       "/goals": BACKEND,
       "/positions": BACKEND,
       "/live": BACKEND,
+      "/momentum": BACKEND,
+      "/halftime": BACKEND,
+      "/voices": BACKEND,
     },
   },
 });

@@ -5,6 +5,7 @@ import { ChainCard } from "@/components/ChainSteps";
 import { FactorsPanel } from "@/components/FactorsPanel";
 import { GoalHypotheses } from "@/components/GoalHypotheses";
 import { Loader } from "@/components/Loader";
+import { MatchVoices } from "@/components/MatchVoices";
 import { Pitch } from "@/components/Pitch";
 import { Recap } from "@/components/Recap";
 import { WinProbability } from "@/components/WinProbability";
@@ -37,6 +38,7 @@ function ResultBody() {
       <div className={ui.split}>
         <div className="grid min-w-0 gap-4">
           <Recap lang={lang} />
+          <MatchVoices />
           <WinProbability goals={goals} />
 
           {data && data.turning_points.length > 0 && (

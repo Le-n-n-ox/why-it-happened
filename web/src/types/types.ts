@@ -294,6 +294,8 @@ export interface AskResponse {
   evidence: string[];
   answerable: boolean;
   answer: string;
+  follow_up?: boolean; // the question leaned on the one before it
+  resolved?: string; // the question the system actually answered
 }
 
 /** The part of the pitch a claim is about. */
@@ -319,6 +321,7 @@ export interface HypothesisClaim {
   baseline_n: number;
   baseline_hits: number;
   evidence: string[];
+  candidates?: string[]; // the events the rules offered; the model may only pick from these
   verdict: "supported" | "not supported" | "too little data";
   p_value: number | null;
   value?: number; // the measured share or rate
@@ -335,6 +338,92 @@ export interface GoalHypotheses {
   source: "model" | "sweep"; // "model" = the model proposed them, "sweep" = rules-only grid
   alpha: number | null; // the corrected significance threshold
   hypotheses: HypothesisClaim[];
+}
+
+/** One jump in the win-probability line. */
+export interface MomentumSwing {
+  team: string;
+  minute: number;
+  from: number; // the team's win probability before the jump
+  to: number; // and after it
+  delta: number; // the size of the jump
+  score: Record<string, number>;
+  summary: string;
+  cause: { id: string; team: string; type: string; minute: number; player: string | null };
+  source: "model" | "sweep";
+  alpha: number | null;
+  hypotheses: HypothesisClaim[];
+}
+
+/** GET /momentum - the biggest swings in the win-probability line. */
+export interface MomentumResponse {
+  swings: MomentumSwing[];
+  note: string;
+}
+
+/** GET /team/{team}/claims - claims about how a team played across the whole match. */
+export interface StyleClaims {
+  available: boolean;
+  reason?: string;
+  team: string;
+  window: { from: number; to: number };
+  source: "model" | "sweep";
+  alpha: number | null;
+  hypotheses: HypothesisClaim[];
+  note: string;
+}
+
+/** One line of the half-time brief: a fact the rules found, with the events behind it. */
+export interface BriefFinding {
+  code: string;
+  title: string;
+  detail: string;
+  evidence: string[];
+  principle: string;
+  weight: number;
+}
+
+/** GET /halftime - what the first half showed for one team. */
+export interface HalftimeBrief {
+  team: string;
+  available: boolean;
+  reason?: string;
+  opponent?: string;
+  worked?: BriefFinding[];
+  didnt?: BriefFinding[];
+  watch?: BriefFinding[];
+  halftime_score?: Record<string, number>;
+  stats?: {
+    shots: number;
+    xg_for: number;
+    xg_against: number;
+    final_third_entries: number;
+    entries_with_shot: number;
+    actions: number;
+    possession: number;
+  };
+  lang?: string;
+  text?: string;
+  evidence?: string[];
+}
+
+export interface HalftimeResponse {
+  briefs: HalftimeBrief[];
+  note: string;
+}
+
+/** One voice's version of the same facts. */
+export interface VoiceAnswer {
+  voice: string; // "fan" | "announcer" | "analyst"
+  label: string;
+  text: string;
+  evidence: string[];
+}
+
+/** GET /voices - the same match facts, written three ways. */
+export interface VoicesResponse {
+  voices: VoiceAnswer[];
+  note: string;
 }
 
 /** One place a player was seen. */

@@ -48,6 +48,14 @@ ROUTER_SYSTEM = (
     "{{\"answerable\": false, \"analyses\": []}}."
 )
 
+FOLLOW_UP_SYSTEM = (
+    "You are resolving a follow-up question about ONE football match. You are given the previous question "
+    "and the new one. Reply with JSON only: {{\"question\": \"<the new question, written so that it stands "
+    "on its own>\"}}. Keep everything the new question says and fill in what 'it', 'they', 'that' or 'them' "
+    "refers to, using the previous question. Add nothing that neither question says, and add no numbers. "
+    "If the new question already stands on its own, return it unchanged."
+)
+
 ANSWER_SYSTEM = (
     "You answer a fan's question about one football match in {language}. Use ONLY the facts in the JSON. "
     "Answer the question directly in at most four short sentences: pick only the facts that bear on it and "
@@ -157,10 +165,10 @@ def _clean_plan(raw_items, events, players: set[str]) -> list[dict]:
     return plan[:4]
 
 
-def keyword_plan(question: str, events: list[MatchEvent]) -> list[dict]:
+def keyword_plan(question: str, events: list[MatchEvent], focus: str | None = None) -> list[dict]:
     """The rules-only router: fixed phrases, no understanding."""
     q = question.casefold()
-    teams = [t for t in _teams(events) if t.casefold() in q] or _teams(events)
+    teams = [t for t in _teams(events) if t.casefold() in q] or ([focus] if focus else []) or _teams(events)
     names = [n for n in sorted({e.player for e in events if e.player}) if n.casefold() in q
              or n.split()[-1].casefold() in re.findall(r"[\w']+", q)]
     plan: list[dict] = []
@@ -192,15 +200,58 @@ def _json_object(text: str):
     return json.loads(text[start:end + 1])
 
 
-def model_plan(model: str, question: str, events: list[MatchEvent]) -> tuple[list[dict], bool]:
+def model_plan(model: str, question: str, events: list[MatchEvent], focus: str | None = None) -> tuple[list[dict], bool]:
     system = ROUTER_SYSTEM.format(
         catalogue="\n".join(f"- {name}: {text}" for name, text in CATALOGUE.items()),
         teams=", ".join(_teams(events)))
+    if focus:
+        system += f" The question follows an earlier one about {focus}, so that is the team it is about."
     reply = _chat(model, [{"role": "system", "content": system},
                           {"role": "user", "content": question}], "ask router", max_tokens=200)
     data = _json_object(reply)
     plan = _clean_plan(data.get("analyses"), events, KNOWN_PLAYERS)
     return plan, bool(data.get("answerable", True)) and bool(plan)
+
+
+# ---------------------------------------------------------------- follow-up questions
+
+FOLLOW_UP_START = re.compile(r"^(and|also|then|what about|how about|and what|and how|and why|and who|and in)\b")
+FOLLOW_UP_PRONOUN = re.compile(r"\b(it|its|they|their|them|that|those|this)\b")
+
+
+def looks_like_followup(question: str, previous: str | None) -> bool:
+    """Does this question lean on the one before it?"""
+    if not previous:
+        return False
+    q = question.casefold().strip()
+    if FOLLOW_UP_START.match(q):
+        return True
+    return bool(FOLLOW_UP_PRONOUN.search(q))
+
+
+def focus_team(question: str, previous: str | None, events: list[MatchEvent]) -> str | None:
+    """The team the earlier question was about, when the new one does not name one."""
+    if not previous:
+        return None
+    q, prev = question.casefold(), previous.casefold()
+    teams = _teams(events)
+    if any(t.casefold() in q for t in teams):
+        return None
+    named = [t for t in teams if t.casefold() in prev]
+    return named[0] if len(named) == 1 else None
+
+
+def resolve_followup(model: str, question: str, previous: str) -> str | None:
+    """The model rewrites a follow-up so it stands alone. It only resolves the reference."""
+    try:
+        reply = _chat(model, [{"role": "system", "content": FOLLOW_UP_SYSTEM},
+                              {"role": "user", "content": json.dumps({"previous": previous, "question": question})}],
+                      "ask follow-up", max_tokens=200)
+        resolved = str(_json_object(reply).get("question", "")).strip()
+    except Exception as exc:
+        print(f"[DEBUG] ask follow-up failed ({exc}); using the question as it stands")
+        return None
+    return resolved[:300] or None
 
 
 # ---------------------------------------------------------------- answer
@@ -212,7 +263,7 @@ def _join(facts: list[dict], limit: int = 4) -> str:
 
 
 def answer(events: list[MatchEvent], found: list[Insight], question: str, lang: str = "en",
-           mode: str = "auto", model: str | None = None) -> dict:
+           mode: str = "auto", model: str | None = None, previous: str | None = None) -> dict:
     question = question.strip()[:300]
     out = {"question": question, "mode": "rules", "router": "keywords", "analyses": [], "facts": [],
            "evidence": [], "answerable": False, "answer": ""}
@@ -221,10 +272,22 @@ def answer(events: list[MatchEvent], found: list[Insight], question: str, lang: 
         return out
 
     use_model = bool(mode != "rules" and model and os.getenv("NVIDIA_API_KEY") and model_available())
+
+    # A follow-up leans on the question before it: the model resolves what "it" means, and the rules
+    # keep the team the earlier question was about.
+    follow_up = looks_like_followup(question, previous)
+    focus = focus_team(question, previous, events) if follow_up else None
+    working = question
+    if follow_up and previous:
+        resolved = resolve_followup(model, question, previous) if use_model else None
+        working = resolved or question
+    out["follow_up"] = follow_up
+    out["resolved"] = working
+
     plan, answerable = [], True
     if use_model:
         try:
-            plan, answerable = model_plan(model, question, events)
+            plan, answerable = model_plan(model, working, events, focus)
             out["router"] = "model"
             _record_model_result(True)
         except Exception as exc:
@@ -232,7 +295,7 @@ def answer(events: list[MatchEvent], found: list[Insight], question: str, lang: 
             print(f"[DEBUG] ask router failed ({exc}); using the keyword router")
             use_model = False
     if not use_model:
-        plan = keyword_plan(question, events)
+        plan = keyword_plan(working, events, focus)
         answerable = bool(plan)
 
     facts: list[dict] = []

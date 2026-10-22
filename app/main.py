@@ -36,14 +36,17 @@ from app.db import get_insights, init_db
 from app.detectors import detect_all
 from app.events import EventType, MatchEvent, from_official, load_events
 from app.hypotheses import hypotheses as goal_hypotheses
+from app.hypotheses import style_claims
 from app.matchinfo import match_info
+from app.momentum import momentum as momentum_swings
 from app.players import involvement, player_actions, player_stats, player_table, rating, review_insight
 from app.positions import positions as player_positions
 from app.narrator import (make_client, model_available, model_status, narrate_all, register_players,
                           write_recap)
 from app.simulate import replay
-from app.tactics import (factors_summary, match_factors, pass_quality, tactical_report,
-                         tactics_insight, win_probability, win_timeline)
+from app.tactics import (factors_summary, first_half_brief, halftime_insight, match_factors, pass_quality,
+                          tactical_report, tactics_insight, win_probability, win_timeline)
+from app.voices import voices
 from app.store import OmniPitchStore
 
 load_dotenv()
@@ -200,6 +203,44 @@ def team_tactics(team: str, lang: str = "en"):
     }
 
 
+@app.get("/team/{team}/claims")
+def team_claims(team: str, mode: str = "auto"):
+    """Claims about how a team played across the whole match, tested by the same rules as the goals."""
+    events, _ = _match_data()
+    name = next((e.team for e in events if e.team.casefold() == team.casefold()), None)
+    if name is None:
+        raise HTTPException(status_code=404, detail="Unknown team")
+    return style_claims(events, model=MODEL, mode=mode, team=name)
+
+
+@app.get("/voices")
+def match_voices(lang: str = "en"):
+    """The same match facts, written for a fan, an announcer and an analyst."""
+    events, found = _match_data()
+    return voices(events, found, model=MODEL, lang=lang)
+
+
+@app.get("/halftime")
+def halftime_brief(lang: str = "en"):
+    """What the first half showed for each team: what worked, what didn't, and what to watch."""
+    events, _ = _match_data()
+    briefs = []
+    for team in dict.fromkeys(e.team for e in events):
+        brief = first_half_brief(events, team)
+        if not brief.get("available"):
+            briefs.append({"team": team, "available": False, "reason": brief["reason"]})
+            continue
+        insight = halftime_insight(events, team, brief)
+        narration = narrate_all(client, MODEL, insight, [lang])
+        used = lang if lang in narration else "en"
+        briefs.append({**brief, "lang": used,
+                       "text": narration.get(used) or next(iter(narration.values())),
+                       "evidence": insight.evidence})
+    return {"briefs": briefs,
+            "note": "The rules pick the facts and rank them: every line is a count over the first half's "
+                    "events. The model only words them, and never says what the coach intended."}
+
+
 @app.get("/positions")
 def positions(minute: float | None = None):
     """Where each player was last seen (and the ball), up to `minute`. Not live tracking: see `note`."""
@@ -277,6 +318,13 @@ def goal_hypothesis_report(goal_id: str, mode: str = "auto"):
     }
 
 
+@app.get("/momentum")
+def momentum_report(mode: str = "auto"):
+    """The biggest jumps in the win-probability line, each with the claims tested for it."""
+    events, _ = _match_data()
+    return momentum_swings(events, model=MODEL, mode=mode)
+
+
 @app.get("/validation")
 def validation():
     """Return the latest persisted real-match validation report, if available."""
@@ -297,10 +345,15 @@ def validation():
 
 
 @app.get("/ask")
-def ask(q: str = Query(..., max_length=300), lang: str = "en", mode: str = "auto"):
-    """Answer a free-form question from the match facts. mode=rules skips the model (for side-by-side)."""
+def ask(q: str = Query(..., max_length=300), lang: str = "en", mode: str = "auto",
+        prev: str | None = Query(default=None, max_length=300)):
+    """Answer a free-form question from the match facts. mode=rules skips the model (for side-by-side).
+
+    `prev` is the question before this one: it lets a follow-up like "and in the second half?" be
+    read against the question it follows.
+    """
     events, found = _match_data()
-    return ask_answer(events, found, q, lang=lang, mode=mode, model=MODEL)
+    return ask_answer(events, found, q, lang=lang, mode=mode, model=MODEL, previous=prev)
 
 
 @app.get("/health")

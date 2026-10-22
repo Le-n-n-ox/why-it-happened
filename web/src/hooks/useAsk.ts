@@ -28,11 +28,11 @@ export function useAsk() {
   // Every request carries a number. Only the newest one may write to the state.
   const run = useRef(0);
 
-  const ask = useCallback(async (question: string, lang: string, mode: AskMode) => {
+  const ask = useCallback(async (question: string, lang: string, mode: AskMode, previous?: string) => {
     const id = ++run.current;
     setState((s) => ({ ...s, loading: true, error: null, compare: null, compareError: null }));
     try {
-      const answer = await getAsk(question, lang, mode);
+      const answer = await getAsk(question, lang, mode, previous);
       if (id !== run.current) return; // a newer question won
       setState((s) => ({ ...s, answer, loading: false }));
     } catch (e) {
@@ -47,11 +47,11 @@ export function useAsk() {
   }, []);
 
   /** The same question with the model switched off, so the two answers can be put side by side. */
-  const compareWithRules = useCallback(async (question: string, lang: string) => {
+  const compareWithRules = useCallback(async (question: string, lang: string, previous?: string) => {
     const id = run.current;
     setState((s) => ({ ...s, comparing: true, compareError: null }));
     try {
-      const result = await getAsk(question, lang, "rules");
+      const result = await getAsk(question, lang, "rules", previous);
       if (id !== run.current) return;
       setState((s) => ({ ...s, compare: result, comparing: false }));
     } catch (e) {

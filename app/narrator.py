@@ -52,6 +52,15 @@ TACTICS_SYSTEM = (
     "End with the evidence ids in square brackets, e.g. [e1, e2]."
 )
 
+HALFTIME_SYSTEM = (
+    "You are a Premier League analyst writing a short half-time brief for one team in {language}. "
+    "Use ONLY the facts in the JSON payload. In at most four short sentences say what the first half "
+    "showed: what worked, what did not, and what to watch in the second half, using the 'story' lines in "
+    "that order. Never claim what the coach intended, said or believed: describe only what the data "
+    "shows. Do not invent tactics, numbers, players or reasons, and do not give advice that is not in "
+    "'story'. End with the evidence ids in square brackets, e.g. [e1, e2]."
+)
+
 LANGUAGE_NAMES = {
     "en": "English", "sw": "Swahili", "fr": "French", "es": "Spanish",
     "pt": "Portuguese", "de": "German", "ar": "Arabic",
@@ -82,6 +91,7 @@ KIND_MEANING = {
     "player_review": "a short end-of-match review of one player's game",
     "team_assessment": "an end-of-match assessment of how well one team played and what it should change",
     "tactics_report": "an end-of-match review of the tactics one team visibly used, whether they worked, and any change after half-time",
+    "halftime_brief": "what the first half showed for one team: what worked, what did not, and what to watch in the second half",
 }
 
 # One worked example per language, shown to the model as an earlier exchange. It teaches tone and
@@ -177,7 +187,7 @@ def template_narration(insight: Insight) -> str:
     cites = ", ".join(insight.evidence)
     if insight.kind == "player_review" and "name" in facts:
         return f"{player_review_text(facts, insight.team)} [{cites}]"
-    if insight.kind in ("team_assessment", "tactics_report") and facts.get("story"):
+    if insight.kind in ("team_assessment", "tactics_report", "halftime_brief") and facts.get("story"):
         return f"{' '.join(facts['story'])} [{cites}]"
     why = facts.get("why")
     if why and insight.kind != "player_review":
@@ -380,7 +390,8 @@ def narrate(client, model: str, insight: Insight, language: str = "English") -> 
         payload_data["story"] = insight.facts["story"]
     system = (PLAYER_SYSTEM if insight.kind == "player_review" else
               TEAM_SYSTEM if insight.kind == "team_assessment" else
-              TACTICS_SYSTEM if insight.kind == "tactics_report" else SYSTEM)
+              TACTICS_SYSTEM if insight.kind == "tactics_report" else
+              HALFTIME_SYSTEM if insight.kind == "halftime_brief" else SYSTEM)
     messages = [{"role": "system", "content": system.format(language=language)}]
     if insight.kind in DETECTOR_KINDS and language in FEW_SHOT_BY_LANGUAGE:
         messages += [

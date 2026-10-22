@@ -41,11 +41,13 @@ set `VITE_API_URL` when the frontend and the API are on different origins.
 | Route | What it shows |
 | ----- | ------------- |
 | `#/` | Live: the pitch, the ball, and insights as they are detected |
-| `#/result` | Why the result happened, with the tested claims behind each goal |
+| `#/result` | Why the result happened, with the tested claims behind each goal and the same facts in three voices |
 | `#/recap` | Every insight by minute, plus the full-time recap |
-| `#/ask` | Ask the match a question; compares the model answer with the rules answer |
+| `#/momentum` | The biggest swings in the win-probability line, and the claims tested for each |
+| `#/halftime` | What the first half showed for each team, and what to watch |
+| `#/ask` | Ask the match a question; compares the model answer with the rules answer, and follows up on the last question |
 | `#/positions` | Where each player was last seen, with a minute scrubber |
-| `#/teams`, `#/team/{name}` | Team report, tactics, formation estimate, second-half story |
+| `#/teams`, `#/team/{name}` | Team report, tactics, formation estimate, second-half story, whole-match claims |
 | `#/players`, `#/player/{id}` | Ratings, breakdowns, reviews, heatmaps, side-by-side comparison |
 | `#/fouls` | Every foul, its situation and what followed |
 | `#/analytics` | Team metrics, where each team attacks from, player ranking |

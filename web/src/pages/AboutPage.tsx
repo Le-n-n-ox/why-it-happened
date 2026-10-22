@@ -41,12 +41,16 @@ export function AboutPage() {
         <li><code className={CODE}>GET /ask</code>: a question answered from the match facts.</li>
         <li><code className={CODE}>GET /positions</code>: where each player was last seen.</li>
         <li><code className={CODE}>GET /goals/&#123;id&#125;/hypotheses</code>: tested claims about a goal.</li>
+        <li><code className={CODE}>GET /momentum</code>: the biggest swings in the win-probability line.</li>
+        <li><code className={CODE}>GET /halftime</code>: what the first half showed.</li>
       </ul>
 
       <h3 className={ui.h3}>Pages</h3>
       <ul className="grid list-disc gap-1.5 pl-5">
         <li><a className={ui.link} href="#/">Live</a>: pitch and insight feed.</li>
         <li><a className={ui.link} href="#/recap">Timeline</a>: every insight by minute, plus the recap.</li>
+        <li><a className={ui.link} href="#/momentum">Momentum</a>: the biggest swings, and the claims tested for them.</li>
+        <li><a className={ui.link} href="#/halftime">Half-time</a>: what the first half showed, and what to watch.</li>
         <li><a className={ui.link} href="#/ask">Ask the match</a>: a question, answered from the facts.</li>
         <li><a className={ui.link} href="#/positions">Positions</a>: where each player was last seen.</li>
         <li><a className={ui.link} href="#/analytics">Analytics</a>: the team reports beside the tallies of the event list.</li>
