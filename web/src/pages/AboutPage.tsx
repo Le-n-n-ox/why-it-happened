@@ -49,8 +49,8 @@ export function AboutPage() {
         <li><a className={ui.link} href="#/recap">Timeline</a>: every insight by minute, plus the recap.</li>
         <li><a className={ui.link} href="#/ask">Ask the match</a>: a question, answered from the facts.</li>
         <li><a className={ui.link} href="#/positions">Positions</a>: where each player was last seen.</li>
-        <li><a className={ui.link} href="#/analytics">Analytics</a>: live stats and charts.</li>
-        <li><a className={ui.link} href="#/players">Players</a>: ratings, breakdowns and reviews.</li>
+        <li><a className={ui.link} href="#/analytics">Analytics</a>: the team reports beside the tallies of the event list.</li>
+        <li><a className={ui.link} href="#/players">Players</a>: ratings, breakdowns, reviews, heatmaps and a side-by-side comparison.</li>
         <li><a className={ui.link} href="#/history">History</a>: insights saved in the database.</li>
         <li><a className={ui.link} href="#/announcers">Announcers</a>: on-air line, cue sheet and proof to fact-check.</li>
         <li><a className={ui.link} href="#/fans">Fans</a>: follow a team, share moments, see the proof.</li>

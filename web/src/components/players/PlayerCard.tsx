@@ -1,3 +1,5 @@
+// web/src/components/players/PlayerCard.tsx - one player as a card.
+import { Button } from "@/components/Button";
 import { teamColor } from "@/lib/match";
 import { formatRating, ratingPct } from "@/lib/players";
 import { ui } from "@/lib/ui";
@@ -7,9 +9,11 @@ interface PlayerCardProps {
   player: PlayerSummary;
   rank: number;
   teams: string[];
+  onCompare?: (id: string) => void; // fills the second slot of the comparison
+  comparing?: boolean;
 }
 
-export function PlayerCard({ player, rank, teams }: PlayerCardProps) {
+export function PlayerCard({ player, rank, teams, onCompare, comparing = false }: PlayerCardProps) {
   const color = teamColor(player.team, teams);
   const pct = ratingPct(player.rating);
 
@@ -37,6 +41,14 @@ export function PlayerCard({ player, rank, teams }: PlayerCardProps) {
           <span className={ui.chip}>{player.touches} touches</span>
         </div>
 
+        {onCompare && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button aria-pressed={comparing} onClick={() => onCompare(player.id)}>
+              {comparing ? "In the comparison" : "Compare with"}
+            </Button>
+            {comparing && <span className={ui.quiet}>the second player</span>}
+          </div>
+        )}
       </div>
       <div className="grid justify-items-end gap-1.5 max-[600px]:col-span-full max-[600px]:justify-items-stretch">
         <span

@@ -1,11 +1,14 @@
 // web/src/pages/PlayerPage.tsx - one player: stats, rating receipt, review, moments and explained actions.
 import { useState } from "react";
 import { Button } from "@/components/Button";
+import { Heatmap } from "@/components/Heatmap";
 import { Loader } from "@/components/Loader";
 import { Pitch } from "@/components/Pitch";
+import { PlayerCompare } from "@/components/players/PlayerCompare";
 import { RatingReceipt } from "@/components/RatingReceipt";
 import { ReviewPanel } from "@/components/ReviewPanel";
 import { useApi } from "@/hooks/useApi";
+import { useCompare } from "@/hooks/useCompare";
 import { getPlayer } from "@/lib/api";
 import { eventsByIds, formatMinute, teamColor } from "@/lib/match";
 import { formatRating, prettyKey, readMoment, STAT_LABELS, type StatKey } from "@/lib/players";
@@ -17,6 +20,7 @@ const STAT_ORDER = Object.keys(STAT_LABELS) as StatKey[];
 export function PlayerPage({ id }: { id: string }) {
   const { teams, allEvents, byId, lang, pinned, pin } = useMatch();
   const { data: player, loading, error, notFound, retry } = useApi(getPlayer, id);
+  const { vs, setVs } = useCompare();
   const [showRoutine, setShowRoutine] = useState(false);
 
   if (loading) {
@@ -48,6 +52,7 @@ export function PlayerPage({ id }: { id: string }) {
   const actions = showRoutine ? player.actions : player.actions.filter((a) => !a.routine);
   const moments = player.moments.map(readMoment).filter((m) => m !== null);
   const selected = eventsByIds(pinned ?? [], byId);
+  const ownEvents = allEvents.filter((e) => e.team === player.team && e.player === player.name);
 
   return (
     <section className={ui.pageWide}>
@@ -79,6 +84,28 @@ export function PlayerPage({ id }: { id: string }) {
 
           <RatingReceipt lines={player.rating_breakdown} rating={player.rating} />
           <ReviewPanel id={player.id} lang={lang} />
+
+          <section className={ui.panel} aria-label="Where this player was involved">
+            <h3 className={ui.h3}>Where {player.name} was involved</h3>
+            <div className="grid gap-2">
+              <Heatmap events={ownEvents} teams={teams} color={color} />
+              <p className="m-0 text-[.8rem] text-muted">
+                The map of {ownEvents.length} event{ownEvents.length === 1 ? "" : "s"} by {player.name} in
+                the match data. Brighter means more of their events fell there.
+              </p>
+            </div>
+          </section>
+
+          {vs && vs !== id && (
+            <PlayerCompare
+              current={player}
+              opponentId={vs}
+              teams={teams}
+              events={allEvents}
+              onPick={setVs}
+              onClear={() => setVs(null)}
+            />
+          )}
 
           {moments.length > 0 && (
             <section className={ui.panel} aria-label="Key moments">

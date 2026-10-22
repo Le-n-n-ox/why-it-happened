@@ -97,6 +97,10 @@ Not yet used by the frontend: `POST /events`, `POST /events/official`, `POST /li
 `POST /live/reset`, `GET /live/status`. They are the ingest side of the service, for a feed to
 push into, not for the dashboard to call.
 
+The Analytics page is the one place that counts in the browser: its tallies, its charts and its
+player ranking come from the event list in `GET /events`, and the page says so under each panel.
+Every number that is a football fact about a team, a player or the result comes from the server.
+
 ## Route maintenance
 
 Keep route response descriptions in sync with `app/main.py` and the functions that build each response. The retired placeholder route implementations have been removed; check for duplicate decorators before adding a route so `/docs` and runtime behavior stay aligned.
