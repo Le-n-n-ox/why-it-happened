@@ -1,6 +1,15 @@
-// web/src/components/WinProbability.tsx - win, draw and loss probabilities over the match.
-// During the match it is drawn from `event: prediction`. At full time it uses /predict's timeline too.
 import type { ReactNode } from "react";
+import { motion } from "framer-motion";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceDot,
+} from "recharts";
 import { Button } from "@/components/Button";
 import { Legend } from "@/components/charts";
 import { Loader } from "@/components/Loader";
@@ -17,79 +26,117 @@ interface Point {
   minute: number;
   probs: Record<string, number>;
 }
+
 interface Goal {
   minute: number;
   team: string;
 }
 
-const W = 520;
-const H = 260;
-const ML = 38;
-const MR = 12;
-const MT = 14;
-const MB = 30;
-const PLOT_W = W - ML - MR;
-const PLOT_H = H - MT - MB;
-const GRID = [0, 25, 50, 75, 100];
-
 const label = (name: string): string => (name === "draw" ? "Draw" : name);
+
+// Recharts custom tooltip
+const CustomTooltip = ({ active, payload, label: minuteLabel }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="min-w-[140px] rounded-card border border-line bg-surface/95 p-3 shadow-card backdrop-blur-sm">
+        <p className="mb-2 border-b border-line pb-1 text-[0.8rem] font-bold text-muted">
+          Minute {minuteLabel}'
+        </p>
+        <div className="flex flex-col gap-1.5">
+          {payload.map((entry: any) => (
+            <div key={entry.name} className="flex items-center justify-between gap-4 text-sm">
+              <span className="font-semibold" style={{ color: entry.color }}>
+                {label(entry.name)}
+              </span>
+              <span className="font-bold tabular-nums text-fg">{entry.value}%</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
 
 function Chart({
   points, names, teams, maxX, goals,
 }: { points: Point[]; names: string[]; teams: string[]; maxX: number; goals: Goal[] }) {
-  const x = (m: number) => ML + (Math.min(Math.max(m, 0), maxX) / maxX) * PLOT_W;
-  const y = (pct: number) => MT + PLOT_H - (Math.min(100, Math.max(0, pct)) / 100) * PLOT_H;
+  
+  // Flatten data for Recharts
+  const data = points.map((p) => ({
+    minute: p.minute,
+    ...p.probs,
+  }));
+
   const colorOf = (name: string) => (name === "draw" ? "var(--muted)" : teamColor(name, teams));
-  const xTicks = Array.from({ length: 7 }, (_, i) => (maxX * i) / 6);
-  const last = points[points.length - 1];
-  const latest = last ? names.map((n) => `${label(n)} ${last.probs[n] ?? 0}%`).join(", ") : "";
 
   return (
-    <svg className="block h-auto w-full" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Win probability over the match. Latest: ${latest}`}>
-      {GRID.map((g) => (
-        <g key={g}>
-          <line className="stroke-line [stroke-width:1]" x1={ML} x2={W - MR} y1={y(g)} y2={y(g)} />
-          <text className="fill-muted text-[10px]" x={ML - 6} y={y(g)} dy=".32em" textAnchor="end">{g}%</text>
-        </g>
-      ))}
-      {xTicks.map((m) => (
-        <text key={m} className="fill-muted text-[10px]" x={x(m)} y={H - 10} textAnchor="middle">
-          {Math.floor(m)}'
-        </text>
-      ))}
-      {names.map((name) => {
-        const pts = points.filter((p) => p.probs[name] !== undefined);
-        if (pts.length === 0) return null;
-        const d = `M${pts.map((p) => `${x(p.minute).toFixed(1)},${y(p.probs[name]).toFixed(1)}`).join(" L")}`;
-        const draw = name === "draw";
-        return (
-          <g key={name}>
-            <path
-              d={d}
-              pathLength={1}
-              style={{ stroke: colorOf(name) }}
-              className={cn(
-                "fill-none [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:2.4]",
-                draw ? "[stroke-dasharray:.03_.02]" : "animate-draw [stroke-dasharray:1]",
-              )}
-            />
-            {pts.map((p) => (
-              <circle key={p.minute} cx={x(p.minute)} cy={y(p.probs[name])} r="2.5" style={{ fill: colorOf(name) }}>
-                <title>{`${label(name)} ${p.probs[name]}% at ${Math.floor(p.minute)}'`}</title>
-              </circle>
+    <div className="mt-6 h-[280px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{ top: 5, right: 10, left: -25, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+          
+          <XAxis 
+            dataKey="minute" 
+            type="number" 
+            domain={[0, maxX]} 
+            stroke="var(--muted)" 
+            fontSize={11}
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={(tick) => `${tick}'`} 
+          />
+          
+          <YAxis 
+            domain={[0, 100]} 
+            stroke="var(--muted)" 
+            fontSize={11}
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={(tick) => `${tick}%`} 
+          />
+          
+          <Tooltip 
+            content={<CustomTooltip />} 
+            cursor={{ stroke: "var(--surface-3)", strokeWidth: 2, strokeDasharray: "4 4" }} 
+          />
+          
+          {names.map((name) => {
+            const isDraw = name === "draw";
+            return (
+              <Line
+                key={name}
+                type="monotone"
+                dataKey={name}
+                stroke={colorOf(name)}
+                strokeWidth={isDraw ? 2 : 3}
+                strokeDasharray={isDraw ? "4 4" : undefined}
+                dot={false}
+                activeDot={{ r: 5, strokeWidth: 0, fill: colorOf(name) }}
+                isAnimationActive={true}
+                animationDuration={1500}
+                animationEasing="ease-out"
+              />
+            );
+          })}
+
+          {/* Goal markers on the baseline */}
+          {goals
+            .filter((g) => g.minute <= maxX)
+            .map((g, i) => (
+              <ReferenceDot
+                key={`goal-${i}-${g.minute}`}
+                x={g.minute}
+                y={0}
+                r={4.5}
+                fill={teamColor(g.team, teams)}
+                stroke="var(--surface)"
+                strokeWidth={2}
+              />
             ))}
-          </g>
-        );
-      })}
-      {goals
-        .filter((g) => g.minute <= maxX)
-        .map((g, i) => (
-          <circle key={`${i}-${g.minute}`} cx={x(g.minute)} cy={MT + PLOT_H} r="3.5"
-            className="stroke-surface [stroke-width:1.5]" style={{ fill: teamColor(g.team, teams) }}>
-            <title>{`Goal ${Math.floor(g.minute)}' ${g.team}`}</title>
-          </circle>
-        ))}
-    </svg>
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -102,38 +149,79 @@ function ProbabilityView({
   const probs = summary?.probabilities;
   const reasons = summary?.reasons ?? [];
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, x: -10 },
+    show: { opacity: 1, x: 0, transition: { type: "spring" as const, bounce: 0 } }
+  };
+
   return (
-    <>
-      <Legend series={names.map((n) => ({ name: label(n), color: n === "draw" ? "var(--muted)" : teamColor(n, matchTeams) }))} />
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+      <Legend 
+        series={names.map((n) => ({ 
+          name: label(n), 
+          color: n === "draw" ? "var(--muted)" : teamColor(n, matchTeams) 
+        }))} 
+      />
+      
       <Chart points={points} names={names} teams={matchTeams} maxX={maxX} goals={goals} />
 
-      {summary && probs && (
-        <p className="m-0 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          {summary.favourite && (
-            <span className="font-semibold">
-              {summary.minutes_left === 0 ? "Final" : "Favourite"}: {summary.favourite}
-            </span>
-          )}
-          <span className="text-muted">{names.map((n) => `${label(n)} ${probs[n] ?? 0}%`).join(" · ")}</span>
-        </p>
-      )}
-      {reasons.length > 0 && (
-        <ul className="grid list-disc gap-1 pl-5 text-[.95rem]">
-          {reasons.map((r, i) => <li key={`${i}-${r}`}>{r}</li>)}
-        </ul>
-      )}
-      {summary?.method && <p className="m-0 text-xs text-muted">Method: {summary.method}</p>}
-      {note && <p className="m-0 text-xs text-muted">{note}</p>}
-    </>
+      <div className="mt-6 flex flex-col gap-4 rounded-card border border-line bg-surface-2 p-4">
+        {summary && probs && (
+          <div className="flex flex-wrap items-baseline justify-between gap-4 border-b border-line pb-3">
+            {summary.favourite && (
+              <span className="font-heading text-lg font-bold text-fg">
+                <span className="text-muted text-sm font-semibold uppercase tracking-wider mr-2">
+                  {summary.minutes_left === 0 ? "Final Verdict" : "Current Favourite"}
+                </span>
+                {summary.favourite}
+              </span>
+            )}
+            <div className="flex flex-wrap gap-3">
+              {names.map((n) => (
+                <span key={n} className="rounded-full bg-surface px-3 py-1 text-sm font-bold shadow-sm border border-line">
+                  <span style={{ color: n === "draw" ? "var(--muted)" : teamColor(n, matchTeams) }}>
+                    {label(n)}
+                  </span>
+                  <span className="ml-1 text-fg tabular-nums">{probs[n] ?? 0}%</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {reasons.length > 0 && (
+          <motion.ul variants={containerVariants} initial="hidden" animate="show" className="grid gap-2 text-[0.95rem] text-fg/90">
+            {reasons.map((r, i) => (
+              <motion.li key={`${i}-${r}`} variants={itemVariants} className="flex items-start gap-2">
+                <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-accent/60" aria-hidden="true" />
+                <span>{r}</span>
+              </motion.li>
+            ))}
+          </motion.ul>
+        )}
+        
+        <div className="mt-2 flex flex-col gap-1 text-xs text-muted">
+          {summary?.method && <p className="m-0">Model: {summary.method}</p>}
+          {note && <p className="m-0 italic">{note}</p>}
+        </div>
+      </div>
+    </motion.div>
   );
 }
 
 function Frame({ children }: { children: ReactNode }) {
   return (
-    <section className={ui.panel} aria-label="Win probability">
-      <h3 className={ui.h3}>Win probability</h3>
+    <section className={cn(ui.panel, "overflow-hidden")} aria-label="Win probability">
+      <h3 className={ui.h3}>Win Probability</h3>
       {children}
-      <ValidationNote />
+      <div className="mt-6">
+        <ValidationNote />
+      </div>
     </section>
   );
 }
@@ -148,7 +236,9 @@ function LiveProbability() {
   return (
     <Frame>
       {last === null ? (
-        <p className={ui.empty}>The win probability appears after the first shot or goal, once both teams have played.</p>
+        <div className="flex h-32 items-center justify-center rounded-card border border-dashed border-line bg-surface-2 p-6 text-center text-muted">
+          <p className="m-0 max-w-sm">The win probability model initializes after the first major event, once both teams have established their opening tactics.</p>
+        </div>
       ) : (
         <ProbabilityView points={points} summary={last} maxX={maxX} />
       )}
@@ -163,20 +253,24 @@ function FullProbability({ goals }: { goals?: Goal[] }) {
 
   const merged = new Map<number, Point>();
   (data?.timeline ?? []).forEach((t: any) =>
-     merged.set(t.minute, { minute: t.minute, probs: t.probabilities }));
+      merged.set(t.minute, { minute: t.minute, probs: t.probabilities }));
   predictions.forEach((p) => merged.set(p.minute ?? 0, { minute: p.minute ?? 0, probs: p.probabilities ?? {} }));
   const points = [...merged.values()].sort((a, b) => a.minute - b.minute);
   const maxX = Math.max(match?.duration_min ?? 0, points.length > 0 ? points[points.length - 1].minute : 0, 5);
 
   return (
     <Frame>
-      {loading && <Loader label="Loading win probability" />}
+      {loading && <div className="py-8"><Loader label="Loading win probability matrix..." /></div>}
+      
       {error !== null && (
-        <p className={ui.empty}>
-          Couldn't load the win probability. <Button onClick={retry}>Retry</Button>
-        </p>
+        <div className="flex flex-col items-center justify-center gap-3 rounded-card border border-line bg-surface-2 p-6">
+          <p className="m-0 text-muted">Couldn't load the win probability data.</p>
+          <Button onClick={retry}>Retry Connection</Button>
+        </div>
       )}
+      
       {data && !data.available && data.reason && <p className={ui.empty}>{data.reason}</p>}
+      
       {data && data.available && (
         <ProbabilityView
           points={points}
@@ -185,7 +279,7 @@ function FullProbability({ goals }: { goals?: Goal[] }) {
           goals={goals}
           note={
             points[0]?.minute === 0
-              ? "The line starts level at minute 0: that is a starting assumption, not a prediction of the match."
+              ? "The line starts level at minute 0: this represents the neutral baseline assumption before the ball is kicked, rather than a definitive prediction."
               : undefined
           }
         />

@@ -1,4 +1,4 @@
-// web/src/components/TeamStats.tsx - two teams side by side, like a match-stats table. Every figure comes from the API.
+import { motion } from "framer-motion";
 import { useApi } from "@/hooks/useApi";
 import { getTactics } from "@/lib/api";
 import { teamColor } from "@/lib/match";
@@ -28,8 +28,8 @@ function shareRows(tactics: Tactics[]): Row[] {
   const [a, b] = changes;
   if (changes.length !== 2 || !a || !b) return [];
   return [
-    { key: "share-1", label: "Share of recorded actions, 1st half", values: [pct(a.before), pct(b.before)], percent: true, lowerBetter: false },
-    { key: "share-2", label: "Share of recorded actions, 2nd half", values: [pct(a.after), pct(b.after)], percent: true, lowerBetter: false },
+    { key: "share-1", label: "Share of actions, 1st half", values: [pct(a.before), pct(b.before)], percent: true, lowerBetter: false },
+    { key: "share-2", label: "Share of actions, 2nd half", values: [pct(a.after), pct(b.after)], percent: true, lowerBetter: false },
   ];
 }
 
@@ -45,16 +45,36 @@ function metricRows(a: Assessment, b: Assessment): Row[] {
     }));
 }
 
+// Helper to calculate the tug-of-war ratio
+function calcRatio(val1: number, val2: number) {
+  if (val1 === 0 && val2 === 0) return 50;
+  return (val1 / (val1 + val2)) * 100;
+}
+
 function Cell({ value, percent, color, lead }: { value: number; percent: boolean; color: string; lead: boolean }) {
   return (
-    <span
-      className={cn("mx-auto min-w-[2.75rem] rounded-full px-2.5 py-0.5 text-center font-bold tabular-nums", lead && "text-accent-ink")}
+    <div
+      className={cn(
+        "mx-auto flex h-8 min-w-[3.5rem] items-center justify-center rounded-md px-3 font-heading text-[1.1rem] font-bold tabular-nums transition-all shadow-sm",
+        lead ? "text-accent-ink" : "bg-surface-2 text-fg"
+      )}
       style={lead ? { background: color } : undefined}
     >
-      {percent ? `${value}%` : value}
-    </span>
+      {value}{percent ? "%" : ""}
+    </div>
   );
 }
+
+// Animation variants
+const container = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.05 } }
+};
+
+const item = {
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { type: "spring" as const, bounce: 0.2 } }
+};
 
 export function TeamStats({ reports }: { reports: Assessment[] }) {
   const { teams } = useMatch();
@@ -69,24 +89,73 @@ export function TeamStats({ reports }: { reports: Assessment[] }) {
     r.values[0] !== r.values[1] && (r.lowerBetter ? r.values[i] < r.values[1 - i] : r.values[i] > r.values[1 - i]);
 
   return (
-    <section className={`${ui.panel} min-w-0`} aria-label="Team stats">
-      <h3 className={ui.h3}>Team stats</h3>
-      <div className="grid grid-cols-[1fr_minmax(0,1.4fr)_1fr] items-center gap-2 border-b border-line pb-2 text-center font-bold">
-        <span style={{ color: colors[0] }}>{a.team}</span>
-        <span />
-        <span style={{ color: colors[1] }}>{b.team}</span>
+    <section className={cn(ui.panel, "min-w-0 overflow-hidden")} aria-label="Team stats">
+      <h3 className={ui.h3}>Head to Head</h3>
+      
+      {/* Header Row */}
+      <div className="mb-4 flex items-center justify-between border-b border-line pb-4 pt-2">
+        <h4 className="font-heading text-xl font-bold w-[35%] truncate" style={{ color: colors[0] }}>
+          {a.team}
+        </h4>
+        <span className="rounded-full bg-surface-2 px-3 py-1 text-[0.65rem] font-bold uppercase tracking-wider text-muted border border-line">
+          VS
+        </span>
+        <h4 className="font-heading text-xl font-bold w-[35%] truncate text-right" style={{ color: colors[1] }}>
+          {b.team}
+        </h4>
       </div>
-      {rows.map((r) => (
-        <div key={r.key} className="grid grid-cols-[1fr_minmax(0,1.4fr)_1fr] items-center gap-2 border-b border-line py-2 text-center last:border-b-0">
-          <Cell value={r.values[0]} percent={r.percent} color={colors[0]} lead={leads(r, 0)} />
-          <span className="text-[.9rem]">{r.label}</span>
-          <Cell value={r.values[1]} percent={r.percent} color={colors[1]} lead={leads(r, 1)} />
-        </div>
-      ))}
-      <p className="m-0 text-xs text-muted">
-        Every figure comes from the team reports. Possession is not a field in the feed, so the half rows show each
-        team's share of recorded actions. The highlight marks the better figure.
-      </p>
+
+      {/* Stats Grid */}
+      <motion.div variants={container} initial="hidden" animate="show" className="flex flex-col gap-1">
+        {rows.map((r) => {
+          const ratioA = calcRatio(r.values[0], r.values[1]);
+          const ratioB = calcRatio(r.values[1], r.values[0]);
+          
+          return (
+            <motion.div 
+              key={r.key} 
+              variants={item}
+              className="group grid grid-cols-[1fr_minmax(0,1.5fr)_1fr] items-center gap-3 rounded-lg border border-transparent px-2 py-3 transition-colors hover:border-line hover:bg-surface-2/30"
+            >
+              <Cell value={r.values[0]} percent={r.percent} color={colors[0]} lead={leads(r, 0)} />
+              
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-center text-[0.7rem] font-bold uppercase tracking-wider text-muted transition-colors group-hover:text-fg">
+                  {r.label}
+                </span>
+                
+                {/* Tug-of-war progress bar */}
+                <div className="flex h-1.5 w-full max-w-[140px] overflow-hidden rounded-full bg-surface-3 shadow-inner">
+                  <motion.div
+                    initial={{ width: "50%" }}
+                    whileInView={{ width: `${r.lowerBetter ? ratioB : ratioA}%` }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    className="h-full"
+                    style={{ backgroundColor: colors[0] }}
+                  />
+                  <motion.div
+                    initial={{ width: "50%" }}
+                    whileInView={{ width: `${r.lowerBetter ? ratioA : ratioB}%` }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    className="h-full"
+                    style={{ backgroundColor: colors[1] }}
+                  />
+                </div>
+              </div>
+              
+              <Cell value={r.values[1]} percent={r.percent} color={colors[1]} lead={leads(r, 1)} />
+            </motion.div>
+          );
+        })}
+      </motion.div>
+
+      <div className="mt-6 rounded-card bg-surface-2 p-3 border border-line">
+        <p className="m-0 text-[0.75rem] leading-relaxed text-muted">
+          <strong className="text-fg">Note:</strong> Every figure comes from the team reports. Possession is not a field in the feed, so the half rows show each team's share of recorded actions. The highlighted pill marks the superior performance.
+        </p>
+      </div>
     </section>
   );
 }
