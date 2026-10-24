@@ -1,99 +1,116 @@
-"""The same facts, written for a fan, an announcer or an analyst.
+"""One match, written for the side of the story each audience came for.
 
-The rules find the facts once. The model then writes them three ways, and the same guards apply to
-each: the ids must be real, every number must be in the facts, and no player may be named unless the
-facts name them. Only the wording changes: the three answers are about the same match and the same
-evidence.
+The rules find the facts once. Each voice then gets its own brief from app.audience:
+
+    fan        the score, their club's mood, the goals and key moments, their player
+    announcer  a timed cue sheet: what happened, when, and who to name
+    analyst    the measured factors, each team's numbers and the chosen metric
+    player     one player's involvement, rating and moments
+
+The model may only word the brief it was given, and the same guards apply to every voice: real
+evidence ids, every number in the brief, and no player name the brief does not mention. A fan's
+brief deliberately has no measured numbers, so a fan's answer cannot become an analyst's answer
+with different adjectives.
 """
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 
-from app.causes import why_they_won
+from app import audience
 from app.detectors import Insight
 from app.events import MatchEvent
-from app.matchinfo import match_info
 from app.narrator import (LANGUAGE_NAMES, _chat, _facts_text, ensure_citations, model_available,
                           names_are_grounded, numbers_are_grounded)
-from app.tactics import match_factors
 
 VOICE_SYSTEM = {
     "fan": (
-        "You are a football fan writing about the match you just watched, in {language}. "
-        "Use ONLY the facts in the JSON payload. Write two or three sentences: the feeling first, then "
-        "the facts that explain it, in plain excited or disappointed language. Never say what anyone "
-        "intended, felt or said about the tactics. Do not invent numbers, players, events or reasons. "
-        "End with the evidence ids in square brackets, e.g. [e1, e2]."
+        "You are a football fan talking about the match you just watched, in {language}. "
+        "The JSON brief is YOUR side of the story: your club, the mood, the goals and your player. "
+        "It deliberately contains no measured numbers. Do not use any number except the score and "
+        "the minute. Do not claim one side dominated or controlled the play: you were not given "
+        "possession numbers. Write two or three sentences: the feeling first, then the moments that explain "
+        "it, in plain, excited or disappointed language. Never say what anyone intended, felt or "
+        "said about the tactics. End with the evidence ids exactly as written in the brief's `evidence` list, in square brackets."
     ),
     "announcer": (
-        "You are a television commentator calling the end of the match, in {language}. "
-        "Use ONLY the facts in the JSON payload. Write two or three sentences as if you were saying it "
-        "live: the result, then the moments that made it, in a broadcaster's voice. Never say what "
-        "anyone intended. Do not invent numbers, players, events or reasons. "
-        "End with the evidence ids in square brackets, e.g. [e1, e2]."
+        "You are a television commentator calling the match, in {language}. "
+        "The JSON brief is your cue sheet: the score, the names and the moments with their minutes. "
+        "Write two or three sentences to say live, in a broadcaster's voice: the result, then the "
+        "cues in order. Use only the names and numbers in the brief. Never say what anyone intended. "
+        "End with the evidence ids exactly as written in the brief's `evidence` list, in square brackets."
     ),
     "analyst": (
         "You are a football analyst writing the match review, in {language}. "
-        "Use ONLY the facts in the JSON payload. Write two or three sentences: what the result was, which "
-        "patterns produced it, and how the balance of the two teams' play looked. Be precise and "
-        "neutral. Never say what anyone intended or believed. Do not invent numbers, players, events, "
-        "tactics or reasons. End with the evidence ids in square brackets, e.g. [e1, e2]."
+        "The JSON brief is your side of the story: the measured factors, each team's numbers and "
+        "the metric the viewer chose. `chance_quality` is the correct reading of which side created "
+        "the better chances; never contradict it. Use the numbers precisely and neutrally: what the "
+        "result was, which patterns produced it, and how the balance of play looked. Never say what "
+        "anyone intended or believed. End with the evidence ids exactly as written in the brief's `evidence` list, in square brackets."
+    ),
+    "player": (
+        "You are a football writer following one player for a viewer who chose them, in {language}. "
+        "The JSON brief is your side of the story: that player's match, their numbers, rating and "
+        "moments. Write two or three sentences about their match and what it meant for the result. "
+        "Use only the names and numbers in the brief. Never say what anyone intended or felt. "
+        "End with the evidence ids exactly as written in the brief's `evidence` list, in square brackets."
     ),
 }
 
-VOICE_LABELS = {"fan": "A fan", "announcer": "An announcer", "analyst": "An analyst"}
-
-
-def _story(events: list[MatchEvent], found: list[Insight]) -> tuple[list[str], list[str]]:
-    """The facts every voice gets: the result and the reasons behind it."""
-    info = match_info(events)
-    result = why_they_won(events, found)
-    home, away = info.get("home"), info.get("away")
-    score = info.get("score", {})
-    if home and away:
-        lines = [f"{home} {score.get(home, 0)}-{score.get(away, 0)} {away} was the final score."]
-    else:
-        lines = ["The match is over."]
-    evidence: list[str] = []
-    for reason in result["reasons"][:3]:
-        lines.append(reason["text"])
-        evidence += reason["evidence"][:4]
-    for factor in match_factors(events)[:3]:
-        lines.append(factor["detail"])
-        evidence += factor["evidence"][:4]
-    return lines, list(dict.fromkeys(evidence))[:12]
+VOICE_LABELS = {
+    "fan": "A fan",
+    "announcer": "An announcer",
+    "analyst": "An analyst",
+    "player": "Following a player",
+}
 
 
 def voices(events: list[MatchEvent], found: list[Insight], model: str | None = None,
-           lang: str = "en") -> dict:
-    """The same match facts, written three ways."""
-    story, evidence = _story(events, found)
-    if not evidence:
-        evidence = [e.id for e in events[:3]]
-    insight = Insight(kind="match_voices", team="", minute=0.0, evidence=evidence, facts={"story": story})
-    allowed = _facts_text(insight)
+           lang: str = "en", profile: audience.Profile | None = None) -> dict:
+    """The same match, but each voice is given a different side of it."""
+    resolved = audience.resolve(profile or audience.Profile(lang=lang), events, found)
+    modes = ["fan", "announcer", "analyst"]
+    if resolved.players:
+        modes.append("player")
+    briefs = {mode: audience.build_brief(events, found, resolved, mode) for mode in modes}
     use_model = bool(model and os.getenv("NVIDIA_API_KEY") and model_available())
-    out = []
-    for voice, system in VOICE_SYSTEM.items():
+    team = resolved.clubs[0] if resolved.clubs else ""
+
+    def write(mode: str) -> dict:
+        brief = briefs[mode]
+        evidence = list(brief.get("evidence") or [])
+        if not evidence:
+            evidence = [event.id for event in events[:3]]
+        insight = Insight(kind="match_voices", team=team, minute=0.0, evidence=evidence, facts=brief)
+        allowed = _facts_text(insight)
         text = ""
         if use_model:
             try:
                 reply = _chat(model, [
-                    {"role": "system", "content": system.format(language=LANGUAGE_NAMES.get(lang, lang))},
-                    {"role": "user", "content": json.dumps({"story": story, "evidence": evidence})}],
-                    f"voices {voice}", max_tokens=300)
+                    {"role": "system",
+                     "content": VOICE_SYSTEM[mode].format(language=LANGUAGE_NAMES.get(lang, lang))},
+                    {"role": "user", "content": json.dumps(brief, ensure_ascii=False)}],
+                    f"voices {mode}", max_tokens=300)
                 text = ensure_citations(reply, insight)
                 if not numbers_are_grounded(text, insight):
-                    raise ValueError("the voice used a number that is not in the facts")
+                    raise ValueError("the voice used a number that is not in its brief")
                 if not names_are_grounded(text, allowed):
-                    raise ValueError("the voice named a player who is not in the facts")
+                    raise ValueError("the voice named a player who is not in its brief")
             except Exception as exc:
-                print(f"[DEBUG] the {voice} voice failed ({exc}); using the plain join")
+                print(f"[DEBUG] the {mode} voice failed ({exc}); using its plain brief")
                 text = ""
         if not text:
-            text = " ".join(story) + f" [{', '.join(evidence)}]"
-        out.append({"voice": voice, "label": VOICE_LABELS[voice], "text": text, "evidence": evidence})
+            text = audience.fallback_line(mode, brief) + f" [{', '.join(evidence)}]"
+        return {"voice": mode, "label": VOICE_LABELS[mode], "text": text, "evidence": evidence,
+                "brief": brief, "inputs": sorted(brief.keys())}
+
+    # The voices never depend on each other, so wait for the slowest wording, not the sum of four.
+    with ThreadPoolExecutor(max_workers=max(1, len(modes))) as pool:
+        out = list(pool.map(write, modes))
     return {
         "voices": out,
-        "note": "The same facts, three ways. The rules find the facts once and every voice cites the "
-                "same events; only the wording changes.",
+        "profile": resolved.as_dict(),
+        "primary": resolved.profile.mode if resolved.profile.mode in modes else "fan",
+        "note": ("Each voice gets a different brief: the fan the story and their club, the announcer "
+                 "the timed cues, the analyst the measured factors, the player that player's match. "
+                 "The guards are the same for all, so no voice can add a fact it was not given."),
     }

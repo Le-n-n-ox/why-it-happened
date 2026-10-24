@@ -45,7 +45,9 @@ Encode path parameters such as team names and player IDs with `encodeURIComponen
 | `GET /momentum` | `mode=auto\|sweep` | The biggest jumps in the win-probability line, each with the event that turned the match and the claims tested for it. Same grammar, same tests as the goals. |
 | `GET /team/{team}/claims` | Path: `team`; `mode=auto\|sweep` | Claims about how a team played across the whole match, not one spell. The window is long, so the same tests have more data behind them. Unknown teams return 404. |
 | `GET /halftime` | `lang` (default `en`) | What the first half showed for each team: what worked, what did not, and what to watch in the second half. The rules pick and rank the facts; the model only words them. |
-| `GET /voices` | `lang` (default `en`) | The same match facts written three ways, for a fan, an announcer and an analyst. Every voice cites the same evidence. |
+| `GET /voices` | `mode=fan\|analyst\|announcer\|player` (default `fan`); repeatable or comma-separated `club` and `player`; `metric`; `lang` (default `en`) | One match, a different brief per audience. Every voice gets only its own side: the fan the score, mood, goals and player; the announcer a timed cue sheet; the analyst the measured factors and team numbers; the player one player's match. Each voice carries its `brief` and the `inputs` keys it was given, and cites evidence from that brief. |
+| `GET /brief` | Same profile parameters as `/voices` | The rules-only payload for one viewer: `profile`, `match`, `brief`, `metric`, the top `ranked` insights, and a `note`. The brief is the mode-specific side of the story; an analyst brief includes `chance_quality` (which side created the better chances), while a fan brief deliberately contains no measured numbers. No model call, so it is safe to poll for an overlay. |
+| `GET /overlay` | Same profile parameters as `/voices` | Timed cards for a renderer: `cards` sorted by match clock, each with `at`, `hold_s`, `kind`, `team`, `headline`, `text`, `evidence` and `priority`; plus `timing` (`unit`, `lead_s`, `default_hold_s`) and the chosen `metric`. |
 
 ## Players
 
@@ -59,7 +61,7 @@ Encode path parameters such as team names and player IDs with `encodeURIComponen
 
 | Method and path | Parameters | Response and use |
 |---|---|---|
-| `GET /insights` | — | Insights collected during the current stream. |
+| `GET /insights` | Optional `mode`, repeatable `club`/`player`, `metric` | Insights collected during the current stream. With a profile, favourite clubs and players are ranked first and `player` mode keeps only that player's moments. |
 | `GET /insights/history` | Optional `team`; `limit` (default 20) | Saved insight records, including `id`, `kind`, `team`, `minute`, `evidence`, `facts`, and `narration`. |
 
 ## Frontend notes
@@ -82,7 +84,9 @@ new endpoint with no home is visible here.
 | `GET /momentum` | `getMomentum` | Momentum (`#/momentum`), the biggest swings in the win-probability line |
 | `GET /team/{team}/claims` | `getTeamClaims` | Team detail (`#/team/{name}`), the claims about how they played |
 | `GET /halftime` | `getHalftime` | Half-time (`#/halftime`), what the first half showed |
-| `GET /voices` | `getVoices` | Why the result (`#/result`), the same facts in three voices |
+| `GET /voices` | `getVoices` | Why the result (`#/result`), one match with a different brief per audience |
+| `GET /brief` | `getBrief` | Fans (`#/fans`) and Announcers (`#/announcers`), the rules-only view for the chosen mode, club, player and metric |
+| `GET /overlay` | `getOverlay` | Fans (`#/fans`) and Announcers (`#/announcers`), the timed overlay timeline |
 | `GET /positions` | `getPositions` | Positions (`#/positions`), with a minute scrubber |
 | `GET /insights` | `getInsights` | Seeds the insight list so a shared `#/insight/{id}` link resolves at once |
 | `GET /insights/history` | `getInsightHistory` | History (`#/history`) and the fallback for an old shared link |

@@ -4,7 +4,7 @@ import { useMatchStream } from "@/hooks/useMatchStream";
 import { getEvents, getHealth, getInsights, getMatch } from "@/lib/api";
 import { languagesFrom, teamsFrom } from "@/lib/match";
 import { MatchContext, type MatchState } from "@/types/matchContext";
-import type { Health, Insight, MatchEvent, MatchInfo } from "@/types/types";
+import type { Health, Insight, MatchEvent, MatchInfo, ViewerProfile } from "@/types/types";
 
 // Demo mode: open /?speed=0.3&lang=en. /?source=live follows a match pushed in by a feed.
 const params = new URLSearchParams(window.location.search);
@@ -22,6 +22,35 @@ function initialLang(): string {
   }
 }
 
+const MODES: ViewerProfile["mode"][] = ["fan", "analyst", "announcer", "player"];
+
+/** The viewer's profile survives a reload; an old fans-page favourite is migrated once. */
+function initialProfile(): ViewerProfile {
+  try {
+    const raw = localStorage.getItem("viewerProfile");
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<ViewerProfile>;
+      const mode = MODES.includes(parsed.mode as ViewerProfile["mode"]) ? parsed.mode! : "fan";
+      return {
+        mode,
+        clubs: Array.isArray(parsed.clubs) ? parsed.clubs.filter((c): c is string => typeof c === "string") : [],
+        players: Array.isArray(parsed.players)
+          ? parsed.players.filter((p): p is string => typeof p === "string") : [],
+        metric: typeof parsed.metric === "string" ? parsed.metric : null,
+      };
+    }
+  } catch {
+    // storage blocked or bad JSON: start clean
+  }
+  try {
+    const fav = localStorage.getItem("fav");
+    if (fav && fav !== "all") return { mode: "fan", clubs: [fav], players: [], metric: null };
+  } catch {
+    // ignore
+  }
+  return { mode: "fan", clubs: [], players: [], metric: null };
+}
+
 export function MatchProvider({ children }: { children: ReactNode }) {
   const { insights: streamInsights, ticks, predictions, status, replay } = useMatchStream(speed, source);
   const [serverInsights, setServerInsights] = useState<Insight[]>([]);
@@ -30,6 +59,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
   const [health, setHealth] = useState<Health | null>(null);
   const [match, setMatch] = useState<MatchInfo | null>(null);
   const [lang, setLang] = useState(initialLang);
+  const [profile, setProfileState] = useState<ViewerProfile>(initialProfile);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [follow, setFollow] = useState(true);
   const [pinned, setPinned] = useState<string[] | null>(null);
@@ -110,6 +140,14 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     try { localStorage.setItem("lang", code); } catch { /* storage blocked: ignore */ }
   }, []);
 
+  const setProfile = useCallback((next: Partial<ViewerProfile>) => {
+    setProfileState((prev) => {
+      const value: ViewerProfile = { ...prev, ...next };
+      try { localStorage.setItem("viewerProfile", JSON.stringify(value)); } catch { /* ignore */ }
+      return value;
+    });
+  }, []);
+
   const restart = useCallback(() => {
     setSelectedId(null);
     setFollow(true);
@@ -121,6 +159,7 @@ export function MatchProvider({ children }: { children: ReactNode }) {
  const value: MatchState = {
   insights, status, allEvents, eventsFailed, teams, byId, shown: ticks, predictions, ball: lastTick, health, match, score,
   languages, lang, changeLang, clock, ended, restart, follow, toggleFollow, selectedId, select, pinned, pin,
+  profile, setProfile,
 };
 
   return <MatchContext.Provider value={value}>{children}</MatchContext.Provider>;

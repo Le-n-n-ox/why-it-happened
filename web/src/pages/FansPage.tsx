@@ -3,6 +3,8 @@ import { useState } from "react";
 import { ShareButton } from "@/components/Actions";
 import { Button } from "@/components/Button";
 import { MatchFlow } from "@/components/MatchFlow";
+import { PersonalizedBrief } from "@/components/PersonalizedView";
+import { ProfileBar } from "@/components/ProfileBar";
 import { ScoreLine } from "@/components/ScoreLine";
 import { useApi } from "@/hooks/useApi";
 import { getWhy } from "@/lib/api";
@@ -11,14 +13,6 @@ import { ui } from "@/lib/ui";
 import { useMatch } from "@/types/matchContext";
 
 const FAV = "border-2 px-4 py-2 aria-pressed:bg-surface-2 aria-pressed:shadow-[0_0_0_2px_var(--accent)]";
-
-function initialFav(): string {
-  try {
-    return localStorage.getItem("fav") ?? "all";
-  } catch {
-    return "all"; // storage can be blocked
-  }
-}
 
 const shareUrl = (id: string): string =>
   `${window.location.origin}${window.location.pathname}#/insight/${encodeURIComponent(id)}`;
@@ -43,17 +37,27 @@ function Goals() {
 }
 
 export function FansPage() {
-  const { insights, teams, shown, lang, ended } = useMatch();
-  const [fav, setFav] = useState(initialFav);
+  const { insights, teams, shown, lang, ended, profile, setProfile } = useMatch();
   const [cheered, setCheered] = useState<Set<string>>(new Set());
 
-  const active = teams.includes(fav) ? fav : "all";
-  const list = active === "all" ? insights : insights.filter((i) => i.team === active);
+  const active = profile.clubs;
+  const list = profile.clubs.length === 0
+    ? insights
+    : insights.filter((i) => profile.clubs.includes(i.team));
 
   const chooseFav = (team: string) => {
-    setFav(team);
-    try { localStorage.setItem("fav", team); } catch { /* storage blocked: ignore */ }
+    if (team === "all") {
+      setProfile({ clubs: [] });
+      return;
+    }
+    const clubs = profile.clubs.includes(team)
+      ? profile.clubs.filter((club) => club !== team)
+      : [...profile.clubs, team];
+    setProfile({ clubs });
   };
+  const momentsLabel = active.length === 0
+    ? "Key moments"
+    : active.length === 1 ? `${active[0]} moments` : `${active.join(" + ")} moments`;
 
   const toggleCheer = (id: string) =>
     setCheered((prev) => {
@@ -68,13 +72,13 @@ export function FansPage() {
       <h2 className={ui.h2}>Fans</h2>
       <p>Pick your team and see the moments that explain the match, with the proof one tap away.</p>
 
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Favourite team">
-        <Button className={FAV} aria-pressed={active === "all"} onClick={() => chooseFav("all")}>Both teams</Button>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Favourite teams">
+        <Button className={FAV} aria-pressed={active.length === 0} onClick={() => chooseFav("all")}>Both teams</Button>
         {teams.map((t) => (
           <Button
             key={t}
             className={FAV}
-            aria-pressed={active === t}
+            aria-pressed={active.includes(t)}
             onClick={() => chooseFav(t)}
             style={{ borderColor: teamColor(t, teams) }}
           >
@@ -82,6 +86,9 @@ export function FansPage() {
           </Button>
         ))}
       </div>
+
+      <ProfileBar showClubs={false} />
+      <PersonalizedBrief compactFan title="Your match" />
 
       <div className="grid gap-2 rounded-card border border-line bg-surface px-[18px] py-3.5">
         <p className="m-0 font-heading text-[1.6rem] font-bold tabular-nums">
@@ -93,13 +100,13 @@ export function FansPage() {
 
       <MatchFlow events={shown} teams={teams} />
 
-      <h3 className={ui.h3}>{active === "all" ? "Key moments" : `${active} moments`}</h3>
+      <h3 className={ui.h3}>{momentsLabel}</h3>
 
       {list.length === 0 ? (
         <p className={ui.empty}>
           {insights.length === 0
             ? shown.length ? "No key moment yet; follow the live play above." : "Waiting for the first moment..."
-            : `No moments for ${active} yet.`}
+            : `No moments for ${active.join(" + ")} yet.`}
         </p>
       ) : (
         <ul className="grid gap-3">

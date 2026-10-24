@@ -17,10 +17,15 @@
   GET  /stream            Server-Sent Events: replays the match and pushes insights live
 """
 import asyncio
+import hashlib
 import json
 import os
 import re
+import time
+from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Lock, Thread
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException, Query
@@ -30,9 +35,10 @@ from fastapi.staticfiles import StaticFiles
 
 from app.assessment import assess_team, assessment_insight
 from app.ask import answer as ask_answer
+from app.audience import (brief_payload, overlay_payload, parse_profile, rank_insights, resolve)
 from app.causes import (attach_why, causal_chains, chain_for, explain_event, foul_explanations,
                         turning_points, why_they_won)
-from app.db import get_insights, init_db
+from app.db import get_existing_narration, get_insights, init_db
 from app.detectors import detect_all
 from app.events import EventType, MatchEvent, from_official, load_events
 from app.hypotheses import hypotheses as goal_hypotheses
@@ -55,6 +61,38 @@ EVENTS_FILE = os.getenv("EVENTS_FILE", "data/sample_match.json")
 REPLAY_DELAY = float(os.getenv("REPLAY_DELAY", "0.5"))
 LANGS = [c.strip() for c in os.getenv("NARRATION_LANGS", "en").split(",") if c.strip()]
 MODEL = os.getenv("NVIDIA_MODEL")
+MAX_PARALLEL_NARRATIONS = 3    # captions in flight at once; the model handled 4 in the probe
+
+# ---- answer cache ---------------------------------------------------------------------------
+# /why, /voices, /momentum and /goals/{id}/hypotheses are pure functions of the match events, so
+# the same question about the same match must not call the model twice. The key carries a
+# fingerprint of the event ids, so a new live event retires every entry automatically.
+CACHE_SIZE = 64
+_CACHE: "OrderedDict[tuple, dict]" = OrderedDict()
+_CACHE_LOCK = Lock()
+
+
+def _match_version(events) -> str:
+    """A cheap fingerprint of the event set, so cached answers cannot outlive the match."""
+    digest = hashlib.blake2b(digest_size=8)
+    for event in events:
+        digest.update(event.id.encode())
+    return digest.hexdigest()
+
+
+def _cached(key: tuple, build):
+    """Memoise a pure function of the match state; the key must include _match_version(events)."""
+    with _CACHE_LOCK:
+        if key in _CACHE:
+            _CACHE.move_to_end(key)
+            return _CACHE[key]
+    value = build()
+    with _CACHE_LOCK:
+        _CACHE[key] = value
+        _CACHE.move_to_end(key)
+        while len(_CACHE) > CACHE_SIZE:
+            _CACHE.popitem(last=False)
+    return value
 
 # Allowed origins for CORS (Vite dev server on localhost/127.0.0.1, or ALLOWED_ORIGINS override)
 DEFAULT_ORIGINS = [
@@ -295,31 +333,84 @@ def team_claims(team: str, mode: str = "auto"):
 
 
 @app.get("/voices")
-def match_voices(lang: str = "en"):
-    """The same match facts, written for a fan, an announcer and an analyst."""
+def match_voices(lang: str = "en", mode: str = "fan",
+                 club: list[str] = Query(default=[]), player: list[str] = Query(default=[]),
+                 metric: str | None = None):
+    """The same match, written for the side of the story each audience came for.
+
+    Every voice gets a different brief: the fan the story and their club, the announcer the timed
+    cues, the analyst the measured factors, the player that player's match. `club`, `player` and
+    `metric` personalise it; repeat or comma-separate them for more than one.
+    """
     events, found = _match_data()
-    return voices(events, found, model=MODEL, lang=lang)
+    profile = parse_profile(mode, club, player, metric, lang)
+    return _cached(("voices", lang, profile, _match_version(events)),
+                   lambda: voices(events, found, model=MODEL, lang=lang, profile=profile))
+
+
+@app.get("/brief")
+def audience_brief(lang: str = "en", mode: str = "fan",
+                   club: list[str] = Query(default=[]), player: list[str] = Query(default=[]),
+                   metric: str | None = None):
+    """The rules-only side of the story for one viewer profile. No model call, safe for overlays."""
+    events, found = _match_data()
+    profile = parse_profile(mode, club, player, metric, lang)
+
+    def build():
+        resolved = resolve(profile, events, found)
+        return brief_payload(events, found, resolved)
+
+    return _cached(("brief", profile, _match_version(events)), build)
+
+
+@app.get("/overlay")
+def audience_overlay(lang: str = "en", mode: str = "fan",
+                     club: list[str] = Query(default=[]), player: list[str] = Query(default=[]),
+                     metric: str | None = None):
+    """Timed, machine-readable cards for a renderer: `at` is the match clock, `hold_s` the dwell."""
+    events, found = _match_data()
+    profile = parse_profile(mode, club, player, metric, lang)
+
+    def build():
+        resolved = resolve(profile, events, found)
+        return overlay_payload(events, found, resolved, lang)
+
+    return _cached(("overlay", lang, profile, _match_version(events)), build)
 
 
 @app.get("/halftime")
 def halftime_brief(lang: str = "en"):
     """What the first half showed for each team: what worked, what didn't, and what to watch."""
     events, _ = _match_data()
-    briefs = []
-    for team in dict.fromkeys(e.team for e in events):
-        brief = first_half_brief(events, team)
-        if not brief.get("available"):
-            briefs.append({"team": team, "available": False, "reason": brief["reason"]})
-            continue
-        insight = halftime_insight(events, team, brief)
-        narration = narrate_all(client, MODEL, insight, [lang])
-        used = lang if lang in narration else "en"
-        briefs.append({**brief, "lang": used,
-                       "text": narration.get(used) or next(iter(narration.values())),
-                       "evidence": insight.evidence})
-    return {"briefs": briefs,
-            "note": "The rules pick the facts and rank them: every line is a count over the first half's "
-                    "events. The model only words them, and never says what the coach intended."}
+
+    def build():
+        prepared = []
+        for team in dict.fromkeys(e.team for e in events):
+            brief = first_half_brief(events, team)
+            insight = halftime_insight(events, team, brief) if brief.get("available") else None
+            prepared.append((team, brief, insight))
+
+        # The two teams' briefs are independent, so word them together instead of in turn.
+        pending = [insight for _, _, insight in prepared if insight is not None]
+        with ThreadPoolExecutor(max_workers=max(1, len(pending))) as pool:
+            narrations = list(pool.map(lambda i: narrate_all(client, MODEL, i, [lang]), pending))
+        captions = {insight.id: narration for insight, narration in zip(pending, narrations)}
+
+        briefs = []
+        for team, brief, insight in prepared:
+            if insight is None:
+                briefs.append({"team": team, "available": False, "reason": brief["reason"]})
+                continue
+            narration = captions[insight.id]
+            used = lang if lang in narration else "en"
+            briefs.append({**brief, "lang": used,
+                           "text": narration.get(used) or next(iter(narration.values())),
+                           "evidence": insight.evidence})
+        return {"briefs": briefs,
+                "note": "The rules pick the facts and rank them: every line is a count over the first half's "
+                        "events. The model only words them, and never says what the coach intended."}
+
+    return _cached(("halftime", lang, _match_version(events)), build)
 
 
 @app.get("/positions")
@@ -346,29 +437,33 @@ def fouls():
 @app.get("/why")
 def match_why(lang: str = Query("en")):
     events, found = _match_data()
-    result = why_they_won(events, found)
-    info = match_info(events)
-    factors = match_factors(events)
-    goals_text = " ".join(reason["text"] for reason in result["reasons"])
-    summary = " ".join(part for part in (factors_summary(factors, result["winner"]), goals_text) if part)
-    if not summary:
-        if info["home"] and info["away"]:
-            home_score, away_score = info["score"].get(info["home"], 0), info["score"].get(info["away"], 0)
-            summary = (f"The match finished level at {info['home']} {home_score}-{away_score} {info['away']}."
-                       if home_score == away_score else "No goal causes were recorded.")
-        else:
-            summary = "No match result is available."
-    title = f"Why {result['winner']} won" if result["winner"] else "Why the match finished level"
-    return {
-        "result": result,
-        **result,
-        "lang": lang,
-        "title": title,
-        "summary": summary,
-        "factors": factors,
-        "turning_points": turning_points(events, found),
-        "chains": causal_chains(events, found),
-    }
+
+    def build():
+        result = why_they_won(events, found)
+        info = match_info(events)
+        factors = match_factors(events)
+        goals_text = " ".join(reason["text"] for reason in result["reasons"])
+        summary = " ".join(part for part in (factors_summary(factors, result["winner"]), goals_text) if part)
+        if not summary:
+            if info["home"] and info["away"]:
+                home_score, away_score = info["score"].get(info["home"], 0), info["score"].get(info["away"], 0)
+                summary = (f"The match finished level at {info['home']} {home_score}-{away_score} {info['away']}."
+                           if home_score == away_score else "No goal causes were recorded.")
+            else:
+                summary = "No match result is available."
+        title = f"Why {result['winner']} won" if result["winner"] else "Why the match finished level"
+        return {
+            "result": result,
+            **result,
+            "lang": lang,
+            "title": title,
+            "summary": summary,
+            "factors": factors,
+            "turning_points": turning_points(events, found),
+            "chains": causal_chains(events, found),
+        }
+
+    return _cached(("why", lang, _match_version(events)), build)
 
 
 @app.get("/events/{event_id}/why")
@@ -391,19 +486,24 @@ def goal_hypothesis_report(goal_id: str, mode: str = "auto"):
     goal = next((e for e in events if e.id == goal_id and e.type == EventType.GOAL), None)
     if goal is None:
         raise HTTPException(status_code=404, detail="Unknown goal")
-    reports = goal_hypotheses(events, found, model=MODEL, mode=mode, goal_id=goal_id)
-    return reports[0] if reports else {
-        "goal_id": goal_id, "team": goal.team, "minute": goal.minute,
-        "summary": "No cause summary is available for this goal.", "source": "sweep",
-        "alpha": None, "hypotheses": [],
-    }
+
+    def build():
+        reports = goal_hypotheses(events, found, model=MODEL, mode=mode, goal_id=goal_id)
+        return reports[0] if reports else {
+            "goal_id": goal_id, "team": goal.team, "minute": goal.minute,
+            "summary": "No cause summary is available for this goal.", "source": "sweep",
+            "alpha": None, "hypotheses": [],
+        }
+
+    return _cached(("hypotheses", goal_id, mode, _match_version(events)), build)
 
 
 @app.get("/momentum")
 def momentum_report(mode: str = "auto"):
     """The biggest jumps in the win-probability line, each with the claims tested for it."""
     events, _ = _match_data()
-    return momentum_swings(events, model=MODEL, mode=mode)
+    return _cached(("momentum", mode, _match_version(events)),
+                   lambda: momentum_swings(events, model=MODEL, mode=mode))
 
 
 @app.get("/validation")
@@ -526,8 +626,14 @@ def live_status():
 
 
 @app.get("/insights")
-def insights():
-    return store.list_insights()
+def insights(mode: str = "fan", club: list[str] = Query(default=[]),
+             player: list[str] = Query(default=[]), metric: str | None = None):
+    """Stored insights, optionally ranked for a viewer: favourite club, player and metric first."""
+    rows = store.list_insights()
+    if not (club or player or metric or mode != "fan"):
+        return rows
+    events, found = _match_data()
+    return rank_insights(rows, resolve(parse_profile(mode, club, player, metric), events, found))
 
 
 @app.get("/insights/history")
@@ -612,6 +718,22 @@ async def _live_events(poll: float = 0.05):
             await asyncio.sleep(poll)
 
 
+def _pending_insights(buffer: list[MatchEvent], recent_events: list[MatchEvent],
+                      claimed: dict[tuple[str, str], set[str]]) -> list:
+    """The new insights in this window, with the cause each narration must explain."""
+    pending = []
+    for insight in detect_all(recent_events):
+        # Report each stretch of play once per kind and team. A later pass over the same events
+        # (the 5-minute window trims the start, or a spell grows by one shot) shares evidence.
+        used = claimed.setdefault((insight.kind, insight.team), set())
+        if used & set(insight.evidence):
+            continue
+        used.update(insight.evidence)
+        attach_why(buffer, insight)
+        pending.append(insight)
+    return pending
+
+
 async def _event_source(delay: float, seconds_per_minute: float | None, source: str = "file"):
     claimed: dict[tuple[str, str], set[str]] = {}    # (kind, team) -> evidence ids already reported
     buffer: list[MatchEvent] = []
@@ -635,25 +757,25 @@ async def _event_source(delay: float, seconds_per_minute: float | None, source: 
         # Only the last 5 minutes of action go to the detectors
         recent_events = [e for e in buffer if e.minute >= event.minute - 5.0]
 
-        for insight in detect_all(recent_events):
-            # Report each stretch of play once per kind and team. A later pass over the same events
-            # (the 5-minute window trims the start, or a spell grows by one shot) shares evidence.
-            used = claimed.setdefault((insight.kind, insight.team), set())
-            if used & set(insight.evidence):
-                continue
-            used.update(insight.evidence)
+        pending = _pending_insights(buffer, recent_events, claimed)
 
-            attach_why(buffer, insight)      # the cause the narration must explain
+        if pending:
+            # This tick's captions are independent, so run them together and wait for the slowest
+            # one instead of for all of them in turn. Emit in match order. The LLM call blocks, so
+            # it goes off the event loop thread.
+            limit = asyncio.Semaphore(MAX_PARALLEL_NARRATIONS)
 
-            # The LLM call blocks, so run it off the event loop thread
-            insight.narration = await asyncio.to_thread(
-                narrate_all, client, MODEL, insight, LANGS
-            )
+            async def caption(insight):
+                async with limit:
+                    return await asyncio.to_thread(narrate_all, client, MODEL, insight, LANGS)
 
-            data = insight.to_dict()
-            data["chain"] = chain_for(buffer, insight)
-            store.add_insight(data)
-            yield f"data: {json.dumps(data)}\n\n"
+            narrations = await asyncio.gather(*(caption(insight) for insight in pending))
+            for insight, narration in zip(pending, narrations):
+                insight.narration = narration
+                data = insight.to_dict()
+                data["chain"] = chain_for(buffer, insight)
+                store.add_insight(data)
+                yield f"data: {json.dumps(data)}\n\n"
 
     yield "event: done\ndata: {}\n\n"
 
@@ -678,3 +800,48 @@ async def stream(speed: float | None = None, delay: float = REPLAY_DELAY, source
 dist_path = Path("web/dist")
 if dist_path.exists():
     app.mount("/", StaticFiles(directory=str(dist_path), html=True), name="web")
+
+
+# ---- warm-up --------------------------------------------------------------------------------
+# The first replay used to wait for all nine captions. They are pure functions of the match, so
+# one background pass at start-up fills the SQLite narration cache; every later replay (and every
+# restart) then reads them instead of calling the model. Only the cache is written: the insights
+# history stays empty until the replay actually runs.
+def _all_insights(events: list[MatchEvent]) -> list:
+    """Every insight the replay would report, in order, with its cause attached."""
+    buffer: list[MatchEvent] = []
+    claimed: dict[tuple[str, str], set[str]] = {}
+    out = []
+    for event in events:
+        buffer.append(event)
+        recent = [e for e in buffer if e.minute >= event.minute - 5.0]
+        out.extend(_pending_insights(buffer, recent, claimed))
+    return out
+
+
+def _warm_captions() -> None:
+    """Fill the caption cache in the background so the first replay is already fast."""
+    if not (MODEL and os.getenv("NVIDIA_API_KEY")):
+        return
+    try:
+        insights = _all_insights(_current_events())
+        missing = [i for i in insights if get_existing_narration(i.id, LANGS[0]) is None]
+        if not missing:
+            return
+        started = time.perf_counter()
+        with ThreadPoolExecutor(max_workers=MAX_PARALLEL_NARRATIONS) as pool:
+            list(pool.map(
+                lambda i: narrate_all(client, MODEL, i, LANGS, save_history=False, record=False), missing
+            ))
+        # A failed warm-up must not pause the model for the live path, so it does not count towards
+        # the breaker. Report what actually landed: the rest is retried on the next start.
+        left = [i for i in missing if get_existing_narration(i.id, LANGS[0]) is None]
+        print(f"[DEBUG] warmed {len(missing) - len(left)}/{len(missing)} missing captions in "
+              f"{time.perf_counter() - started:.1f}s "
+              f"({len(insights) - len(left)}/{len(insights)} of the match cached)")
+    except Exception as exc:
+        print(f"[DEBUG] caption warm-up skipped ({exc})")
+
+
+if os.getenv("WARM_CACHE", "1").strip().lower() not in ("0", "false", "no", "off"):
+    Thread(target=_warm_captions, name="caption-warmup", daemon=True).start()

@@ -47,22 +47,24 @@ def init_db():
         """)
         conn.commit()
 
-def save_insight(insight: Insight, narration: str, language: str = "en", cache_result: bool = True):
+def save_insight(insight: Insight, narration: str, language: str = "en", cache_result: bool = True,
+                 history: bool = True):
     """Save narration history and optionally cache generated text by language."""
     conn = get_connection()
     with _connection_lock:
-        conn.execute("""
-            INSERT OR REPLACE INTO saved_insights (id, kind, team, minute, evidence, facts, narration)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            insight.id,
-            insight.kind,
-            insight.team,
-            insight.minute,
-            json.dumps(insight.evidence),
-            json.dumps(insight.facts),
-            narration
-        ))
+        if history:
+            conn.execute("""
+                INSERT OR REPLACE INTO saved_insights (id, kind, team, minute, evidence, facts, narration)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                insight.id,
+                insight.kind,
+                insight.team,
+                insight.minute,
+                json.dumps(insight.evidence),
+                json.dumps(insight.facts),
+                narration
+            ))
         if cache_result:
             conn.execute("""
                 INSERT OR REPLACE INTO narration_cache (insight_id, language, narration)

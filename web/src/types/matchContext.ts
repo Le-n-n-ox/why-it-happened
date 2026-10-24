@@ -1,7 +1,7 @@
 // web/src/types/matchContext.ts - shared match state, so every page reads one stream.
 import { createContext, useContext } from "react";
 import type { StreamStatus } from "@/hooks/useMatchStream";
-import type { Health, Insight, MatchEvent, MatchInfo, Prediction } from "@/types/types";
+import type { Health, Insight, MatchEvent, MatchInfo, Prediction, ViewerProfile } from "@/types/types";
 
 export interface MatchState {
   insights: Insight[]; // newest minute first
@@ -19,6 +19,8 @@ export interface MatchState {
   languages: string[];
   lang: string;
   changeLang: (code: string) => void;
+  profile: ViewerProfile;
+  setProfile: (next: Partial<ViewerProfile>) => void;
   clock: number;
   ended: boolean;
   restart: () => void;

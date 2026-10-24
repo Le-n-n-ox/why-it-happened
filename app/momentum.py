@@ -7,6 +7,7 @@ same exact tests decide whether the events support it. A refuted idea stays visi
 the data does not support is worth showing as refuted.
 """
 import os
+from concurrent.futures import ThreadPoolExecutor
 
 from app.events import EventType, MatchEvent
 from app.hypotheses import (ALPHA, check_claim, offer_candidates, pick_evidence, propose, sentence, sweep)
@@ -84,11 +85,11 @@ def momentum(events: list[MatchEvent], model: str | None = None, mode: str = "au
     """The biggest momentum swings, each with the claims tested against the events."""
     chosen = swings(events, top)
     chosen.sort(key=lambda s: s["minute"])          # the reader gets them in time order
-    out: list[dict] = []
-    for swing in chosen:
+
+    def report(swing: dict) -> dict | None:
         cause = _cause(events, swing)
         if cause is None:
-            continue
+            return None
         summary = _summary(swing)
         headline = _headline(swing, cause)
         claims, source, proposed = [], "sweep", 0
@@ -110,7 +111,7 @@ def momentum(events: list[MatchEvent], model: str | None = None, mode: str = "au
             offer_candidates(events, tested)
         for t in tested:
             t["text"] = sentence(t)
-        out.append({
+        return {
             "team": swing["team"], "minute": swing["minute"], "from": swing["from"], "to": swing["to"],
             "delta": swing["delta"], "score": swing["score"], "summary": summary,
             "cause": {"id": cause.id, "team": cause.team, "type": cause.type.value,
@@ -118,7 +119,12 @@ def momentum(events: list[MatchEvent], model: str | None = None, mode: str = "au
             "source": source,
             "alpha": round(ALPHA / max(len(tested), 1), 4) if source == "model" else None,
             "hypotheses": tested,
-        })
+        }
+
+    # One swing's report never depends on another's, so the page waits for the slowest swing
+    # instead of for every swing in turn.
+    with ThreadPoolExecutor(max_workers=min(4, max(1, len(chosen)))) as pool:
+        out = [item for item in pool.map(report, chosen) if item is not None]
     return {
         "swings": out,
         "note": "A swing is a jump in the win-probability line: the score so far plus the quality of each "

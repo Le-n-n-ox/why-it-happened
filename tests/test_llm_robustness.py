@@ -125,3 +125,44 @@ def test_a_caption_asks_for_a_short_answer_over_the_shared_connection():
     with patch.object(narrator._session, "post", fake_post), patch.dict(os.environ, {"NVIDIA_API_KEY": "x"}):
         narrator.narrate(None, "some/model", INSIGHT, "English")
     assert seen[0]["max_tokens"] == 300
+
+
+def test_a_database_error_does_not_lose_the_caption():
+    """A locked or full database must not take down the stream: the text still comes back."""
+    fresh()
+    os.environ["NVIDIA_API_KEY"] = "test-key"
+    try:
+        with patch.object(narrator, "narrate", return_value=GOOD_TEXT), \
+             patch.object(narrator, "save_insight", side_effect=RuntimeError("database is locked")):
+            out = narrate_all(None, "m", INSIGHT, ["en"])
+    finally:
+        os.environ["NVIDIA_API_KEY"] = ""
+    assert out["en"] == GOOD_TEXT
+
+
+def test_a_speculative_warm_up_does_not_pause_the_model():
+    """A background warm-up that times out must not switch the live path to templates."""
+    fresh()
+    os.environ["NVIDIA_API_KEY"] = "test-key"
+    try:
+        with patch.object(narrator, "narrate", side_effect=TimeoutError("slow")), \
+             patch.object(narrator.time, "sleep"):
+            out = narrate_all(None, "m", INSIGHT, ["en"], save_history=False, record=False)
+    finally:
+        os.environ["NVIDIA_API_KEY"] = ""
+    assert out["en"] == template_narration(INSIGHT)
+    assert narrator.model_status()["paused"] is False
+    assert narrator._calls_failed == 0
+
+
+def test_a_long_answer_gets_more_time_than_a_short_one():
+    seen = []
+
+    def fake_post(url, headers, body, timeout):
+        seen.append(timeout)
+        return Fake(200)
+
+    with patch.object(narrator, "_post", fake_post):
+        narrator._chat("some/model", [], "caption", max_tokens=300)
+        narrator._chat("some/model", [], "proposal", max_tokens=700)
+    assert seen[1] > seen[0]

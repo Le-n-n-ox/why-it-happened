@@ -424,18 +424,118 @@ export interface HalftimeResponse {
   note: string;
 }
 
-/** One voice's version of the same facts. */
+/** One voice's version of the same match, from its own brief. */
 export interface VoiceAnswer {
-  voice: string; // "fan" | "announcer" | "analyst"
+  voice: string; // "fan" | "announcer" | "analyst" | "player"
   label: string;
   text: string;
   evidence: string[];
+  brief?: Record<string, unknown>; // the side of the story this voice was given
+  inputs?: string[]; // the keys of that brief, for showing that the inputs differ
 }
 
-/** GET /voices - the same match facts, written three ways. */
+/** GET /voices - one match, a different brief for every audience. */
 export interface VoicesResponse {
   voices: VoiceAnswer[];
+  profile?: ViewerProfile & { unknown: string[]; notes: string[] };
+  primary?: string;
   note: string;
+}
+
+export type AudienceMode = "fan" | "analyst" | "announcer" | "player";
+
+/** What the viewer chose: the mode, favourite clubs and players, and the one metric they follow. */
+export interface ViewerProfile {
+  mode: AudienceMode;
+  clubs: string[];
+  players: string[];
+  metric: string | null;
+}
+
+export interface MetricValue {
+  team: string;
+  value: number | null;
+}
+
+/** The single number the viewer asked to follow, counted from this match only. */
+export interface BriefMetric {
+  key: string;
+  label: string;
+  unit: string;
+  values: MetricValue[];
+  player: { name: string; team: string; value: number } | null;
+  note: string;
+}
+
+export interface BriefMoment {
+  minute: number;
+  team?: string;
+  kind: string;
+  what: string;
+}
+
+/** The rules-only side of the story for one viewer. The model words this; it never adds to it. */
+export interface AudienceBrief {
+  mode: AudienceMode;
+  headline: string;
+  your_club?: string | null;
+  mood?: string;
+  story?: string[];
+  moments?: BriefMoment[];
+  player_spotlight?: {
+    name: string;
+    team: string;
+    line: string;
+    moments: { minute: number; what: string }[];
+  } | null;
+  result?: { winner: string | null; score: Record<string, number> };
+  factors?: { code: string; title: string; detail: string; team: string; favours: string; weight: number }[];
+  team_stats?: Record<string, Record<string, number>>;
+  chance_quality?: { better: string | null; xg: Record<string, number>; summary: string };
+  turning_points?: { minute: number; team: string; kind: string; text: string; evidence: string[] }[];
+  metric?: BriefMetric | null;
+  cues?: { minute: number; team: string; kind: string; say: string; hold_s: number; evidence: string[] }[];
+  names?: string[];
+  score_line?: string;
+  turning_point?: { minute: number; team: string; say: string } | null;
+  player?: Record<string, unknown> | null;
+  evidence: string[];
+}
+
+export interface BriefResponse {
+  profile: ViewerProfile & {
+    unknown: string[];
+    notes: string[];
+    home: string | null;
+    away: string | null;
+    score: Record<string, number>;
+  };
+  match: { home: string | null; away: string | null; score: Record<string, number>; minute: number };
+  brief: AudienceBrief;
+  metric: BriefMetric | null;
+  ranked: { id: string; kind: string; team: string; minute: number; evidence: string[] }[];
+  note: string;
+}
+
+/** One timed card for a live overlay: show at `at` on the match clock, for `hold_s` seconds. */
+export interface OverlayCard {
+  id: string;
+  at: number;
+  hold_s: number;
+  kind: string;
+  team: string;
+  headline: string;
+  text: string;
+  evidence: string[];
+  priority: number;
+}
+
+export interface OverlayResponse {
+  profile: BriefResponse["profile"];
+  match: BriefResponse["match"];
+  metric: BriefMetric | null;
+  timing: { unit: string; clock: string; lead_s: number; default_hold_s: number; note: string };
+  cards: OverlayCard[];
 }
 
 /** One place a player was seen. */

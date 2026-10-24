@@ -24,7 +24,12 @@ insights.db
 *.db-shm
 *.db-wal
 
-.kilo
+# ai tooling
+.kilo/
+.opencode/
+
+# graphify (generated locally)
+graphify-out/
 
 !REAL_DATA_WORKFLOW.md
 !API_REFERENCE.md

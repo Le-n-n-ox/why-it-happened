@@ -3,6 +3,8 @@ import { useState } from "react";
 import { CopyButton } from "../components/Actions";
 import { Button } from "../components/Button";
 import { MatchFlow } from "@/components/MatchFlow";
+import { PersonalizedBrief } from "@/components/PersonalizedView";
+import { ProfileBar } from "@/components/ProfileBar";
 import {
   factChips, formatMinute, kindLabel, lacksLang, pickText, stripCitations, teamColor,
 } from "../lib/match";
@@ -64,6 +66,9 @@ export function AnnouncersPage() {
     <section className={ui.page}>
       <h2 className={ui.h2}>Announcers</h2>
 
+      <ProfileBar lockMode="announcer" />
+      <PersonalizedBrief mode="announcer" title="Your cue sheet" />
+
       <MatchFlow events={shown} teams={teams} technical />
 
       <div className="grid gap-2.5 rounded-card border-2 border-accent-2 bg-surface px-5 py-4 shadow-card" aria-label="On air">
@@ -103,7 +108,7 @@ export function AnnouncersPage() {
       </div>
 
       <div className="flex items-center justify-between gap-2">
-        <h3 className={ui.h3}>Cue sheet</h3>
+        <h3 className={ui.h3}>Live cue sheet</h3>
         <Button onClick={() => setRead(new Set())} disabled={read.size === 0}>
           Clear read marks
         </Button>

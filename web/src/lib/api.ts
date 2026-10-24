@@ -1,8 +1,8 @@
 // web/src/lib/api.ts - the only file that knows the server address and the endpoint paths.
 import type {
-  Action, Assessment, AskResponse, GoalHypotheses, HalftimeResponse, Health, Insight, InsightRecord, MatchEvent,
-  MatchInfo, MatchWhy, MomentumResponse, Player, PlayerDetail, PlayerReview, PositionsResponse, PredictResponse, Recap,
-  StyleClaims, Tactics, Validation, VoicesResponse,
+  Action, Assessment, AskResponse, BriefResponse, GoalHypotheses, HalftimeResponse, Health, Insight, InsightRecord,
+  MatchEvent, MatchInfo, MatchWhy, MomentumResponse, OverlayResponse, Player, PlayerDetail, PlayerReview,
+  PositionsResponse, PredictResponse, Recap, StyleClaims, Tactics, Validation, ViewerProfile, VoicesResponse,
 } from "@/types/types";
 
 // Dev: empty, so requests go through the Vite proxy. Production same-origin build: also empty.
@@ -151,9 +151,30 @@ export function getHalftime(lang: string): Promise<HalftimeResponse> {
   return getJson<HalftimeResponse>(`/halftime?lang=${enc(lang)}`);
 }
 
-/** The same match facts, written for a fan, an announcer and an analyst. */
-export function getVoices(lang: string): Promise<VoicesResponse> {
-  return getJson<VoicesResponse>(`/voices?lang=${enc(lang)}`);
+/** A stable query string for a viewer profile: mode, favourite clubs and players, metric, language. */
+export function profileQuery(profile: ViewerProfile, lang?: string): string {
+  const params = new URLSearchParams();
+  params.set("mode", profile.mode);
+  for (const club of profile.clubs) params.append("club", club);
+  for (const player of profile.players) params.append("player", player);
+  if (profile.metric) params.set("metric", profile.metric);
+  if (lang) params.set("lang", lang);
+  return params.toString();
+}
+
+/** The same match, a different brief for every audience. */
+export function getVoices(query: string): Promise<VoicesResponse> {
+  return getJson<VoicesResponse>(`/voices?${query}`);
+}
+
+/** The rules-only brief for one viewer: what that mode is allowed to see. */
+export function getBrief(query: string): Promise<BriefResponse> {
+  return getJson<BriefResponse>(`/brief?${query}`);
+}
+
+/** Timed cards for a renderer: `at` is the match clock, `hold_s` the dwell. */
+export function getOverlay(query: string): Promise<OverlayResponse> {
+  return getJson<OverlayResponse>(`/overlay?${query}`);
 }
 
 /** Where each player was last seen. These are event locations, not live tracking. */

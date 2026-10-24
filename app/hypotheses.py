@@ -19,6 +19,7 @@ import json
 import math
 import os
 import re
+from concurrent.futures import ThreadPoolExecutor
 
 from app.causes import why_they_won
 from app.detectors import Insight
@@ -472,11 +473,9 @@ def hypotheses(events: list[MatchEvent], found: list[Insight], model: str | None
                mode: str = "auto", goal_id: str | None = None) -> list[dict]:
     """For each goal: the model's hypotheses tested by the rules (or the equation-only sweep)."""
     use_model = bool(mode != "sweep" and model and os.getenv("NVIDIA_API_KEY") and model_available())
-    out = []
-    for moment in moments(events, found):
+
+    def report(moment: dict) -> dict:
         goal = moment["goal"]
-        if goal_id and goal.id != goal_id:
-            continue
         source, claims, proposed = "sweep", [], 0
         if use_model:
             try:
@@ -496,7 +495,14 @@ def hypotheses(events: list[MatchEvent], found: list[Insight], model: str | None
             offer_candidates(events, tested)                # the rules' own choice stays as the evidence
         for t in tested:
             t["text"] = sentence(t)
-        out.append({"goal_id": goal.id, "team": goal.team, "minute": goal.minute, "summary": moment["summary"],
-                    "source": source, "alpha": round(ALPHA / max(len(tested), 1), 4) if source == "model" else None,
-                    "hypotheses": tested})
-    return out
+        return {"goal_id": goal.id, "team": goal.team, "minute": goal.minute, "summary": moment["summary"],
+                "source": source, "alpha": round(ALPHA / max(len(tested), 1), 4) if source == "model" else None,
+                "hypotheses": tested}
+
+    pending = [m for m in moments(events, found) if not goal_id or m["goal"].id == goal_id]
+    if not pending:
+        return []
+    # One goal's report never depends on another's, so the page waits for the slowest goal
+    # instead of for every goal in turn.
+    with ThreadPoolExecutor(max_workers=min(4, len(pending))) as pool:
+        return list(pool.map(report, pending))

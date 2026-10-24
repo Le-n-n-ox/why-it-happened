@@ -7,7 +7,11 @@ class OmniPitchStore:
     def __init__(self, path: str = ":memory:"):
         self._db = sqlite3.connect(path, check_same_thread=False)
         # Using WAL mode drastically improves concurrent read/write speeds in SQLite
-        self._db.execute("PRAGMA journal_mode=WAL;") 
+        self._db.execute("PRAGMA journal_mode=WAL;")
+        # FULL fsyncs on every commit; a replay commits once per event, which cost about a second
+        # per match. NORMAL keeps the write-ahead log and only risks the last commits on a power
+        # cut, which is the right trade for a demo feed.
+        self._db.execute("PRAGMA synchronous=NORMAL;")
         self._lock = threading.Lock()
         
         with self._lock:

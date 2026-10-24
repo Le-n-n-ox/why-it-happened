@@ -137,21 +137,52 @@ def ensure_citations(text: str, insight: Insight) -> str:
     return text
 
 
+_NOT_FACT_KEYS = {"evidence", "id", "_ids", "_entry_evidence"}
+_POSITIONAL_FACT = re.compile(r"(^|_)(x|y)$|distance|gain", re.IGNORECASE)
+
+
+def _fact_values(value, key: str = ""):
+    """Walk the facts the model was shown, skipping evidence ids and raw positions.
+
+    Positional fields are deliberately withheld (see MODEL_FACT_KEYS): a model may not turn
+    coordinates into distances, so they are not facts it is allowed to quote either.
+    """
+    if key in _NOT_FACT_KEYS or _POSITIONAL_FACT.search(key):
+        return
+    if isinstance(value, dict):
+        for child_key, child in value.items():
+            yield from _fact_values(child, str(child_key))
+    elif isinstance(value, (list, tuple)):
+        for child in value:
+            yield from _fact_values(child, key)
+    elif value is not None:
+        yield value
+
+
+_NUMBER = re.compile(r"\d+(?:[.,]\d+)?")
+
+
+def _number_set(text: str) -> set[float]:
+    """Numbers as written, decimals included: 0.9 must match a fact of 0.9, not just 0 and 9."""
+    return {round(float(token.replace(",", ".")), 2) for token in _NUMBER.findall(text)}
+
+
 def numbers_are_grounded(text: str, insight: Insight) -> bool:
     """Every number in the text must be the minute or one of the facts shown to the model."""
-    allowed = {int(insight.minute)}
-    for key in ("why", "story"):
-        block = insight.facts.get(key)
-        parts = block.values() if isinstance(block, dict) else (block or [])
-        for part in parts:
-            allowed |= {int(n) for n in re.findall(r"\d+", str(part))}
-    for key in MODEL_FACT_KEYS:
-        value = insight.facts.get(key)
-        for value_item in (value if isinstance(value, list) else [value]):
-            if isinstance(value_item, (int, float)) and not isinstance(value_item, bool):
-                allowed.add(int(value_item))
+    allowed = {round(float(insight.minute), 2)}
+    for value in _fact_values(insight.facts or {}):
+        if isinstance(value, bool):
+            continue
+        if isinstance(value, (int, float)):
+            allowed.add(round(float(value), 2))
+        elif isinstance(value, str):
+            allowed |= _number_set(value)
     body = re.sub(r"\[[^\]]*\]", "", text)
-    return {int(n) for n in re.findall(r"\d+", body)} <= allowed
+    # The minute is written as 5.7' or 10'. Its digits are the clock, not a fact, so drop the
+    # whole token: otherwise a fractional minute (5.7) reads as two numbers (5 and 7) and the
+    # caption is rejected even though every real number in it came from the facts.
+    body = re.sub(r"\b\d+(?:[.,]\d+)?\s*['\u2019\u2032]", "", body)
+    return _number_set(body) <= allowed
 
 
 KNOWN_PLAYERS: set[str] = set()      # every player name in the match; filled by register_players()
@@ -174,12 +205,7 @@ def names_are_grounded(text: str, allowed_text: str) -> bool:
 
 def _facts_text(insight: Insight) -> str:
     """Every name and sentence the model was shown for this insight."""
-    facts = insight.facts or {}
-    bits = [str(facts.get(key, "")) for key in ("name", "starter", "finisher")]
-    bits += [str(player) for player in facts.get("players", [])]
-    bits += [str(value) for value in (facts.get("why") or {}).values()]
-    bits += [str(sentence) for sentence in facts.get("story", [])]
-    return " ".join(bits)
+    return " ".join(str(value) for value in _fact_values(insight.facts or {}))
 
 
 def template_narration(insight: Insight) -> str:
@@ -343,7 +369,10 @@ def _chat(model: str, messages: list[dict], label: str, max_tokens: int = 1024) 
         body["chat_template_kwargs"] = {"enable_thinking": False}
 
     print(f"\n[DEBUG] Requesting model '{model}' ({label}) via direct REST API...")
-    timeout_seconds = float(os.getenv("NVIDIA_TIMEOUT_SECONDS", "20"))
+    base_timeout = float(os.getenv("NVIDIA_TIMEOUT_SECONDS", "20"))
+    # Longer answers take longer: a 700-token proposal needs more room than a two-sentence caption,
+    # and an 8 s cap on it turned a slow reply into an empty hypothesis list.
+    timeout_seconds = base_timeout * max(1.0, max_tokens / 300)
     response = _post(invoke_url, headers, body, timeout_seconds)
 
     if response.status_code != 200:
@@ -401,7 +430,16 @@ def narrate(client, model: str, insight: Insight, language: str = "English") -> 
     messages.append({"role": "user", "content": json.dumps(payload_data)})
     return _chat(model, messages, language, max_tokens=300)
 
-def _narrate_language(client, model: str | None, insight: Insight, code: str) -> tuple[str | None, str]:
+def _save(insight: Insight, text: str, code: str, cache_result: bool, history: bool) -> None:
+    """Persist a caption, but never let a database hiccup take down the narration."""
+    try:
+        save_insight(insight, text, language=code, cache_result=cache_result, history=history)
+    except Exception as exc:
+        print(f"[DEBUG] could not save the caption for '{insight.id}' ({exc})")
+
+
+def _narrate_language(client, model: str | None, insight: Insight, code: str,
+                      save_history: bool = True, record: bool = True) -> tuple[str | None, str]:
     """Narrate one language; return text and whether it came from cache, model, or fallback."""
     cached = get_existing_narration(insight.id, code)
     if cached:
@@ -419,34 +457,34 @@ def _narrate_language(client, model: str | None, insight: Insight, code: str) ->
             raise ValueError("model used a number that is not in the facts")
         if not names_are_grounded(text, _facts_text(insight)):
             raise ValueError("model named a player who is not in the facts")
-        _record_model_result(True)
+        if record:
+            _record_model_result(True)
     except Exception as exc:
-        if not paused and model and os.getenv("NVIDIA_API_KEY"):
+        if record and not paused and model and os.getenv("NVIDIA_API_KEY"):
             _record_model_result(False, exc)
         print(f"[DEBUG] LLM call failed for '{code}' ({exc}); using template fallback")
         if code != "en":
             return None, "skipped"
         text = template_narration(insight)
-        save_insight(insight, text, language=code, cache_result=False)
+        _save(insight, text, code, cache_result=False, history=save_history)
         return text, "template"
 
-    save_insight(insight, text, language=code, cache_result=True)
+    _save(insight, text, code, cache_result=True, history=save_history)
     return text, "model"
 
 
-def narrate_all(client, model: str | None, insight: Insight, languages: list[str] | None = None) -> dict[str, str]:
+def narrate_all(client, model: str | None, insight: Insight, languages: list[str] | None = None,
+                save_history: bool = True, record: bool = True) -> dict[str, str]:
     """Narrate requested languages concurrently and persist each result."""
     requested = languages or ["en"]
     with ThreadPoolExecutor(max_workers=len(requested)) as pool:
         outcomes = list(pool.map(
-            lambda code: _narrate_language(client, model, insight, code), requested
+            lambda code: _narrate_language(client, model, insight, code, save_history, record), requested
         ))
     results = {code: text for code, (text, _) in zip(requested, outcomes) if text}
-    if any(how == "model" for _, how in outcomes):
-        time.sleep(1.5)
     if not results:
         text = template_narration(insight)
-        save_insight(insight, text, language="en", cache_result=False)
+        _save(insight, text, "en", cache_result=False, history=save_history)
         results["en"] = text
     return results
 
