@@ -20,12 +20,21 @@ export function RecapPage() {
         <p className={ui.empty}>No insights yet. Go to Live and let the match play.</p>
       ) : (
         <>
-          <div className="relative h-7 rounded-full bg-surface" role="list" aria-label="Insights by minute">
+          <div
+            className="relative h-9 rounded-full border border-line bg-surface-2"
+            role="list"
+            aria-label="Insights by minute"
+          >
+            {/* Baseline track — helps the dots read as a timeline even when sparse */}
+            <div
+              aria-hidden="true"
+              className="absolute inset-x-4 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-line"
+            />
             {chrono.map((i) => (
               <a
                 key={i.id}
                 role="listitem"
-                className="absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-fg"
+                className="absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface shadow-sm transition-transform hover:scale-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
                 href={`#/insight/${encodeURIComponent(i.id)}`}
                 style={{
                   left: `${Math.min(100, (i.minute / maxMinute) * 100)}%`,
@@ -45,16 +54,18 @@ export function RecapPage() {
             {chrono.map((i) => (
               <li key={i.id}>
                 <a
-                  className="grid gap-1 rounded-card border border-l-4 border-line bg-surface px-3.5 py-3 text-fg transition-colors hover:bg-surface-2"
+                  className="grid gap-1 rounded-card border border-l-4 border-line bg-surface px-3.5 py-3 text-fg transition-colors hover:border-accent/30 hover:bg-surface-2/40"
                   href={`#/insight/${encodeURIComponent(i.id)}`}
                   style={{ borderLeftColor: teamColor(i.team, teams) }}
                 >
                   <span className={ui.meta}>
                     <span className={ui.minute}>{formatMinute(i.minute)}</span>
-                    <span className="font-bold" style={{ color: teamColor(i.team, teams) }}>{i.team}</span>
+                    <span className="font-bold" style={{ color: teamColor(i.team, teams) }}>
+                      {i.team}
+                    </span>
                     <span>{kindLabel(i.kind)}</span>
                   </span>
-                  <span lang={lang in i.narration ? lang : "en"}>
+                  <span className="leading-relaxed" lang={lang in i.narration ? lang : "en"}>
                     {stripCitations(pickText(i, lang))}
                   </span>
                 </a>

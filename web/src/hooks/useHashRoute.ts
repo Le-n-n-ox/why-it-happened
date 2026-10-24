@@ -2,7 +2,9 @@
 import { useEffect, useState } from "react";
 
 function readHash(): string {
-  return window.location.hash.replace(/^#/, "") || "/";
+  // Return "" if there is no hash (e.g., http://localhost:8001/)
+  // Return "/live" if the hash is #/live
+  return window.location.hash.replace(/^#/, "") || "";
 }
 
 export function useHashRoute(): string {

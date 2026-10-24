@@ -46,7 +46,6 @@ export function AnalyticsPage() {
     values: keys.map((k) => r.metrics[k]),
   }));
 
-  // Everything below is counted in the browser from the event list, so it is labelled as such.
   const byType = countByType(allEvents, teams);
   const buckets = activityBuckets(allEvents, teams);
   const eventCounts = allEvents.length ? teams.map((t) => allEvents.filter((e) => e.team === t).length) : [];
@@ -58,10 +57,13 @@ export function AnalyticsPage() {
   const insightCounts = teams.map((t) => insights.filter((i) => i.team === t).length);
   const travel = ballTravel(allEvents, teams);
 
+  // Give the GroupedBars chart full width if there are 4 or more metrics to display.
+  const hasManyMetrics = keys.length >= 4;
+
   return (
     <section className={ui.pageWide}>
       <h2 className={ui.h2}>Analytics</h2>
-      <p className={ui.empty}>
+      <p className={`${ui.empty} max-w-prose`}>
         The team verdicts and the team metrics come from the team reports the server sends. The panels
         below are counted in the browser from the event list in /events, so they are tallies of what the
         data contains, not server statistics.
@@ -73,6 +75,10 @@ export function AnalyticsPage() {
         </p>
       )}
 
+      {!loading && error === null && reports.length === 0 && (
+        <p className={ui.empty}>The team reports are not available for this match.</p>
+      )}
+
       {reports.length > 0 && (
         <>
           <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
@@ -80,11 +86,13 @@ export function AnalyticsPage() {
               <a
                 key={r.team}
                 href={`#/team/${encodeURIComponent(r.team)}`}
-                className="grid gap-2 rounded-card border border-line bg-surface px-4 py-3.5 text-fg transition-colors hover:bg-surface-2"
+                className="group grid gap-2 rounded-card border border-line bg-surface px-4 py-3.5 text-fg transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
               >
                 <span className="font-bold" style={{ color: teamColor(r.team, teams) }}>{r.team}</span>
                 <Verdict verdict={r.verdict} />
-                <span className="font-heading text-2xl font-bold tabular-nums">Score {r.score}</span>
+                <span className="font-heading text-2xl font-bold leading-tight tabular-nums">
+                  Score {r.score}
+                </span>
               </a>
             ))}
           </div>
@@ -93,16 +101,26 @@ export function AnalyticsPage() {
 
           <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))] gap-4">
             {keys.length > 0 && (
-              <section className={`${ui.panel} min-w-0`} aria-label="Team metrics">
-                <h3 className="m-0 text-base font-bold">Team metrics</h3>
-                <p className={ui.empty}>From the team reports the server sends.</p>
+              <section 
+                className={`${ui.panel} min-w-0 flex flex-col gap-3 ${hasManyMetrics ? 'col-span-full' : ''}`} 
+                aria-label="Team metrics"
+              >
+                <div>
+                  <h3 className="m-0 text-base font-bold">Team metrics</h3>
+                  <p className={ui.empty}>From the team reports the server sends.</p>
+                </div>
                 <Legend series={series} />
-                <GroupedBars label="Team metrics" categories={keys.map(prettyKey)} series={series} />
+                <div className="mt-2 w-full">
+                  <GroupedBars label="Team metrics" categories={keys.map(prettyKey)} series={series} />
+                </div>
               </section>
             )}
-            <section className={`${ui.panel} min-w-0`} aria-label="Share of shots">
-              <h3 className="m-0 text-base font-bold">Shots</h3>
-              <p className={ui.empty}>From the team reports the server sends.</p>
+            
+            <section className={`${ui.panel} min-w-0 flex flex-col gap-3 ${hasManyMetrics ? 'col-span-full md:col-span-1' : ''}`} aria-label="Share of shots">
+              <div>
+                <h3 className="m-0 text-base font-bold">Shots</h3>
+                <p className={ui.empty}>From the team reports the server sends.</p>
+              </div>
               <Donut
                 label="Shots by team"
                 centerLabel="shots"

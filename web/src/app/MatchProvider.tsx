@@ -156,11 +156,15 @@ export function MatchProvider({ children }: { children: ReactNode }) {
     refreshMatch();
   }, [replay, refreshMatch]);
 
- const value: MatchState = {
-  insights, status, allEvents, eventsFailed, teams, byId, shown: ticks, predictions, ball: lastTick, health, match, score,
-  languages, lang, changeLang, clock, ended, restart, follow, toggleFollow, selectedId, select, pinned, pin,
-  profile, setProfile,
-};
+  const value: MatchState = useMemo(() => ({
+    insights, status, allEvents, eventsFailed, teams, byId, shown: ticks, predictions, ball: lastTick, health, match, score,
+    languages, lang, changeLang, clock, ended, restart, follow, toggleFollow, selectedId, select, pinned, pin,
+    profile, setProfile,
+  }), [
+    insights, status, allEvents, eventsFailed, teams, byId, ticks, predictions, lastTick, health, match, score,
+    languages, lang, changeLang, clock, ended, restart, follow, toggleFollow, selectedId, select, pinned, pin,
+    profile, setProfile,
+  ]);
 
   return <MatchContext.Provider value={value}>{children}</MatchContext.Provider>;
 }

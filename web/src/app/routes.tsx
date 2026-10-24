@@ -30,6 +30,7 @@ function safeDecode(s: string): string {
 }
 
 export function RoutePage({ path }: { path: string }) {
+  if (path === "/live") return <LivePage />;
   if (path === "/result") return <ResultPage />;
   if (path === "/recap") return <RecapPage />;
   if (path === "/momentum") return <MomentumPage />;
@@ -47,5 +48,7 @@ export function RoutePage({ path }: { path: string }) {
   if (path === "/fans") return <FansPage />;
   if (path === "/about") return <AboutPage />;
   if (path.startsWith(INSIGHT_PREFIX)) return <InsightPage id={safeDecode(path.slice(INSIGHT_PREFIX.length))} />;
+  
+  // Fallback just in case someone goes to a bad URL or the root "/"
   return <LivePage />;
 }

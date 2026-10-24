@@ -34,14 +34,15 @@ export function PlayersPage() {
   return (
     <section className={ui.pageWide}>
       <h2 className={ui.h2}>Players</h2>
-      <p className={ui.empty}>
+      <p className={`${ui.empty} max-w-prose`}>
         Every number comes from the match backend. Rating is the only player score. Shots include goals.
       </p>
 
       {loading && <Loader label="Loading players" />}
       {error !== null && (
         <p role="alert" className={ui.banner}>
-          Couldn't load players ({error}). <Button className={ui.bannerButton} onClick={retry}>Retry</Button>
+          Couldn't load players ({error}).{" "}
+          <Button className={ui.bannerButton} onClick={retry}>Retry</Button>
         </p>
       )}
       {!loading && error === null && players.length === 0 && (
@@ -59,7 +60,7 @@ export function PlayersPage() {
             onTeamChange={setTeam}
           />
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5 rounded-card border border-line bg-surface px-3.5 py-2.5">
             <label htmlFor="players-compare" className="text-sm font-semibold">
               Compare with
             </label>
@@ -67,6 +68,7 @@ export function PlayersPage() {
               id="players-compare"
               value={vs ?? ""}
               onChange={(e) => setVs(e.target.value || null)}
+              className="h-9 rounded-lg border border-line bg-surface-2 px-3 text-sm font-medium text-fg outline-none transition-colors hover:bg-surface-3 focus-visible:ring-2 focus-visible:ring-accent"
             >
               <option value="">No one</option>
               {players.map((p) => (
@@ -74,7 +76,10 @@ export function PlayersPage() {
               ))}
             </select>
             {opponent && (
-              <span className="text-[.85rem]" style={{ color: teamColor(opponent.team, teams) }}>
+              <span
+                className="text-[.85rem] font-medium"
+                style={{ color: teamColor(opponent.team, teams) }}
+              >
                 {opponent.name} is the second player. Open any player to see them side by side.
               </span>
             )}

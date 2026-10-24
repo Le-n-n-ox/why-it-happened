@@ -1,5 +1,6 @@
 // web/src/pages/ResultPage.tsx - full-time summary: recap, win probability, turning points, goals, the football reasons.
 import { useState } from "react";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/Button";
 import { ChainCard } from "@/components/ChainSteps";
 import { FactorsPanel } from "@/components/FactorsPanel";
@@ -21,7 +22,9 @@ function ResultBody() {
   const { data, loading, error, retry } = useApi(getWhy, "now");
   const [openGoal, setOpenGoal] = useState<string | null>(null);
   const result = data?.result;
-  const title = result ? (result.winner ? `Why ${result.winner} won` : "Why it finished level") : "Why the result happened";
+  const title = result
+    ? (result.winner ? `Why ${result.winner} won` : "Why it finished level")
+    : "Why the result happened";
   const selected = eventsByIds(pinned ?? [], byId);
   const goals = (result?.reasons ?? []).map((r) => ({ minute: r.minute, team: r.team }));
 
@@ -31,7 +34,8 @@ function ResultBody() {
       {loading && <Loader label="Loading the summary" />}
       {error !== null && (
         <p role="alert" className={ui.banner}>
-          Couldn't load the summary. <Button className={ui.bannerButton} onClick={retry}>Retry</Button>
+          Couldn't load the summary.{" "}
+          <Button className={ui.bannerButton} onClick={retry}>Retry</Button>
         </p>
       )}
 
@@ -69,8 +73,8 @@ function ResultBody() {
                       <li
                         key={`${i}-${r.minute}`}
                         className={cn(
-                          "grid gap-1.5 rounded-card border border-l-4 border-line bg-surface p-3",
-                          on && "bg-surface-2",
+                          "grid gap-1.5 rounded-card border border-l-4 border-line bg-surface p-3.5 transition-colors",
+                          on && "border-accent/50 bg-surface-2",
                         )}
                         style={{ borderLeftColor: teamColor(r.team, teams) }}
                       >
@@ -78,17 +82,20 @@ function ResultBody() {
                           type="button"
                           aria-pressed={on}
                           onClick={() => pin(on ? null : r.evidence)}
-                          className="grid w-full cursor-pointer gap-1 text-left"
+                          className="grid w-full cursor-pointer gap-1.5 rounded-md text-left transition-colors hover:bg-surface-2/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset"
                         >
                           <span className={ui.meta}>
                             <span className={ui.minute}>{formatMinute(r.minute)}</span>
                             <span className="font-bold" style={{ color: teamColor(r.team, teams) }}>{r.team}</span>
                             {r.caused_by && <span>{kindLabel(r.caused_by)}</span>}
                           </span>
-                          <span lang={lang}>{stripCitations(r.text)}</span>
+                          <span className="leading-relaxed" lang={lang}>{stripCitations(r.text)}</span>
                         </button>
+
                         <div className={ui.chips}>
-                          {r.evidence.map((e) => <span key={e} className={`${ui.chip} font-mono`}>{e}</span>)}
+                          {r.evidence.map((e) => (
+                            <span key={e} className={`${ui.chip} font-mono`}>{e}</span>
+                          ))}
                           {goalId && (
                             <Button
                               aria-pressed={openGoal === goalId}
@@ -98,10 +105,15 @@ function ResultBody() {
                             </Button>
                           )}
                         </div>
+
                         {openGoal === goalId && <GoalHypotheses goalId={goalId} teams={teams} />}
+
                         {r.insight_id && (
-                          <a className={ui.link} href={`#/insight/${encodeURIComponent(r.insight_id)}`}>
-                            Open insight →
+                          <a
+                            className={`${ui.link} inline-flex items-center gap-1 text-sm hover:gap-2 transition-all`}
+                            href={`#/insight/${encodeURIComponent(r.insight_id)}`}
+                          >
+                            Open insight <ArrowRight size={14} aria-hidden="true" />
                           </a>
                         )}
                       </li>
@@ -109,7 +121,9 @@ function ResultBody() {
                   })}
                 </ol>
               )}
-              <p className={ui.empty}>Select a row to highlight its evidence on the pitch.</p>
+              <p className={`${ui.empty} text-[.82rem]`}>
+                Select a row to highlight its evidence on the pitch.
+              </p>
             </section>
           )}
         </div>
@@ -130,7 +144,9 @@ export function ResultPage() {
     return (
       <section className={ui.page}>
         <h2 className={ui.h2}>Why the result happened</h2>
-        <p className={ui.empty}>The summary appears at full time. Let the match play on the Live page.</p>
+        <p className={ui.empty}>
+          The summary appears at full time. Let the match play on the Live page.
+        </p>
       </section>
     );
   }

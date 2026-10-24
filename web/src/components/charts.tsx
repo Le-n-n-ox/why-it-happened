@@ -11,6 +11,7 @@ export interface Slice {
   color: string;
 }
 
+// Default dimensions for LineChart
 const W = 520;
 const H = 260;
 const ML = 34;
@@ -46,13 +47,14 @@ export function Legend({ series }: { series: Pick<Series, "name" | "color">[] })
   );
 }
 
-function Grid({ ticks, y }: { ticks: number[]; y: (v: number) => number }) {
+// Grid is now parameterized so both GroupedBars and LineChart can use their own dimensions.
+function Grid({ ticks, y, width, ml, mr }: { ticks: number[]; y: (v: number) => number; width: number; ml: number; mr: number }) {
   return (
     <>
       {ticks.map((t) => (
         <g key={t}>
-          <line className="stroke-line [stroke-width:1]" x1={ML} x2={W - MR} y1={y(t)} y2={y(t)} />
-          <text className="fill-muted text-[10px]" x={ML - 6} y={y(t)} dy=".32em" textAnchor="end">{t}</text>
+          <line className="stroke-line [stroke-width:1]" x1={ml} x2={width - mr} y1={y(t)} y2={y(t)} />
+          <text className="fill-muted text-[10px]" x={ml - 6} y={y(t)} dy=".32em" textAnchor="end">{t}</text>
         </g>
       ))}
     </>
@@ -65,18 +67,33 @@ export function GroupedBars({
   if (categories.length === 0) return <p className="text-muted">No data yet.</p>;
   const max = Math.max(0, ...series.flatMap((s) => s.values));
   const { top, ticks } = scale(max);
-  const y = (v: number) => MT + PLOT_H - (v / top) * PLOT_H;
+  
+  // GroupedBars uses its own larger canvas to accommodate angled text.
+  const BAR_W = 800;
+  const BAR_H = 340;
+  const BAR_ML = 40;
+  const BAR_MR = 20;
+  const BAR_MT = 20;
+  const BAR_MB = 80; // Extra bottom margin for the rotated labels
+  const PLOT_W = BAR_W - BAR_ML - BAR_MR;
+  const PLOT_H = BAR_H - BAR_MT - BAR_MB;
+
+  const y = (v: number) => BAR_MT + PLOT_H - (v / top) * PLOT_H;
   const groupW = PLOT_W / categories.length;
-  const barW = Math.min(30, (groupW * 0.72) / Math.max(series.length, 1));
+  const barW = Math.min(36, (groupW * 0.7) / Math.max(series.length, 1));
+  
+  // If the bars are too narrow, hide the number above them to prevent overlapping.
+  const showValues = barW > 22;
+
   const summary = categories
     .map((c, i) => `${c}: ${series.map((s) => `${s.name} ${s.values[i] ?? 0}`).join(", ")}`)
     .join("; ");
 
   return (
-    <svg className="block h-auto w-full" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${label}. ${summary}`}>
-      <Grid ticks={ticks} y={y} />
+    <svg className="block h-auto w-full" viewBox={`0 0 ${BAR_W} ${BAR_H}`} role="img" aria-label={`${label}. ${summary}`}>
+      <Grid ticks={ticks} y={y} width={BAR_W} ml={BAR_ML} mr={BAR_MR} />
       {categories.map((c, ci) => {
-        const gx = ML + ci * groupW + (groupW - barW * series.length) / 2;
+        const gx = BAR_ML + ci * groupW + (groupW - barW * series.length) / 2;
         return (
           <g key={c}>
             {series.map((s, si) => {
@@ -87,20 +104,28 @@ export function GroupedBars({
                 <g key={s.name}>
                   <rect
                     className="origin-bottom animate-grow transition-[y,height] duration-[400ms] [transform-box:fill-box]"
-                    x={bx} y={MT + PLOT_H - h} width={barW - 2} height={h} rx="3"
+                    x={bx} y={BAR_MT + PLOT_H - h} width={barW - 2} height={h} rx="3"
                     style={{ fill: s.color }}
                   >
                     <title>{`${s.name}, ${c}: ${v}`}</title>
                   </rect>
-                  {v > 0 && (
+                  {v > 0 && showValues && (
                     <text className="fill-fg text-[10px] font-semibold" x={bx + (barW - 2) / 2}
-                      y={MT + PLOT_H - h - 4} textAnchor="middle">{v}</text>
+                      y={BAR_MT + PLOT_H - h - 6} textAnchor="middle">{v}</text>
                   )}
                 </g>
               );
             })}
-            <text className="fill-muted text-[10px]" x={ML + ci * groupW + groupW / 2} y={H - 12}
-              textAnchor="middle">{c}</text>
+            {/* Rotate the label -35 degrees so long words don't overlap */}
+            <text 
+              className="fill-muted text-[10px]" 
+              x={BAR_ML + ci * groupW + groupW / 2} 
+              y={BAR_MT + PLOT_H + 15}
+              textAnchor="end"
+              transform={`rotate(-35, ${BAR_ML + ci * groupW + groupW / 2}, ${BAR_MT + PLOT_H + 15})`}
+            >
+              {c}
+            </text>
           </g>
         );
       })}
@@ -123,7 +148,7 @@ export function LineChart({
 
   return (
     <svg className="block h-auto w-full" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${label}. ${summary}`}>
-      <Grid ticks={ticks} y={y} />
+      <Grid ticks={ticks} y={y} width={W} ml={ML} mr={MR} />
       {series.map((s) => {
         const pts = s.values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
         const line = `M${pts.join(" L")}`;

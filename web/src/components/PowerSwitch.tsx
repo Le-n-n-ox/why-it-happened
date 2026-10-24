@@ -5,16 +5,27 @@ interface Props {
 }
 
 // The two lit/pressed shadows are written out in full so Tailwind can see every class.
-const LIT = "[box-shadow:inset_0_0_2px_hsl(var(--switch-hue)_20%_15%_/_60%),inset_0_0_3px_2px_hsl(var(--switch-hue)_20%_15%_/_60%),inset_0_0_5px_2px_hsl(var(--switch-hue)_20%_45%_/_60%)]";
-const DARK = "[box-shadow:inset_0_0_5px_hsl(var(--switch-hue)_20%_15%),inset_8px_8px_6px_hsl(var(--switch-hue)_20%_15%),inset_8px_8px_8px_hsl(var(--switch-hue)_20%_45%)]";
-const LIT_ON = "group-has-[:checked]:[box-shadow:inset_0_0_2px_hsl(var(--switch-hue)_20%_15%_/_60%),inset_0_0_3px_2px_hsl(var(--switch-hue)_20%_15%_/_60%),inset_0_0_5px_2px_hsl(var(--switch-hue)_20%_45%_/_60%)]";
-const DARK_ON = "group-has-[:checked]:[box-shadow:inset_0_0_5px_hsl(var(--switch-hue)_20%_15%),inset_8px_8px_6px_hsl(var(--switch-hue)_20%_15%),inset_8px_8px_8px_hsl(var(--switch-hue)_20%_45%)]";
+const LIT =
+  "[box-shadow:inset_0_0_2px_hsl(var(--switch-hue)_20%_15%_/_60%),inset_0_0_3px_2px_hsl(var(--switch-hue)_20%_15%_/_60%),inset_0_0_5px_2px_hsl(var(--switch-hue)_20%_45%_/_60%)]";
+const DARK =
+  "[box-shadow:inset_0_0_5px_hsl(var(--switch-hue)_20%_15%),inset_8px_8px_6px_hsl(var(--switch-hue)_20%_15%),inset_8px_8px_8px_hsl(var(--switch-hue)_20%_45%)]";
+const LIT_ON =
+  "group-has-[:checked]:[box-shadow:inset_0_0_2px_hsl(var(--switch-hue)_20%_15%_/_60%),inset_0_0_3px_2px_hsl(var(--switch-hue)_20%_15%_/_60%),inset_0_0_5px_2px_hsl(var(--switch-hue)_20%_45%_/_60%)]";
+const DARK_ON =
+  "group-has-[:checked]:[box-shadow:inset_0_0_5px_hsl(var(--switch-hue)_20%_15%),inset_8px_8px_6px_hsl(var(--switch-hue)_20%_15%),inset_8px_8px_8px_hsl(var(--switch-hue)_20%_45%)]";
 const INDICATOR =
   "absolute top-[20%] h-[60%] w-[40%] transition-[box-shadow] duration-[600ms] ease-[cubic-bezier(1,0,1,1)]";
 
 export function PowerSwitch({ checked, onChange, label }: Props) {
   return (
-    <label className="group inline-flex cursor-pointer items-center gap-2 [--switch-accent:142deg] [--switch-hue:220deg]">
+    <label
+      className="group inline-flex cursor-pointer items-center gap-2 [--switch-hue:220deg] [--switch-accent:142deg]"
+      // Inherit hue from the app theme if the caller sets it, otherwise use a sane default.
+      style={{
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ...({ "--switch-hue": "var(--accent-hue, 220deg)", "--switch-accent": "var(--accent-hue, 142deg)" } as any),
+      }}
+    >
       <input
         className="peer sr-only"
         type="checkbox"

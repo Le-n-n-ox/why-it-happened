@@ -88,13 +88,11 @@ export function AskPage() {
     event.preventDefault();
     const q = question.trim();
     if (q === "" || loading) return;
-    // The last question rides along, so a follow-up like "and in the second half?" can lean on it.
     void ask(q, lang, mode, asked || undefined);
     setPrevious(asked || undefined);
     setAsked(q);
   };
 
-  // Ctrl+Enter sends, so a long question does not need the mouse.
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
@@ -131,9 +129,9 @@ export function AskPage() {
             rows={3}
             aria-describedby="ask-count"
             placeholder="Why did the match end as it did?"
-            className="w-full resize-y rounded-card border border-line bg-surface px-3.5 py-2.5 leading-snug outline-none focus-visible:border-accent"
+            className="w-full resize-y rounded-card border border-line bg-surface px-3.5 py-2.5 leading-snug outline-none transition-colors focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
           />
-          <p id="ask-count" className="m-0 text-[.8rem] text-muted tabular-nums">
+          <p id="ask-count" className="m-0 text-right text-[.8rem] text-muted tabular-nums">
             {question.length}/{MAX} characters
           </p>
         </div>
@@ -238,12 +236,12 @@ export function AskPage() {
                 written by the model, the right one is joined by the rules.
               </p>
               <div className={ui.split}>
-                <div className="grid gap-1.5 rounded-card border border-line bg-surface px-3.5 py-3">
-                  <span className="text-[.7rem] font-semibold uppercase text-muted">Model</span>
+                <div className="grid gap-1.5 rounded-card border border-line border-l-2 border-l-accent bg-surface px-3.5 py-3">
+                  <span className="text-[.7rem] font-semibold uppercase tracking-wider text-accent">Model</span>
                   <p className="m-0 leading-snug">{answer.answer}</p>
                 </div>
-                <div className="grid gap-1.5 rounded-card border border-line bg-surface px-3.5 py-3">
-                  <span className="text-[.7rem] font-semibold uppercase text-muted">Rules</span>
+                <div className="grid gap-1.5 rounded-card border border-line border-l-2 border-l-muted bg-surface px-3.5 py-3">
+                  <span className="text-[.7rem] font-semibold uppercase tracking-wider text-muted">Rules</span>
                   <p className="m-0 leading-snug">{compare.answer}</p>
                 </div>
               </div>

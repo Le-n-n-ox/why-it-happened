@@ -23,10 +23,17 @@ function Findings({ title, note, items }: { title: string; note: string; items: 
       <p className="m-0 text-[.82rem] text-muted">{note}</p>
       <ul className="m-0 grid list-none gap-2 p-0">
         {items.map((finding) => (
-          <li key={finding.code + finding.title} className="grid gap-1.5 rounded-card bg-surface-2 px-3.5 py-3">
+          <li
+            key={finding.code + finding.title}
+            className="grid gap-1.5 rounded-card border border-line bg-surface px-3.5 py-3 transition-colors hover:border-accent/30"
+          >
             <p className="m-0 font-semibold">{finding.title}</p>
-            <p className="m-0 text-[.92rem] leading-snug">{finding.detail}</p>
-            {finding.principle && <p className="m-0 text-[.82rem] text-muted">{finding.principle}</p>}
+            <p className="m-0 text-[.92rem] leading-relaxed">{finding.detail}</p>
+            {finding.principle && (
+              <p className="m-0 rounded-md border-l-2 border-line bg-surface-2/50 px-2.5 py-1.5 text-[.82rem] leading-relaxed text-muted">
+                {finding.principle}
+              </p>
+            )}
             <EvidenceChips ids={finding.evidence} highlight={false} />
           </li>
         ))}
@@ -51,13 +58,13 @@ function Brief({ brief, teams }: { brief: HalftimeBrief; teams: string[] }) {
       <div className="flex flex-wrap items-baseline gap-2.5">
         <h3 className={ui.h3} style={{ color }}>{brief.team}</h3>
         {brief.halftime_score && (
-          <span className="text-[.9rem] tabular-nums">
+          <span className="rounded-lg bg-surface-2 px-2.5 py-0.5 text-[.9rem] font-semibold tabular-nums ring-1 ring-inset ring-line">
             {brief.halftime_score[brief.team] ?? 0}-{(brief.halftime_score[brief.opponent ?? ""] ?? 0)} at half-time
           </span>
         )}
       </div>
 
-      {brief.text && <p className="m-0 leading-snug">{brief.text}</p>}
+      {brief.text && <p className="m-0 leading-relaxed">{brief.text}</p>}
 
       {stats && (
         <dl className="m-0 flex flex-wrap gap-2.5">
@@ -69,9 +76,11 @@ function Brief({ brief, teams }: { brief: HalftimeBrief; teams: string[] }) {
             ["Ended in a shot", stats.entries_with_shot],
             ["Actions", stats.actions],
           ].map(([label, value]) => (
-            <div key={String(label)} className="rounded-card border border-line bg-surface px-3 py-1.5">
-              <dt className="text-[.68rem] text-muted uppercase">{label}</dt>
-              <dd className="m-0 font-bold tabular-nums">{value}</dd>
+            <div key={String(label)} className="grid gap-0.5 rounded-card border border-line bg-surface px-3.5 py-2">
+              <dt className="text-[.68rem] font-semibold uppercase tracking-wider text-muted">
+                {label}
+              </dt>
+              <dd className="m-0 font-heading text-lg font-bold tabular-nums text-fg">{value}</dd>
             </div>
           ))}
         </dl>
@@ -97,7 +106,7 @@ export function HalftimePage() {
   return (
     <section className={ui.pageWide}>
       <h2 className={ui.h2}>Half-time</h2>
-      <p className={ui.empty}>
+      <p className={`${ui.empty} max-w-prose`}>
         What the first half showed for each team: what worked, what did not, and what the match data
         says to watch in the second half.
       </p>
@@ -105,13 +114,14 @@ export function HalftimePage() {
       {loading && <Loader label="Reading the first half" />}
       {error !== null && (
         <p role="alert" className={ui.banner}>
-          Couldn't read the half-time brief ({error}). <Button className={ui.bannerButton} onClick={retry}>Retry</Button>
+          Couldn't read the half-time brief ({error}).{" "}
+          <Button className={ui.bannerButton} onClick={retry}>Retry</Button>
         </p>
       )}
 
       {data && !loading && (
         <>
-          <p className="m-0 rounded-card border border-line bg-surface-2 px-3.5 py-2.5 text-[.88rem]">
+          <p className="m-0 rounded-card border border-line bg-surface-2 px-3.5 py-2.5 text-[.88rem] leading-relaxed">
             {data.note}
           </p>
           {briefs.length === 0 ? (

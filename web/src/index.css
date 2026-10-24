@@ -15,6 +15,11 @@
   --shadow: 0 8px 30px rgba(0, 0, 0, .35);
   --font-body: "Inter Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-display: "Space Grotesk Variable", "Segoe UI", system-ui, sans-serif;
+
+  /* Hue of --accent (142° for #00ff85). Consumed by PowerSwitch so the switch
+     follows the theme accent without re-deriving HSL. */
+  --accent-hue: 142deg;
+
   color-scheme: dark;
 }
 :root[data-theme="light"] {
@@ -24,6 +29,10 @@
   --accent: #007a42; --accent-ink: #ffffff; --accent-2: #c8105f; --live: #c8105f;
   --c1: #007a42; --c2: #c8105f; --c3: #0077a8; --c4: #a86a00; --c5: #6a3fd6;
   --shadow: 0 8px 30px rgba(60, 20, 100, .12);
+
+  /* #007a42 is hue 148° — close enough to the dark theme that one hue covers both. */
+  --accent-hue: 148deg;
+
   color-scheme: light;
 }
 
@@ -73,7 +82,7 @@
   @keyframes draw { from { stroke-dashoffset: 1; } }
   @keyframes meter-in { from { width: 0; } }
 
-    --animate-loader-rotate-ball: loader-rotate-ball 25s linear infinite;
+  --animate-loader-rotate-ball: loader-rotate-ball 25s linear infinite;
   --animate-loader-bounce-ball: loader-bounce-ball 1.2s cubic-bezier(.42, 0, .58, 1) infinite;
   --animate-loader-bounce-shadow: loader-bounce-shadow 1.2s cubic-bezier(.42, 0, .58, 1) infinite;
 
@@ -98,7 +107,11 @@
 /* ---------- Base ---------- */
 @layer base {
   * { scrollbar-width: thin; scrollbar-color: var(--surface-3) transparent; }
-  html { scroll-padding-top: 90px; }
+  html {
+    /* Was 90px, but the app header is h-16 (64px) — 90px left a 26px dead zone.
+       Set to header height so scrollTo targets and #anchor jumps land below it. */
+    scroll-padding-top: 64px;
+  }
   body {
     margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body);
     line-height: 1.5; -webkit-font-smoothing: antialiased;
@@ -111,8 +124,19 @@
   ::selection { background: var(--accent); color: var(--accent-ink); }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   button:not(:disabled), select, summary { cursor: pointer; }
-  select { font: inherit; color: inherit; background: var(--surface-2); border: 1px solid var(--border);
-    border-radius: 10px; padding: 7px 14px; }
+  select {
+    font: inherit; color: inherit; background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 10px; padding: 7px 14px;
+    /* Native dropdown arrow gets a themed accent caret instead of the OS default */
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                      linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 32px;
+  }
+  select:hover { background-color: var(--surface-3); }
   /* Lock page scroll while the mobile drawer is open (an ancestor carries data-open="true"). */
   @media (max-width: 900px) { body:has([data-open="true"]) { overflow: hidden; } }
 }

@@ -1,5 +1,6 @@
 // web/src/pages/PositionsPage.tsx - where each player was last seen, with a minute scrubber.
 import { useEffect, useState } from "react";
+import { RotateCcw } from "lucide-react";
 import { Button } from "@/components/Button";
 import { Loader } from "@/components/Loader";
 import { PositionsPitch } from "@/components/PositionsPitch";
@@ -55,10 +56,16 @@ export function PositionsPage() {
     <section className={ui.pageWide}>
       <h2 className={ui.h2}>Positions: where each player was last seen</h2>
 
-      <div className="grid gap-2">
-        <label htmlFor="positions-minute" className="text-sm font-semibold">
-          Minute
-        </label>
+      <div className="grid gap-2 rounded-card border border-line bg-surface px-4 py-3">
+        <div className="flex items-center justify-between gap-2">
+          <label htmlFor="positions-minute" className="text-sm font-semibold">
+            Minute
+          </label>
+          <div className="flex items-center gap-2.5">
+            <span className={`${ui.minute} tabular-nums`}>{formatMinute(shown)}</span>
+            <span className="text-[.85rem] text-muted">of {duration} minutes</span>
+          </div>
+        </div>
         <input
           id="positions-minute"
           type="range"
@@ -69,10 +76,11 @@ export function PositionsPage() {
           onChange={(e) => setScrub(Number(e.target.value))}
           className="w-full accent-[var(--accent)]"
         />
-        <div className="flex flex-wrap items-center gap-2.5">
-          <span className={ui.minute}>{formatMinute(shown)}</span>
-          <span className="text-[.85rem] text-muted">of {duration} minutes</span>
-          <Button variant="ghost" onClick={() => setScrub(null)}>Show the end</Button>
+        <div className="flex justify-end">
+          <Button variant="ghost" onClick={() => setScrub(null)} className="gap-1.5 text-xs">
+            <RotateCcw size={14} aria-hidden="true" />
+            Show the end
+          </Button>
         </div>
       </div>
 
@@ -86,7 +94,7 @@ export function PositionsPage() {
 
       {data && (
         <>
-          <p className="m-0 rounded-card border border-line bg-surface-2 px-3.5 py-2.5 text-[.88rem]">
+          <p className="m-0 rounded-card border border-line bg-surface-2 px-3.5 py-2.5 text-[.88rem] leading-relaxed">
             {data.note}
           </p>
 
@@ -98,13 +106,16 @@ export function PositionsPage() {
               {players.length === 0 ? (
                 <p className={ui.empty}>No player has acted by this minute.</p>
               ) : (
-                <ul className="m-0 grid list-none gap-1.5 p-0">
+                <ul className="m-0 grid list-none gap-2 p-0">
                   {players.map((p) => {
                     const color = teamColor(p.team, teams);
                     return (
-                      <li key={`${p.team}-${p.player}`} className="grid gap-0.5">
+                      <li
+                        key={`${p.team}-${p.player}`}
+                        className="grid gap-0.5 rounded-md border border-transparent px-2 py-1.5 transition-colors hover:border-line hover:bg-surface-2/40"
+                      >
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="size-2.5 rounded-full" style={{ background: color }} aria-hidden="true" />
+                          <span className="size-2.5 rounded-full shrink-0" style={{ background: color }} aria-hidden="true" />
                           <span className="font-semibold">{p.player}</span>
                           <span className="text-[.8rem]" style={{ color }}>{p.team}</span>
                           {p.on_ball && <span className={ui.marker}>on the ball</span>}

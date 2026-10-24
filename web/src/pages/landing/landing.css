@@ -1,9 +1,40 @@
 /* Landing-only helpers. Colours still come from index.css tokens. */
 @layer components {
-  .anim-hold { animation-fill-mode: backwards; }
-  .dash-1 { stroke-dasharray: 1; }
+  /* Entry-animation fill mode: hold the 0% keyframe through any
+     animation-delay, so elements don't flash in their natural state
+     before the animation starts. */
+  .anim-hold {
+    animation-fill-mode: backwards;
+  }
+
+  /* Stroke-based line drawing: normalise every path to length 1 so a
+     single dasharray works for arbitrary curves. Pairs with an
+     `animate-draw` keyframe that moves stroke-dashoffset from 1 → 0. */
+  .dash-1 {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+  }
+
+  /* Shimmer connector used by <HowItWorks>. Pair with `animate-shimmer`
+     (defined elsewhere) which animates background-position. */
   .landing-flow {
     background-image: linear-gradient(90deg, transparent, var(--accent), transparent);
     background-size: 200% 100%;
+    background-repeat: no-repeat;
+  }
+
+  /* Respect the OS-level motion preference for the draw/shimmer/ring set.
+     Draw + shimmer collapse to an instant run (final state preserved);
+     the ring is a pure-decorative pulse, so it's removed entirely. */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-draw,
+    .animate-shimmer {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+    }
+
+    .animate-ring {
+      display: none;
+    }
   }
 }

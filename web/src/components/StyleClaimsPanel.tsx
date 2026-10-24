@@ -23,7 +23,7 @@ export function StyleClaimsPanel({ team }: { team: string }) {
   return (
     <section className={ui.panel} aria-label="Claims about how the team played">
       <h3 className={ui.h3}>How {team} played, tested</h3>
-      <p className={ui.empty}>
+      <p className={`${ui.empty} max-w-prose leading-relaxed`}>
         Claims about the team's whole approach, not one spell, so the window is long and the test has
         more data behind it. The same tests decide.
       </p>
@@ -36,12 +36,15 @@ export function StyleClaimsPanel({ team }: { team: string }) {
           </Button>
         ))}
       </div>
-      <p className="m-0 text-[.82rem] text-muted">{MODES.find((m) => m.id === mode)?.note}</p>
+      <p className="m-0 text-[.82rem] text-muted">
+        {MODES.find((m) => m.id === mode)?.note}
+      </p>
 
       {loading && <Loader label="Testing the claims" />}
       {error !== null && (
         <p role="alert" className={ui.banner}>
-          Couldn't test the claims ({error}). <Button className={ui.bannerButton} onClick={retry}>Retry</Button>
+          Couldn't test the claims ({error}).{" "}
+          <Button className={ui.bannerButton} onClick={retry}>Retry</Button>
         </p>
       )}
 
@@ -51,8 +54,8 @@ export function StyleClaimsPanel({ team }: { team: string }) {
             <Badge tone={data.source === "model" ? "accent" : "quiet"}>
               {data.source === "model" ? "The model proposed these claims" : "Rules-only sweep"}
             </Badge>
-            <span className="text-[.82rem] text-muted">
-              The window is {formatMinute(data.window.from)} to {formatMinute(data.window.to)}.
+            <span className="rounded-md bg-surface-2 px-2 py-0.5 text-[.82rem] font-medium tabular-nums text-muted">
+              Window: {formatMinute(data.window.from)} → {formatMinute(data.window.to)}
             </span>
             {data.alpha !== null && (
               <span className="text-[.82rem] text-muted">

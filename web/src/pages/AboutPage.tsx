@@ -47,7 +47,7 @@ export function AboutPage() {
 
       <h3 className={ui.h3}>Pages</h3>
       <ul className="grid list-disc gap-1.5 pl-5">
-        <li><a className={ui.link} href="#/">Live</a>: pitch and insight feed.</li>
+        <li><a className={ui.link} href="#/live">Live</a>: pitch and insight feed.</li>
         <li><a className={ui.link} href="#/recap">Timeline</a>: every insight by minute, plus the recap.</li>
         <li><a className={ui.link} href="#/momentum">Momentum</a>: the biggest swings, and the claims tested for them.</li>
         <li><a className={ui.link} href="#/halftime">Half-time</a>: what the first half showed, and what to watch.</li>

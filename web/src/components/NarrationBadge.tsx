@@ -3,10 +3,10 @@ import { cn } from "@/lib/utils";
 import { useMatch } from "@/types/matchContext";
 
 const STYLE: Record<string, string> = {
-  model: "border-accent text-accent",
+  model: "border-accent text-accent bg-accent/5",
   "templates only": "border-line text-muted",
-  paused: "border-transparent bg-warn text-black",
-  degraded: "border-transparent bg-warn text-black",
+  paused: "border-transparent bg-warn text-black shadow-sm",
+  degraded: "border-transparent bg-warn text-black shadow-sm",
 };
 
 const HINT: Record<string, string> = {
@@ -25,7 +25,7 @@ export function NarrationBadge() {
     <span
       title={`${HINT[narration] ?? "Narration status"}${detail}`}
       className={cn(
-        "rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase",
+        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider",
         STYLE[narration] ?? "border-line text-muted",
       )}
     >

@@ -17,12 +17,12 @@ export const InsightCard = memo(function InsightCard({ insight, lang, color, sel
   const fallback = lacksLang(insight, lang);
   return (
     <li
-      className="animate-slide-in rounded-card border border-l-4 border-line bg-surface transition hover:-translate-y-px hover:shadow-card"
+      className="animate-slide-in rounded-card border border-l-4 border-line bg-surface transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-card"
       style={{ borderLeftColor: color }}
     >
       <button
         type="button"
-        className="grid w-full cursor-pointer gap-1.5 rounded-card p-3 text-left hover:bg-surface-3/40 aria-pressed:bg-surface-2"
+        className="grid w-full cursor-pointer gap-2 rounded-card p-3.5 text-left transition-colors hover:bg-surface-2/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset aria-pressed:bg-surface-2 aria-pressed:ring-1 aria-pressed:ring-accent/20"
         aria-pressed={selected}
         onClick={() => onSelect(insight.id)}
       >
@@ -31,16 +31,20 @@ export const InsightCard = memo(function InsightCard({ insight, lang, color, sel
           <span className="font-bold" style={{ color }}>{insight.team}</span>
           <span>{kindLabel(insight.kind)}</span>
         </span>
-        <span lang={fallback ? "en" : lang}>
+
+        <span className="leading-relaxed" lang={fallback ? "en" : lang}>
           {stripCitations(pickText(insight, lang))}
           {fallback && <span className={ui.tag}>EN</span>}
         </span>
+
         <ChainSteps chain={insight.chain} />
+
         <span className={ui.chips}>
           {factChips(insight).map((c) => (
             <span key={c} className={ui.chip}>{c}</span>
           ))}
         </span>
+
         <span className={ui.chips}>
           {insight.evidence.map((e) => (
             <span key={e} className={`${ui.chip} font-mono`}>{e}</span>
