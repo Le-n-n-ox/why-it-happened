@@ -24,28 +24,29 @@ interface Goal {
 
 const W = 520;
 const H = 260;
+const H_COMPACT = 168; // the live page only needs the shape of the line, not the full panel
 const ML = 38;
 const MR = 12;
 const MT = 14;
 const MB = 30;
 const PLOT_W = W - ML - MR;
-const PLOT_H = H - MT - MB;
 const GRID = [0, 25, 50, 75, 100];
 
 const label = (name: string): string => (name === "draw" ? "Draw" : name);
 
 function Chart({
-  points, names, teams, maxX, goals,
-}: { points: Point[]; names: string[]; teams: string[]; maxX: number; goals: Goal[] }) {
+  points, names, teams, maxX, goals, height = H,
+}: { points: Point[]; names: string[]; teams: string[]; maxX: number; goals: Goal[]; height?: number }) {
+  const plotH = height - MT - MB;
   const x = (m: number) => ML + (Math.min(Math.max(m, 0), maxX) / maxX) * PLOT_W;
-  const y = (pct: number) => MT + PLOT_H - (Math.min(100, Math.max(0, pct)) / 100) * PLOT_H;
+  const y = (pct: number) => MT + plotH - (Math.min(100, Math.max(0, pct)) / 100) * plotH;
   const colorOf = (name: string) => (name === "draw" ? "var(--muted)" : teamColor(name, teams));
   const xTicks = Array.from({ length: 7 }, (_, i) => (maxX * i) / 6);
   const last = points[points.length - 1];
   const latest = last ? names.map((n) => `${label(n)} ${last.probs[n] ?? 0}%`).join(", ") : "";
 
   return (
-    <svg className="block h-auto w-full" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Win probability over the match. Latest: ${latest}`}>
+    <svg className="block h-auto w-full" viewBox={`0 0 ${W} ${height}`} role="img" aria-label={`Win probability over the match. Latest: ${latest}`}>
       {GRID.map((g) => (
         <g key={g}>
           <line className="stroke-line [stroke-width:1]" x1={ML} x2={W - MR} y1={y(g)} y2={y(g)} />
@@ -53,7 +54,7 @@ function Chart({
         </g>
       ))}
       {xTicks.map((m) => (
-        <text key={m} className="fill-muted text-[10px]" x={x(m)} y={H - 10} textAnchor="middle">
+        <text key={m} className="fill-muted text-[10px]" x={x(m)} y={height - 10} textAnchor="middle">
           {Math.floor(m)}'
         </text>
       ))}
@@ -84,7 +85,7 @@ function Chart({
       {goals
         .filter((g) => g.minute <= maxX)
         .map((g, i) => (
-          <circle key={`${i}-${g.minute}`} cx={x(g.minute)} cy={MT + PLOT_H} r="3.5"
+          <circle key={`${i}-${g.minute}`} cx={x(g.minute)} cy={MT + plotH} r="3.5"
             className="stroke-surface [stroke-width:1.5]" style={{ fill: teamColor(g.team, teams) }}>
             <title>{`Goal ${Math.floor(g.minute)}' ${g.team}`}</title>
           </circle>
@@ -94,8 +95,8 @@ function Chart({
 }
 
 function ProbabilityView({
-  points, summary, maxX, goals = [], note,
-}: { points: Point[]; summary: Prediction | null; maxX: number; goals?: Goal[]; note?: string }) {
+  points, summary, maxX, goals = [], note, compact = false,
+}: { points: Point[]; summary: Prediction | null; maxX: number; goals?: Goal[]; note?: string; compact?: boolean }) {
   const { teams: matchTeams } = useMatch();
   const teams = summary?.teams ?? matchTeams.slice(0, 2);
   const names = [...teams, "draw"];
@@ -105,7 +106,7 @@ function ProbabilityView({
   return (
     <>
       <Legend series={names.map((n) => ({ name: label(n), color: n === "draw" ? "var(--muted)" : teamColor(n, matchTeams) }))} />
-      <Chart points={points} names={names} teams={matchTeams} maxX={maxX} goals={goals} />
+      <Chart points={points} names={names} teams={matchTeams} maxX={maxX} goals={goals} height={compact ? H_COMPACT : H} />
 
       {summary && probs && (
         <p className="m-0 flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -117,21 +118,33 @@ function ProbabilityView({
           <span className="text-muted">{names.map((n) => `${label(n)} ${probs[n] ?? 0}%`).join(" · ")}</span>
         </p>
       )}
-      {reasons.length > 0 && (
+      {reasons.length > 0 && (compact ? (
+        <details className="text-[.85rem]">
+          <summary className="text-muted">Why this projection</summary>
+          <ul className="mt-1.5 grid list-disc gap-1 pl-5">
+            {reasons.map((r, i) => <li key={`${i}-${r}`}>{r}</li>)}
+          </ul>
+        </details>
+      ) : (
         <ul className="grid list-disc gap-1 pl-5 text-[.95rem]">
           {reasons.map((r, i) => <li key={`${i}-${r}`}>{r}</li>)}
         </ul>
-      )}
-      {summary?.method && <p className="m-0 text-xs text-muted">Method: {summary.method}</p>}
+      ))}
+      {summary?.method && !compact && <p className="m-0 text-xs text-muted">Method: {summary.method}</p>}
       {note && <p className="m-0 text-xs text-muted">{note}</p>}
     </>
   );
 }
 
-function Frame({ children }: { children: ReactNode }) {
+function Frame({ children, compact = false }: { children: ReactNode; compact?: boolean }) {
   return (
-    <section className={ui.panel} aria-label="Win probability">
-      <h3 className={ui.h3}>Win probability</h3>
+    <section
+      className={compact
+        ? "grid content-start gap-2 rounded-card border border-line bg-surface p-3.5"
+        : ui.panel}
+      aria-label="Win probability"
+    >
+      <h3 className={compact ? "m-0 text-base font-bold" : ui.h3}>Win probability</h3>
       {children}
       <ValidationNote />
     </section>
@@ -139,25 +152,25 @@ function Frame({ children }: { children: ReactNode }) {
 }
 
 /** During the match: only what the stream has sent so far, so nothing is given away. */
-function LiveProbability() {
+function LiveProbability({ compact = false }: { compact?: boolean }) {
   const { predictions, match } = useMatch();
   const last = predictions.length > 0 ? predictions[predictions.length - 1] : null;
   const points = predictions.map((p) => ({ minute: p.minute ?? 0, probs: p.probabilities ?? {} }));
   const maxX = Math.max(match?.duration_min ?? 0, last?.minute ?? 0, 5);
 
   return (
-    <Frame>
+    <Frame compact={compact}>
       {last === null ? (
         <p className={ui.empty}>The win probability appears after the first shot or goal, once both teams have played.</p>
       ) : (
-        <ProbabilityView points={points} summary={last} maxX={maxX} />
+        <ProbabilityView points={points} summary={last} maxX={maxX} compact={compact} />
       )}
     </Frame>
   );
 }
 
 /** At full time: /predict's timeline (every 5 minutes), extended by the prediction events. */
-function FullProbability({ goals }: { goals?: Goal[] }) {
+function FullProbability({ goals, compact = false }: { goals?: Goal[]; compact?: boolean }) {
   const { predictions, match } = useMatch();
   const { data, loading, error, retry } = useApi(getPredict, "now");
 
@@ -169,7 +182,7 @@ function FullProbability({ goals }: { goals?: Goal[] }) {
   const maxX = Math.max(match?.duration_min ?? 0, points.length > 0 ? points[points.length - 1].minute : 0, 5);
 
   return (
-    <Frame>
+    <Frame compact={compact}>
       {loading && <Loader label="Loading win probability" />}
       {error !== null && (
         <p className={ui.empty}>
@@ -183,6 +196,7 @@ function FullProbability({ goals }: { goals?: Goal[] }) {
           summary={data}
           maxX={maxX}
           goals={goals}
+          compact={compact}
           note={
             points[0]?.minute === 0
               ? "The line starts level at minute 0: that is a starting assumption, not a prediction of the match."
@@ -195,7 +209,7 @@ function FullProbability({ goals }: { goals?: Goal[] }) {
 }
 
 /** `goals` (minute and team of each goal, from /why) adds dots along the bottom at full time. */
-export function WinProbability({ goals }: { goals?: Goal[] }) {
+export function WinProbability({ goals, compact }: { goals?: Goal[]; compact?: boolean }) {
   const { ended } = useMatch();
-  return ended ? <FullProbability goals={goals} /> : <LiveProbability />;
+  return ended ? <FullProbability goals={goals} compact={compact} /> : <LiveProbability compact={compact} />;
 }
