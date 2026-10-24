@@ -37,8 +37,9 @@ def test_stream_emits_insights_then_done():
     insight_blocks = [block for block in body.split("\n\n")
                       if block.startswith("data: ") and "event: tick" not in block]
     insights = [json.loads(block[6:]) for block in insight_blocks if block != "data: {}"]
-    assert len(insights) == 4
+    assert len(insights) == 5
+    assert {i["kind"] for i in insights} >= {"counter_attack", "turnover_shot", "first_goal"}
     assert "event: done" in body
     assert all(i["narration"]["en"] for i in insights)
     # and they were stored
-    assert len(client.get("/insights").json()) == 4
+    assert len(client.get("/insights").json()) == 5

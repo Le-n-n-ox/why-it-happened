@@ -5,6 +5,7 @@ weakness comes from the fixed ADVICE table below, so nothing a model writes can 
 """
 from app.detectors import Insight
 from app.events import EventType, MatchEvent
+from app.metrics import distance_covered, pass_accuracy, top_speed
 
 SHOTS = (EventType.SHOT, EventType.GOAL)
 MIN_EVENTS = 20          # below this a team has not played enough for a fair verdict
@@ -77,9 +78,13 @@ def team_metrics(events: list[MatchEvent], team: str) -> dict:
             if not answered:
                 unanswered.append(event)
 
+    passes = [e for e in events if e.team == team and e.type == EventType.PASS]
     return {
         "team": team, "opponent": opp,
         "shots": len(shots), "goals": sum(e.type == EventType.GOAL for e in shots),
+        "passes": len(passes), "pass_accuracy": pass_accuracy(events, team),
+        "pass_distance_m": round(sum(float(e.pass_distance_m or 0.0) for e in passes), 1),
+        "distance_m": distance_covered(events, team), "top_speed_kph": top_speed(events, team),
         "final_third_entries": len(entries), "entries_with_shot": len(converted),
         "cheap_losses": cheap_losses, "punished_losses": punished_losses,
         "own_third_fouls": fouls, "punished_fouls": punished_fouls,

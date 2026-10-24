@@ -39,7 +39,12 @@ export function QualityBlock({ quality }: { quality: PassQuality | null | undefi
   if (!quality) return null;
   const badge = BADGE[quality.rating]; // "routine" has none
   const reasons = quality.reasons ?? [];
-  if (badge === undefined && reasons.length === 0) return null;
+  const measures = [
+    typeof quality.distance_m === "number" ? `${Math.round(quality.distance_m)} m` : null,
+    typeof quality.accuracy === "number" ? (quality.accuracy >= 0.5 ? "completed" : "incomplete") : null,
+    quality.difficulty_rating ? quality.difficulty_rating.replace(/_/g, " ") : null,
+  ].filter((value): value is string => value !== null);
+  if (badge === undefined && reasons.length === 0 && measures.length === 0) return null;
   const before = quality.danger_before;
   const after = quality.danger_after;
 
@@ -53,6 +58,15 @@ export function QualityBlock({ quality }: { quality: PassQuality | null | undefi
           </span>
         )}
       </p>
+      {measures.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {measures.map((measure) => (
+            <span key={measure} className="rounded-full bg-surface-3 px-2.5 py-0.5 text-xs font-semibold text-muted">
+              {measure}
+            </span>
+          ))}
+        </div>
+      )}
       {reasons.length > 0 && (
         <ul className="grid list-disc gap-1.5 pl-5 text-[.95rem]">
           {reasons.map((r, i) => (

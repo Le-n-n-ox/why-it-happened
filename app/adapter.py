@@ -11,6 +11,8 @@ TYPE_MAP: Final[dict[str, str]] = {
     "Tackle": "tackle",
     "Interception": "interception",
     "Foul": "foul",
+    "Possession": "possession",
+    "Pressure": "pressure",
     "pass": "pass",
     "carry": "carry",
     "shot": "shot",
@@ -18,6 +20,8 @@ TYPE_MAP: Final[dict[str, str]] = {
     "tackle": "tackle",
     "interception": "interception",
     "foul": "foul",
+    "possession": "possession",
+    "pressure": "pressure",
 }
 
 

@@ -65,9 +65,10 @@ VOICE_LABELS = {
 
 
 def voices(events: list[MatchEvent], found: list[Insight], model: str | None = None,
-           lang: str = "en", profile: audience.Profile | None = None) -> dict:
+           lang: str = "en", profile: audience.Profile | None = None,
+           metadata: dict | None = None) -> dict:
     """The same match, but each voice is given a different side of it."""
-    resolved = audience.resolve(profile or audience.Profile(lang=lang), events, found)
+    resolved = audience.resolve(profile or audience.Profile(lang=lang), events, found, metadata)
     modes = ["fan", "announcer", "analyst"]
     if resolved.players:
         modes.append("player")

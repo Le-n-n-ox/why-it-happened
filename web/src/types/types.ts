@@ -1,5 +1,7 @@
 // web/src/types/types.ts - mirrors the backend Frontend Contract (17 Oct 2026). Field names are exact.
-export type EventType = "pass" | "carry" | "shot" | "goal" | "tackle" | "interception" | "foul";
+export type EventType =
+  | "pass" | "carry" | "shot" | "goal" | "tackle" | "interception" | "foul"
+  | "possession" | "pressure";
 
 export interface MatchEvent {
   id: string; // "d67" - what insights and explanations cite as evidence
@@ -10,6 +12,20 @@ export interface MatchEvent {
   x: number; // 0-100 from the team's OWN goal line; both teams attack toward x = 100
   y: number; // 0-100
   outcome: string | null;
+
+  // Optional physical fields: present when the feed or the tracking adapter measures them.
+  end_x?: number | null;
+  end_y?: number | null;
+  pass_distance_m?: number | null;
+  pass_accuracy?: number | null; // 1 completed, 0 not completed
+  pass_difficulty?: number | null; // 0 easy .. 1 very difficult
+  ball_speed_kph?: number | null;
+  shot_speed_kph?: number | null;
+  player_speed_kph?: number | null;
+  distance_m?: number | null;
+  pressure?: number | null; // 0 none .. 1 intense
+  period?: number | null;
+  metadata?: Record<string, unknown>;
 }
 
 /** The "why" in four steps. forward_gain is for drawing only: never display it. */
@@ -60,6 +76,18 @@ export interface MatchInfo {
   duration_min: number;
   events: number;
   score: Record<string, number>;
+  metadata?: {
+    competition?: string;
+    season?: string;
+    venue?: string;
+    kickoff?: string;
+    weather?: string;
+    pitch_length_m?: number;
+    pitch_width_m?: number;
+    source?: string;
+    generator?: string;
+    [key: string]: unknown;
+  };
 }
 
 export interface Recap {
@@ -121,6 +149,14 @@ export interface Player {
   chains_finished: number;
   chains_involved: number;
   goals_created: number;
+  possessions?: number;
+  pressures?: number;
+  pass_distance_m?: number;
+  pass_accuracy?: number;
+  avg_pass_difficulty?: number;
+  distance_m?: number;
+  top_speed_kph?: number;
+  sprints?: number;
 }
 export type PlayerSummary = Player;
 
@@ -192,6 +228,10 @@ export interface PassQuality {
   evidence: string[];
   danger_before?: number; // 0 to 1, for a small bar
   danger_after?: number;
+  distance_m?: number | null; // pass distance in metres
+  accuracy?: number | null; // 1 completed, 0 not completed
+  difficulty?: number | null; // 0 easy .. 1 very difficult
+  difficulty_rating?: string | null; // easy | routine | difficult | very_difficult
 }
 
 export interface Tactic {

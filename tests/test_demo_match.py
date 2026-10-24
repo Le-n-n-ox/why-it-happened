@@ -1,5 +1,6 @@
 """The demo match must show every explanation type, once each, with a believable score."""
 import asyncio
+import json
 import os
 
 os.environ["DB_PATH"] = ":memory:"
@@ -27,13 +28,17 @@ def test_demo_match_shows_every_explanation_type():
         ("counter_attack", "Reds", 9),
         ("high_press_turnover", "Blues", 23),
         ("goal_buildup", "Reds", 34),
+        ("first_goal", "Reds", 34),
         ("turnover_shot", "Blues", 52),
         ("shot_pressure", "Reds", 60),
+        ("brace", "Reds", 64),
         ("counter_attack", "Blues", 78),
         ("shot_pressure", "Blues", 82),
     ]
-    assert {i.kind for i in found} == {"counter_attack", "turnover_shot", "high_press_turnover",
-                                       "goal_buildup", "shot_pressure"}
+    assert {i.kind for i in found} == {
+        "counter_attack", "turnover_shot", "high_press_turnover",
+        "goal_buildup", "shot_pressure", "first_goal", "brace",
+    }
 
 
 def test_every_cited_event_exists():
@@ -55,7 +60,9 @@ def test_the_stream_sends_each_insight_once():
     finally:
         main.EVENTS_FILE = original
     ticks = [c for c in chunks if c.startswith("event: tick")]
-    insights = [c for c in chunks if c.startswith("data:")]
+    insights = [json.loads(c[6:]) for c in chunks
+                if c.startswith("data:") and c.strip() != "data: {}"]
     assert len(ticks) == len(DEMO)
-    assert len(insights) == 7
+    assert len(insights) >= 9
+    assert len({i["id"] for i in insights}) == len(insights)   # each insight once
     assert chunks[-1].startswith("event: done")

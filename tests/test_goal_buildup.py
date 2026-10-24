@@ -18,7 +18,8 @@ BUILDUP = [
 
 def test_patient_move_into_a_goal_is_found():
     found = detect_all(BUILDUP)
-    assert [i.kind for i in found] == ["goal_buildup"]
+    assert found[0].kind == "goal_buildup"
+    assert "first_goal" in {i.kind for i in found}
     assert found[0].evidence == ["b1", "b2", "b3", "b4", "b5", "b6"]
     assert found[0].facts["passes"] == 4 and found[0].facts["duration_s"] == 48
 
@@ -37,7 +38,7 @@ def test_needs_enough_passes():
 def test_a_goal_already_explained_is_not_shown_twice():
     sample = load_events("data/sample_match.json")        # its goal is already a counter_attack
     assert "goal_buildup" not in {i.kind for i in detect_all(sample)}
-    assert len(detect_all(sample)) == 4
+    assert len(detect_all(sample)) == 5
 
 
 def test_trimmed_window_still_overlaps_the_earlier_insight():

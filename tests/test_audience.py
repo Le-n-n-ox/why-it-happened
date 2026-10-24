@@ -48,6 +48,7 @@ def test_the_fan_brief_is_the_story_without_the_analyst_numbers():
     assert brief["mood"] == "delight"
     assert "factors" not in brief and "team_stats" not in brief and "cues" not in brief
     assert brief["player_spotlight"]["name"] == "Felix Ashdown"
+    assert any("scored" in line for line in brief["story"])
     # The fan's lines carry no measured numbers: those belong to the analyst's side.
     assert not any(re.search(r"\d", line) for line in brief["story"])
     assert "expected goals" not in json.dumps(brief)
@@ -93,7 +94,9 @@ def test_ranking_puts_the_favourite_club_first():
 def test_player_mode_keeps_only_the_players_moments():
     ranked = audience.rank_insights(FOUND, resolved(mode="player", player="Felix Ashdown"))
     assert ranked, "Felix is part of the match"
-    assert {insight.kind for insight in ranked} <= {"goal_buildup", "shot_pressure"}
+    assert {insight.kind for insight in ranked} <= {
+        "goal_buildup", "shot_pressure", "first_goal", "brace", "hat_trick", "comeback",
+    }
     assert all("Felix Ashdown" in (insight.facts.get("players") or []) for insight in ranked)
 
 

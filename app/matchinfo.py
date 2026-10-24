@@ -20,8 +20,11 @@ def score_from(events: list[MatchEvent]) -> dict[str, int]:
     return score
 
 
-def match_info(events: list[MatchEvent]) -> dict:
+def match_info(events: list[MatchEvent], metadata: dict | None = None) -> dict:
     teams = teams_from(events)
-    return {"home": teams[0] if teams else None, "away": teams[1] if len(teams) > 1 else None,
+    metadata = dict(metadata or {})
+    return {"home": metadata.get("home") or (teams[0] if teams else None),
+            "away": metadata.get("away") or (teams[1] if len(teams) > 1 else None),
             "duration_min": math.ceil(max((e.minute for e in events), default=0)),
-            "events": len(events), "score": score_from(events)}
+            "events": len(events), "score": score_from(events),
+            "metadata": metadata}

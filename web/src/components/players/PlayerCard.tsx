@@ -39,6 +39,15 @@ export function PlayerCard({ player, rank, teams, onCompare, comparing = false }
           <span className={ui.chip}>{player.shots} shots</span>
           <span className={ui.chip}>{player.passes} passes</span>
           <span className={ui.chip}>{player.touches} touches</span>
+          {typeof player.distance_m === "number" && player.distance_m > 0 && (
+            <span className={ui.chip}>{(player.distance_m / 1000).toFixed(1)} km</span>
+          )}
+          {typeof player.top_speed_kph === "number" && player.top_speed_kph > 0 && (
+            <span className={ui.chip}>{player.top_speed_kph.toFixed(1)} km/h</span>
+          )}
+          {typeof player.pass_accuracy === "number" && player.passes > 0 && (
+            <span className={ui.chip}>{Math.round(player.pass_accuracy)}% passes</span>
+          )}
         </div>
 
         {onCompare && (

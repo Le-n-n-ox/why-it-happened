@@ -37,6 +37,12 @@ export function describeEvent(event: MatchEvent, technical = false): string {
       return `${event.team} regain possession${event.player ? ` through ${event.player}` : ""}${technical ? ` in the ${where}` : ""}.`;
     case "foul":
       return `Play is stopped for a foul involving ${event.team}${event.player ? ` and ${event.player}` : ""}.`;
+    case "possession":
+      return `${event.team} win possession${event.player ? ` through ${event.player}` : ""} in the ${where}.`;
+    case "pressure": {
+      const speed = event.player_speed_kph ? ` at ${event.player_speed_kph.toFixed(1)} km/h` : "";
+      return `${event.team} apply pressure${event.player ? ` through ${event.player}` : ""} in the ${where}${speed}.`;
+    }
     default:
       return `${event.team} are involved in the play.`;
   }

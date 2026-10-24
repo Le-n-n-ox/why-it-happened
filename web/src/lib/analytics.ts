@@ -129,6 +129,7 @@ export function attackSummary(cells: ZoneCell[], teams: string[]) {
 // Transparent weights for the computed impact score. Not an official rating.
 const WEIGHTS: Record<string, number> = {
   goal: 5, shot: 2, tackle: 1, interception: 1, carry: 0.3, pass: 0.2, foul: -1,
+  possession: 0, pressure: 0.05,
 };
 
 export interface PlayerStat {
@@ -138,7 +139,8 @@ export interface PlayerStat {
   goals: number;
   shots: number;
   score: number; // impact score, higher is better
-  distanceM: number; // lower-bound estimate from event locations
+  distanceM: number; // measured when the feed supplies it, else a lower-bound estimate
+  topSpeedKph: number; // 0 when the feed has no speed
 }
 
 export function playerStats(events: MatchEvent[]): PlayerStat[] {
@@ -152,8 +154,9 @@ export function playerStats(events: MatchEvent[]): PlayerStat[] {
   }
   return [...byPlayer.values()]
     .map((list) => {
-      let distance = 0;
-      for (let i = 1; i < list.length; i++) distance += metres(list[i - 1], list[i]);
+      let fallbackDistance = 0;
+      for (let i = 1; i < list.length; i++) fallbackDistance += metres(list[i - 1], list[i]);
+      const measuredDistance = sum(list.map((e) => e.distance_m ?? 0));
       const count = (type: string) => list.filter((e) => e.type === type).length;
       return {
         player: list[0].player ?? "",
@@ -162,7 +165,8 @@ export function playerStats(events: MatchEvent[]): PlayerStat[] {
         goals: count("goal"),
         shots: count("shot"),
         score: Math.round(sum(list.map((e) => WEIGHTS[e.type] ?? 0)) * 10) / 10,
-        distanceM: Math.round(distance),
+        distanceM: Math.round(measuredDistance > 0 ? measuredDistance : fallbackDistance),
+        topSpeedKph: Math.round(Math.max(0, ...list.map((e) => e.player_speed_kph ?? 0)) * 10) / 10,
       };
     })
     .sort((a, b) => b.score - a.score || b.actions - a.actions || a.player.localeCompare(b.player));

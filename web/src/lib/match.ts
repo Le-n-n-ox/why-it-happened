@@ -26,6 +26,14 @@ const KIND_LABELS: Record<string, string> = {
   goal_buildup: "Goal build-up",
   shot_pressure: "Shot pressure",
   foul_turning_point: "Foul turning point",
+  sprint: "Sprint threshold",
+  ball_speed: "Ball speed",
+  shot_speed: "Shot speed",
+  distance_threshold: "Distance covered",
+  first_goal: "Opening goal",
+  brace: "Brace",
+  hat_trick: "Hat-trick",
+  comeback: "Comeback",
 };
 export const kindLabel = (kind: string): string => KIND_LABELS[kind] ?? kind.replace(/_/g, " ");
 

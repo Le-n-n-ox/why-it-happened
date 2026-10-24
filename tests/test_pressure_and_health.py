@@ -54,7 +54,7 @@ def test_two_separate_spells_are_two_insights():
 
 
 def test_sample_match_is_unchanged():
-    assert len(detect_all(load_events("data/sample_match.json"))) == 4
+    assert len(detect_all(load_events("data/sample_match.json"))) == 5
 
 
 def test_template_sentence_cites_evidence():

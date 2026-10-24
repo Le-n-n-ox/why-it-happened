@@ -3,9 +3,12 @@
 To add a detector: write a function list[MatchEvent] -> list[Insight] and
 add it to DETECTORS at the bottom.
 """
+from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 
 from app.events import EventType, MatchEvent
+from app.metrics import (BALL_SPEED_KPH, DISTANCE_MILESTONES_M, SHOT_SPEED_KPH,
+                         SPRINT_KPH)
 
 
 @dataclass
@@ -297,9 +300,125 @@ def detect_momentum_swing(events: list[MatchEvent], window_min: float = 5.0) -> 
     return found
 
 
+def detect_speed_thresholds(events: list[MatchEvent]) -> list[Insight]:
+    """Players, balls and shots that cross a predefined speed threshold.
+
+    Only feeds that carry measured speeds (tracking or a synthetic feed) trigger these.
+    We keep the highest crossing per player (and per team for ball speed) so a match
+    produces a handful of indicators, not one card per frame.
+    """
+    best: dict[tuple[str, str], Insight] = {}
+    for event in events:
+        checks = [
+            ("sprint", event.player_speed_kph, SPRINT_KPH, "player_speed_kph", "km/h",
+             event.player or event.team),
+            ("shot_speed", event.shot_speed_kph, SHOT_SPEED_KPH, "shot_speed_kph", "km/h",
+             event.player or event.team),
+        ]
+        if event.shot_speed_kph is None:      # a shot's speed already covers its ball speed
+            checks.append(("ball_speed", event.ball_speed_kph, BALL_SPEED_KPH,
+                           "ball_speed_kph", "km/h", event.team))
+        for kind, value, threshold, field_name, unit, subject in checks:
+            if value is None or float(value) < threshold:
+                continue
+            key = (kind, subject)
+            previous = best.get(key)
+            if previous is not None and float(previous.facts["value"]) >= float(value):
+                continue
+            facts = {
+                "name": subject,
+                "value": round(float(value), 1),
+                "threshold": threshold,
+                "unit": unit,
+                "field": field_name,
+            }
+            if event.distance_m is not None:
+                facts["distance_m"] = round(float(event.distance_m), 1)
+            best[key] = Insight(kind=kind, team=event.team, minute=event.minute,
+                                evidence=[event.id], facts=facts)
+    return sorted(best.values(), key=lambda insight: insight.minute)
+
+
+def detect_distance_thresholds(events: list[MatchEvent]) -> list[Insight]:
+    """A player crossing 1 km, 5 km or 10 km of measured distance."""
+    found = []
+    totals: dict[str, float] = defaultdict(float)
+    reached: dict[str, set[int]] = defaultdict(set)
+    for event in events:
+        if not event.player or not event.distance_m:
+            continue
+        totals[event.player] += float(event.distance_m)
+        for threshold in DISTANCE_MILESTONES_M:
+            if totals[event.player] >= threshold and threshold not in reached[event.player]:
+                reached[event.player].add(threshold)
+                found.append(Insight(
+                    kind="distance_threshold", team=event.team, minute=event.minute,
+                    evidence=[event.id],
+                    facts={"name": event.player,
+                           "distance_m": round(totals[event.player], 1),
+                           "threshold_m": threshold,
+                           "unit": "m"},
+                ))
+    return found
+
+
+def detect_milestones(events: list[MatchEvent]) -> list[Insight]:
+    """First goal, braces, hat-tricks and comebacks: the beats a recap must not miss."""
+    goals = [event for event in events if event.type == EventType.GOAL]
+    if not goals:
+        return []
+    found: list[Insight] = []
+
+    first = goals[0]
+    found.append(Insight(
+        kind="first_goal", team=first.team, minute=first.minute, evidence=[first.id],
+        facts={"name": first.player or first.team, "goal_number": 1},
+    ))
+
+    by_player: dict[str, list[MatchEvent]] = defaultdict(list)
+    for goal in goals:
+        if not goal.player:
+            continue
+        by_player[goal.player].append(goal)
+        number = len(by_player[goal.player])
+        if number in (2, 3):
+            found.append(Insight(
+                kind="brace" if number == 2 else "hat_trick",
+                team=goal.team,
+                minute=goal.minute,
+                evidence=[item.id for item in by_player[goal.player]],
+                facts={"name": goal.player, "goals": number},
+            ))
+
+    teams = list(dict.fromkeys(event.team for event in events))
+    if len(teams) >= 2:
+        score = {team: 0 for team in teams}
+        behind: set[str] = set()
+        for goal in goals:
+            opponent = next((team for team in teams if team != goal.team), "")
+            before = dict(score)
+            was_behind = goal.team in behind
+            score[goal.team] += 1
+            if was_behind and score[goal.team] > score.get(opponent, 0):
+                behind.discard(goal.team)
+                found.append(Insight(
+                    kind="comeback", team=goal.team, minute=goal.minute,
+                    evidence=[goal.id],
+                    facts={"name": goal.player or goal.team,
+                           "from_score": f"{before[goal.team]}-{before.get(opponent, 0)}",
+                           "to_score": f"{score[goal.team]}-{score.get(opponent, 0)}"},
+                ))
+            # Remember every team that has been behind, even after an equaliser; the
+            # comeback is only complete when they lead.
+            behind |= {team for team in teams
+                       if score[team] < score[teams[1] if team == teams[0] else teams[0]]}
+    return found
+
+
 DETECTORS = [
     detect_counter_attacks, detect_turnover_shots, detect_high_press,
     detect_goal_buildups, detect_shot_pressure, detect_foul_turning_point,
+    detect_speed_thresholds, detect_distance_thresholds, detect_milestones,
 ]
 
 
@@ -319,12 +438,19 @@ def add_players(insights: list[Insight], events: list[MatchEvent]) -> None:
                 insight.facts["finisher"] = chain[-1].player
 
 
+# These add colour to a moment; they do not replace the causal explanation of a goal.
+ADDITIVE_KINDS = {"sprint", "ball_speed", "shot_speed", "distance_threshold",
+                  "first_goal", "brace", "hat_trick", "comeback"}
+
+
 def detect_all(events: list[MatchEvent]) -> list[Insight]:
     insights: list[Insight] = []
     for detector in DETECTORS:
         insights.extend(detector(events))
     # A goal another detector already explains (counter-attack, press...) is not shown twice.
-    explained = {i.evidence[-1] for i in insights if i.kind != "goal_buildup"}
+    # Milestones are additive: they must not hide the goal's causal chain.
+    explained = {i.evidence[-1] for i in insights
+                 if i.kind != "goal_buildup" and i.kind not in ADDITIVE_KINDS}
     insights = [i for i in insights if i.kind != "goal_buildup" or i.evidence[-1] not in explained]
     add_players(insights, events)
     return sorted(insights, key=lambda i: i.minute)

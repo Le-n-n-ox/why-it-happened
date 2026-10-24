@@ -78,6 +78,12 @@ DETECTOR_KINDS = (
     "counter_attack", "turnover_shot", "high_press_turnover", "goal_buildup",
     "shot_pressure", "foul_turning_point", "player_standout", "momentum_swing",
 )
+# These are measured facts, not causal stories. Templates keep the number exact and stop a
+# model from inventing a distance or a reason around a threshold.
+TEMPLATE_ONLY_KINDS = {
+    "sprint", "ball_speed", "shot_speed", "distance_threshold",
+    "first_goal", "brace", "hat_trick", "comeback",
+}
 
 KIND_MEANING = {
     "counter_attack": "won the ball in their own half and reached a shot or goal within seconds",
@@ -286,6 +292,29 @@ def _named_sentence(insight: Insight) -> str | None:
     if insight.kind == "momentum_swing" and {"prev_share_pct", "curr_share_pct"} <= f.keys():
         return (f"{team} turn the game around, moving from {f['prev_share_pct']}% to "
                 f"{f['curr_share_pct']}% possession over {f.get('span_min', 5)} minutes.")
+    if insight.kind == "sprint" and {"name", "value", "threshold"} <= f.keys():
+        return (f"{f['name']} hits {f['value']} km/h for {team}, above the "
+                f"{f['threshold']} km/h sprint threshold.")
+    if insight.kind == "ball_speed" and {"value", "threshold"} <= f.keys():
+        who = f.get("name") or team
+        return (f"{who}'s ball travels at {f['value']} km/h, above the "
+                f"{f['threshold']} km/h ball-speed threshold.")
+    if insight.kind == "shot_speed" and {"name", "value", "threshold"} <= f.keys():
+        return (f"{f['name']}'s shot for {team} is struck at {f['value']} km/h, above the "
+                f"{f['threshold']} km/h shot-speed threshold.")
+    if insight.kind == "distance_threshold" and {"name", "distance_m", "threshold_m"} <= f.keys():
+        metres = int(f["distance_m"])
+        return (f"{f['name']} has covered {metres} metres for {team}, crossing the "
+                f"{int(f['threshold_m'])}-metre mark.")
+    if insight.kind == "first_goal" and f.get("name"):
+        return f"{f['name']} opens the scoring for {team}."
+    if insight.kind == "brace" and f.get("name"):
+        return f"{f['name']} scores a second goal for {team}."
+    if insight.kind == "hat_trick" and f.get("name"):
+        return f"{f['name']} completes a hat-trick for {team}."
+    if insight.kind == "comeback" and {"from_score", "to_score"} <= f.keys():
+        return (f"{team} complete the comeback, turning a {f['from_score']} scoreline into "
+                f"{f['to_score']}.")
     return None
 
 
@@ -445,6 +474,13 @@ def _narrate_language(client, model: str | None, insight: Insight, code: str,
     if cached:
         print(f"[DEBUG] Served insight '{insight.id}' ({code}) from DB cache.")
         return cached, "cached"
+
+    if insight.kind in TEMPLATE_ONLY_KINDS:
+        if code != "en":
+            return None, "skipped"
+        text = template_narration(insight)
+        _save(insight, text, code, cache_result=False, history=save_history)
+        return text, "template"
 
     paused = time.time() < _pause_until
     try:

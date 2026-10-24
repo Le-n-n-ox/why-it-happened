@@ -23,6 +23,8 @@ from app.causes import turning_points, why_they_won
 from app.detectors import Insight
 from app.events import EventType, MatchEvent
 from app.matchinfo import match_info
+from app.narrator import template_narration
+from app.metrics import distance_covered, pass_accuracy, top_speed
 from app.players import involvement, player_table
 from app.tactics import match_factors, team_xg
 
@@ -39,8 +41,11 @@ METRICS = {
     "final_third": "final-third entries",
     "goals_created": "goals created",
     "rating": "player rating",
+    "distance": "distance covered",
+    "sprint": "top speed",
+    "pass_accuracy": "pass accuracy",
 }
-PLAYER_METRICS = {"goals_created", "rating"}
+PLAYER_METRICS = {"goals_created", "rating", "distance", "sprint", "pass_accuracy"}
 
 # Which detector kinds a metric cares about, so a chosen metric can lift the matching moments.
 METRIC_KINDS = {
@@ -50,6 +55,9 @@ METRIC_KINDS = {
     "pressing": {"high_press_turnover", "counter_attack"},
     "tempo": {"counter_attack", "turnover_shot"},
     "final_third": {"goal_buildup", "high_press_turnover"},
+    "distance": {"distance_threshold", "sprint"},
+    "sprint": {"sprint", "ball_speed", "shot_speed"},
+    "pass_accuracy": {"goal_buildup", "counter_attack"},
 }
 
 KIND_LABELS = {
@@ -61,8 +69,28 @@ KIND_LABELS = {
     "foul_turning_point": "set piece",
     "player_standout": "player standout",
     "momentum_swing": "momentum swing",
+    "sprint": "sprint threshold",
+    "ball_speed": "ball speed",
+    "shot_speed": "shot speed",
+    "distance_threshold": "distance covered",
+    "first_goal": "opening goal",
+    "brace": "brace",
+    "hat_trick": "hat-trick",
+    "comeback": "comeback",
     "goal": "goal",
     "full_time": "full time",
+}
+
+# Short, non-technical headline words for a live graphical overlay.
+OVERLAY_LABELS = {
+    "sprint": "TURN OF PACE",
+    "ball_speed": "BALL SPEED",
+    "shot_speed": "STRIKE",
+    "distance_threshold": "GROUND COVERED",
+    "first_goal": "OPENER",
+    "brace": "BRACE",
+    "hat_trick": "HAT-TRICK",
+    "comeback": "COMEBACK",
 }
 
 # Plain phrases for a fan: no measurements, just what it looked like.
@@ -156,9 +184,10 @@ def _row(table: list[dict], name: str) -> dict | None:
     return next((row for row in table if row["name"] == name), None)
 
 
-def resolve(profile: Profile, events: list[MatchEvent], found: list[Insight]) -> Resolved:
+def resolve(profile: Profile, events: list[MatchEvent], found: list[Insight],
+            metadata: dict | None = None) -> Resolved:
     """Match the chosen clubs and players to this match and fill in a sensible subject."""
-    info = match_info(events)
+    info = match_info(events, metadata)
     teams = [team for team in (info.get("home"), info.get("away")) if team]
     table = player_table(events, found)
     names = [row["name"] for row in table]
@@ -195,6 +224,84 @@ def _get(row, key: str, default=None):
     if isinstance(row, dict):
         return row.get(key, default)
     return getattr(row, key, default)
+
+
+def _actor(insight) -> str | None:
+    """The named person in the facts, falling back to the first evidence player."""
+    facts = _get(insight, "facts", {}) or {}
+    name = facts.get("name")
+    if isinstance(name, str) and name:
+        return name
+    players = facts.get("players") or []
+    return players[0] if players else None
+
+
+def _fan_line(insight) -> str:
+    """A fan sentence: what it felt like, with no measurements or jargon."""
+    kind = _get(insight, "kind")
+    team = _get(insight, "team") or "the team"
+    actor = _actor(insight) or team
+    who = actor if actor != team else team
+    lines = {
+        "counter_attack": f"{team} broke at speed.",
+        "turnover_shot": f"{team} turned the ball into a shot.",
+        "high_press_turnover": f"{team} pressed high and won it back.",
+        "goal_buildup": f"{team} built the move patiently.",
+        "shot_pressure": f"{team} piled on the pressure.",
+        "foul_turning_point": f"A foul changed the mood for {team}.",
+        "player_standout": f"{who} stood out for {team}.",
+        "momentum_swing": f"The momentum swung to {team}.",
+        "sprint": f"{who} found another gear.",
+        "ball_speed": f"The ball was zipping around for {team}.",
+        "shot_speed": f"{who} struck one sweetly.",
+        "distance_threshold": f"{who} covered plenty of ground.",
+        "first_goal": f"The opener came from {who}.",
+        "brace": f"{who} had a brace for {team}.",
+        "hat_trick": f"{who} completed a hat-trick for {team}.",
+        "comeback": f"{team} completed the comeback.",
+    }
+    return lines.get(kind, f"{KIND_LABELS.get(kind, 'A key moment')} for {team}.")
+
+
+def _goal_text(reason: dict, goal, mode: str) -> str:
+    """The same goal, told the way this viewer came for it."""
+    team = reason.get("team") or ""
+    who = goal.player if goal is not None and goal.player else team
+    if mode == "fan":
+        cause = FAN_CAUSE.get(reason.get("caused_by") or "", "")
+        return f"{who} scored {cause}.".replace("  ", " ").strip()
+    if mode == "announcer":
+        return f"Goal for {team}! {who} scores."
+    if mode == "player":
+        return f"{who} scored for {team}."
+    return reason.get("text") or f"Goal for {team}."
+
+
+def _announcer_line(insight) -> str:
+    """A broadcast-ready cue: short, specific and easy to say."""
+    kind = _get(insight, "kind")
+    team = _get(insight, "team") or "the team"
+    actor = _actor(insight) or team
+    who = actor if actor != team else team
+    lines = {
+        "counter_attack": f"{team} break at speed!",
+        "turnover_shot": f"{team} win it and shoot!",
+        "high_press_turnover": f"{team} win it high!",
+        "goal_buildup": f"{team} work it patiently.",
+        "shot_pressure": f"{team} are turning the screw.",
+        "foul_turning_point": f"A foul changes it for {team}.",
+        "player_standout": f"{who} is running the show for {team}.",
+        "momentum_swing": f"The momentum swings to {team}.",
+        "sprint": f"{who} is flying for {team}.",
+        "ball_speed": f"The ball is moving quickly for {team}.",
+        "shot_speed": f"{who} catches it sweetly for {team}.",
+        "distance_threshold": f"{who} has covered plenty of ground for {team}.",
+        "first_goal": f"The opener for {team}!",
+        "brace": f"That's a brace for {who}!",
+        "hat_trick": f"Hat-trick for {who}!",
+        "comeback": f"{team} have completed the comeback!",
+    }
+    return lines.get(kind, f"{KIND_LABELS.get(kind, 'Key moment').capitalize()} for {team}.")
 
 
 def _involves(insight, resolved: Resolved) -> bool:
@@ -246,6 +353,12 @@ def metric_snapshot(events: list[MatchEvent], found: list[Insight], resolved: Re
             value = round(sum(event.team == team for event in events) / last, 1)
         elif key == "final_third":
             value = team_metrics(events, team)["final_third_entries"]
+        elif key == "distance":
+            value = round(distance_covered(events, team) / 1000.0, 1)
+        elif key == "sprint":
+            value = top_speed(events, team)
+        elif key == "pass_accuracy":
+            value = pass_accuracy(events, team)
         else:
             value = None
         values.append({"team": team, "value": value})
@@ -253,15 +366,22 @@ def metric_snapshot(events: list[MatchEvent], found: list[Insight], resolved: Re
     player = None
     if resolved.players:
         row = _row(resolved.table, resolved.players[0])
-        if row and key in row:
-            player = {"name": row["name"], "team": row["team"], "value": row[key]}
+        row_key = {"distance": "distance_m", "sprint": "top_speed_kph"}.get(key, key)
+        if row and row_key in row:
+            value = row[row_key]
+            if key == "distance":
+                value = round(float(value) / 1000.0, 1)
+            player = {"name": row["name"], "team": row["team"], "value": value}
+    unit = {"possession": "%", "pass_accuracy": "%",
+            "distance": "km", "sprint": "km/h"}.get(key, "")
     return {
         "key": key,
         "label": METRICS[key],
-        "unit": "%" if key == "possession" else "",
+        "unit": unit,
         "values": values,
         "player": player,
-        "note": "Counted from this match's events; no tracking data is used.",
+        "note": ("Counted from this match's events. Physical metrics use tracking fields "
+                 "when the feed supplies them."),
     }
 
 
@@ -312,15 +432,20 @@ def fan_brief(events: list[MatchEvent], found: list[Insight], resolved: Resolved
                    key=lambda goal: (club is not None and goal.team != club, goal.minute))
 
     moments = []
+    goal_counts: dict[str, int] = {}
     for goal in goals:
         reason = by_minute.get(goal.minute) or {}
         cause = FAN_CAUSE.get(reason.get("caused_by") or "", "")
         who = goal.player or goal.team
+        goal_counts[who] = goal_counts.get(who, 0) + 1
+        scored = ("scored again" if goal_counts[who] == 2
+                  else "completed a hat-trick" if goal_counts[who] == 3
+                  else "scored")
         moments.append({
             "minute": int(goal.minute),
             "team": goal.team,
             "kind": "goal",
-            "what": f"{who} scored {cause}.".replace("  ", " "),
+            "what": f"{who} {scored} {cause}.".replace("  ", " ").strip(),
         })
     for insight in rank_insights(found, resolved):
         if _get(insight, "kind") == "goal_buildup":
@@ -329,9 +454,17 @@ def fan_brief(events: list[MatchEvent], found: list[Insight], resolved: Resolved
             "minute": int(_get(insight, "minute") or 0),
             "team": _get(insight, "team"),
             "kind": _get(insight, "kind"),
-            "what": f"{KIND_LABELS.get(_get(insight, 'kind'), 'a key moment')} for {_get(insight, 'team')}.",
+            "what": _fan_line(insight),
         })
     moments.sort(key=lambda moment: moment["minute"])  # the story stays in match order
+    # A fan should always get the goals. Fill the rest of the story with the strongest other
+    # moments, then put everything back in match order.
+    goal_moments = [moment for moment in moments if moment["kind"] == "goal"]
+    other_moments = [moment for moment in moments if moment["kind"] != "goal"]
+    story = goal_moments[:3] + other_moments[:max(0, 5 - len(goal_moments[:3]))]
+    shown = goal_moments[:8] + other_moments[:max(0, 8 - len(goal_moments[:8]))]
+    story.sort(key=lambda moment: moment["minute"])
+    shown.sort(key=lambda moment: moment["minute"])
 
     spotlight = None
     if resolved.players:
@@ -353,8 +486,8 @@ def fan_brief(events: list[MatchEvent], found: list[Insight], resolved: Resolved
         "headline": _headline(resolved.info),
         "your_club": club,
         "mood": _mood(resolved.info, club),
-        "story": [moment["what"] for moment in moments[:5]],
-        "moments": moments[:8],
+        "story": [moment["what"] for moment in story],
+        "moments": shown,
         "player_spotlight": spotlight,
         "evidence": _evidence_for(events, found, resolved, club),
     }
@@ -447,7 +580,7 @@ def announcer_brief(events: list[MatchEvent], found: list[Insight], resolved: Re
             "minute": int(_get(insight, "minute") or 0),
             "team": _get(insight, "team"),
             "kind": _get(insight, "kind"),
-            "say": f"{KIND_LABELS.get(_get(insight, 'kind'), 'A key moment')} for {_get(insight, 'team')}.",
+            "say": _announcer_line(insight),
             "hold_s": 5,
             "evidence": (_get(insight, "evidence") or [])[:8],
         })
@@ -486,7 +619,7 @@ def player_brief(events: list[MatchEvent], found: list[Insight], resolved: Resol
     moments = [{
         "minute": int(moment["minute"]),
         "kind": moment["kind"],
-        "what": f"{KIND_LABELS.get(moment['kind'], 'key moment')} for {moment['team']}.",
+        "what": _fan_line(moment),
     } for moment in rows[:6]]
     for goal in events:
         if goal.type == EventType.GOAL and goal.player == row["name"]:
@@ -553,14 +686,21 @@ def _hold(text: str) -> float:
     return round(max(4.0, min(9.0, 3.0 + len(text) / 20.0)) * 2) / 2
 
 
+MAX_OVERLAY_CARDS = 40   # a full match should not bury the viewer in lower-priority cards
+
+
 def overlay_cards(events: list[MatchEvent], found: list[Insight], resolved: Resolved,
                   lang: str = "en") -> list[dict]:
     """Timed cards a renderer can put on the live feed, in match-clock order."""
     cards: list[dict] = []
+    mode = resolved.profile.mode
     reasons = why_they_won(events, found)["reasons"]
     goals = {goal.minute: goal for goal in events if goal.type == EventType.GOAL}
     for reason in reasons:
         goal = goals.get(reason["minute"])
+        if mode == "player" and resolved.players and (
+                goal is None or goal.player not in resolved.players):
+            continue  # a player's overlay only shows their own goals
         cards.append({
             "id": f"goal-{goal.id if goal else int(reason['minute'])}",
             "at": round(reason["minute"], 1),
@@ -568,25 +708,31 @@ def overlay_cards(events: list[MatchEvent], found: list[Insight], resolved: Reso
             "kind": "goal",
             "team": reason["team"],
             "headline": "GOAL",
-            "text": reason["text"],
+            "text": _goal_text(reason, goal, mode),
             "evidence": reason["evidence"],
             "priority": 100 + (20 if reason["team"] in resolved.clubs else 0),
         })
     for insight in rank_insights(found, resolved):
         if _get(insight, "kind") == "goal_buildup":
             continue  # the goal card already carries the move that produced it
-        narration = _get(insight, "narration") or {}
-        text = (narration.get(lang) or narration.get("en") or "").strip()
-        if not text:
-            text = f"{KIND_LABELS.get(_get(insight, 'kind'), 'Key moment')} for {_get(insight, 'team')}."
-        text = _strip_citations(text)
+        if mode == "fan":
+            text = _fan_line(insight)
+        elif mode == "announcer":
+            text = _announcer_line(insight)
+        else:
+            narration = _get(insight, "narration") or {}
+            text = (narration.get(lang) or narration.get("en") or "").strip()
+            if not text:
+                text = template_narration(insight)
+            text = _strip_citations(text)
         cards.append({
             "id": _get(insight, "id"),
             "at": round(_get(insight, "minute") or 0, 1),
             "hold_s": _hold(text),
             "kind": _get(insight, "kind"),
             "team": _get(insight, "team"),
-            "headline": KIND_LABELS.get(_get(insight, "kind"), "Key moment").upper(),
+            "headline": OVERLAY_LABELS.get(
+                _get(insight, "kind"), KIND_LABELS.get(_get(insight, "kind"), "Key moment").upper()),
             "text": text,
             "evidence": (_get(insight, "evidence") or [])[:8],
             "priority": (50 + (20 if _get(insight, "team") in resolved.clubs else 0)
@@ -606,6 +752,14 @@ def overlay_cards(events: list[MatchEvent], found: list[Insight], resolved: Reso
             "priority": 90,
         })
     cards.sort(key=lambda card: (card["at"], -card["priority"]))
+    if len(cards) > MAX_OVERLAY_CARDS:
+        # Goals and the full-time card always stay; the rest compete on profile priority.
+        keep_ids = {card["id"] for card in cards if card["kind"] in ("goal", "full_time")}
+        keep = [card for card in cards if card["id"] in keep_ids]
+        rest = sorted((card for card in cards if card["id"] not in keep_ids),
+                      key=lambda card: -card["priority"])
+        cards = keep + rest[:max(0, MAX_OVERLAY_CARDS - len(keep))]
+        cards.sort(key=lambda card: (card["at"], -card["priority"]))
     return cards
 
 
@@ -614,7 +768,8 @@ def brief_payload(events: list[MatchEvent], found: list[Insight], resolved: Reso
         "profile": resolved.as_dict(),
         "match": {"home": resolved.info.get("home"), "away": resolved.info.get("away"),
                   "score": resolved.info.get("score", {}),
-                  "minute": resolved.info.get("duration_min", 0)},
+                  "minute": resolved.info.get("duration_min", 0),
+                  "metadata": resolved.info.get("metadata", {})},
         "brief": build_brief(events, found, resolved),
         "metric": metric_snapshot(events, found, resolved),
         "ranked": [{"id": _get(insight, "id"), "kind": _get(insight, "kind"),
@@ -632,7 +787,8 @@ def overlay_payload(events: list[MatchEvent], found: list[Insight], resolved: Re
     return {
         "profile": resolved.as_dict(),
         "match": {"home": resolved.info.get("home"), "away": resolved.info.get("away"),
-                  "score": resolved.info.get("score", {})},
+                  "score": resolved.info.get("score", {}),
+                  "metadata": resolved.info.get("metadata", {})},
         "metric": metric_snapshot(events, found, resolved),
         "timing": {
             "unit": "match_minute",

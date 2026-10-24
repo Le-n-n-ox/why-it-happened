@@ -1,19 +1,25 @@
 """FastAPI service for Why It Happened.
 
-  GET  /health            liveness + whether an LLM is configured
-  GET  /events            the match events we replay
+  GET  /health            liveness, model state, languages and feature flags
+  GET  /match             teams, score, duration and match metadata
+  GET  /events            the enriched match events we replay
   POST /events            ingest one live match event
+  POST /match/metadata    set match facts for the live feed
+  POST /tracking          tracking/video frames -> measured events (optional ?ingest=true)
   GET  /insights          insights stored so far (current stream)
   GET  /insights/history  saved insights from the database (?team=&limit=)
   GET  /recap             full-time recap text (?lang=)
   GET  /why               match-level explanation for WhyPanel (?lang=)
-  GET  /fouls             stub for frontend compatibility
-  GET  /team/{id}/assessment stub for frontend compatibility
-  GET  /team/{id}/tactics stub for frontend compatibility
-  GET  /predict           stub for frontend compatibility
+  GET  /voices            one match, a different brief per audience
+  GET  /brief             rules-only brief for one profile
+  GET  /overlay           timed, machine-readable overlay cards
+  GET  /fouls             foul explanations
+  GET  /team/{id}/assessment team report
+  GET  /team/{id}/tactics tactical report
+  GET  /predict           win-probability timeline
   GET  /players           player summaries derived from match events
   GET  /players/{id}      one player's details
-  GET  /players/{id}/review written review placeholder (?lang=)
+  GET  /players/{id}/review written review (?lang=)
   GET  /stream            Server-Sent Events: replays the match and pushes insights live
 """
 import asyncio
@@ -40,15 +46,17 @@ from app.causes import (attach_why, causal_chains, chain_for, explain_event, fou
                         turning_points, why_they_won)
 from app.db import get_existing_narration, get_insights, init_db
 from app.detectors import detect_all
-from app.events import EventType, MatchEvent, from_official, load_events
+from app.events import EventType, MatchEvent, from_official, load_events, load_match
 from app.hypotheses import hypotheses as goal_hypotheses
 from app.hypotheses import style_claims
 from app.matchinfo import match_info
+from app.metrics import distance_covered, enrich_events, pass_accuracy, top_speed
 from app.momentum import momentum as momentum_swings
 from app.players import involvement, player_actions, player_stats, player_table, rating, review_insight
 from app.positions import positions as player_positions
-from app.narrator import (make_client, model_available, model_status, narrate_all, register_players,
-                          write_recap)
+from app.narrator import (LANGUAGE_NAMES, make_client, model_available, model_status, narrate_all,
+                          register_players, write_recap)
+from app.tracking import TrackingBatch, frames_to_events
 from app.simulate import replay
 from app.tactics import (factors_summary, first_half_brief, halftime_insight, match_factors, pass_quality,
                           tactical_report, tactics_insight, win_probability, win_timeline)
@@ -78,6 +86,12 @@ def _match_version(events) -> str:
     for event in events:
         digest.update(event.id.encode())
     return digest.hexdigest()
+
+
+def _meta_version() -> str:
+    """A fingerprint of the match metadata, so a metadata update invalidates cached briefs."""
+    payload = json.dumps(_match_metadata(), sort_keys=True, default=str)
+    return hashlib.blake2b(payload.encode(), digest_size=8).hexdigest()
 
 
 def _cached(key: tuple, build):
@@ -119,6 +133,7 @@ app.add_middleware(
 store = OmniPitchStore(os.getenv("DB_PATH", ":memory:"))
 client = make_client()  # always None: narrator calls the NVIDIA REST API directly
 live_match_events: list[MatchEvent] = []      # events pushed in by a video parser or feed (POST /events)
+live_match_meta: dict = {}                     # match metadata pushed in by the feed (POST /match/metadata)
 _live_ids: set[str] = set()
 _live_state = {"ended": False}
 INGEST_TOKEN = os.getenv("INGEST_TOKEN")        # when set, every ingest route needs the X-Ingest-Token header
@@ -129,8 +144,21 @@ store.clear()    # start clean once per server start (not on every /stream)
 
 
 def _current_events() -> list[MatchEvent]:
-    """The live match if a feed has pushed events in, otherwise the match file."""
-    return list(live_match_events) if live_match_events else load_events(EVENTS_FILE)
+    """The live match if a feed has pushed events in, otherwise the match file.
+
+    The raw feed is the source of truth; the copies returned here also carry the
+    derived physical fields (pass distance, speed, distance covered) the UI can show.
+    """
+    events = list(live_match_events) if live_match_events else load_events(EVENTS_FILE)
+    return enrich_events(events)
+
+
+def _match_metadata() -> dict:
+    """Match-level metadata from the live feed, or from the configured match file."""
+    if live_match_events:
+        return dict(live_match_meta)
+    _, metadata = load_match(EVENTS_FILE)
+    return metadata
 
 
 def _data_source() -> str:
@@ -147,6 +175,8 @@ def _data_source() -> str:
         return "Built-in demo match"
     if filename == "sample_match.json":
         return "Built-in sample match"
+    if filename.startswith("synthetic"):
+        return "Synthetic generated match"
     return "Configured match file"
 
 
@@ -203,36 +233,41 @@ def player_review(player_id: str, lang: str = "en"):
     }
 
 
+ON_BALL = {EventType.PASS, EventType.CARRY, EventType.SHOT, EventType.GOAL,
+           EventType.TACKLE, EventType.INTERCEPTION}
+
+
 def _compute_team_metrics(events, team_name: str) -> dict:
     """Computes whole-match team metrics directly from the event feed."""
-    total_actions = len([e for e in events if getattr(e, "team", None)])
-    team_events = [e for e in events if getattr(e, "team", None) == team_name]
-    
-    # 1. Possession: share of recorded actions (whole %)
-    possession = int(round((len(team_events) / max(total_actions, 1)) * 100)) if total_actions > 0 else 0
-    
-    # 2. Passes & Accuracy
-    passes = [e for e in team_events if getattr(e, "type", getattr(e, "kind", None)) == "pass"]
-    successful_passes = [
-        e for e in passes 
-        if not getattr(e, "outcome", None) or getattr(e, "outcome", "") in ("complete", "successful")
-    ]
-    pass_accuracy = int(round((len(successful_passes) / max(len(passes), 1)) * 100)) if passes else 0
-    
+    on_ball = [e for e in events if e.type in ON_BALL]
+    total_actions = len(on_ball)
+    team_events = [e for e in events if e.team == team_name]
+    team_on_ball = [e for e in team_events if e.type in ON_BALL]
+
+    # 1. Possession: share of recorded on-ball actions (whole %)
+    possession = int(round((len(team_on_ball) / max(total_actions, 1)) * 100)) if total_actions else 0
+
+    # 2. Passes & accuracy: the feed's completion flag when present, else the derived field.
+    passes = [e for e in team_events if e.type == EventType.PASS]
+    accuracy = pass_accuracy(events, team_name)
+
     # 3. Shots on target: goals and saved shots
     shots_on_target = len([
         e for e in team_events
-        if getattr(e, "type", getattr(e, "kind", None)) == "goal"
-        or (getattr(e, "type", getattr(e, "kind", None)) == "shot" and getattr(e, "outcome", None) in ("saved", "on_target"))
+        if e.type == EventType.GOAL
+        or (e.type == EventType.SHOT and e.outcome in ("saved", "on_target"))
     ])
-    
+
     # 4. Fouls committed
-    fouls = len([e for e in team_events if getattr(e, "type", getattr(e, "kind", None)) == "foul"])
-    
+    fouls = len([e for e in team_events if e.type == EventType.FOUL])
+
     return {
         "possession": possession,
         "passes": len(passes),
-        "pass_accuracy": pass_accuracy,
+        "pass_accuracy": accuracy,
+        "pass_distance_m": round(sum(float(e.pass_distance_m or 0.0) for e in passes), 1),
+        "distance_m": distance_covered(events, team_name),
+        "top_speed_kph": top_speed(events, team_name),
         "shots_on_target": shots_on_target,
         "fouls": fouls,
     }
@@ -344,8 +379,9 @@ def match_voices(lang: str = "en", mode: str = "fan",
     """
     events, found = _match_data()
     profile = parse_profile(mode, club, player, metric, lang)
-    return _cached(("voices", lang, profile, _match_version(events)),
-                   lambda: voices(events, found, model=MODEL, lang=lang, profile=profile))
+    return _cached(("voices", lang, profile, _match_version(events), _meta_version()),
+                   lambda: voices(events, found, model=MODEL, lang=lang, profile=profile,
+                                  metadata=_match_metadata()))
 
 
 @app.get("/brief")
@@ -357,10 +393,10 @@ def audience_brief(lang: str = "en", mode: str = "fan",
     profile = parse_profile(mode, club, player, metric, lang)
 
     def build():
-        resolved = resolve(profile, events, found)
+        resolved = resolve(profile, events, found, _match_metadata())
         return brief_payload(events, found, resolved)
 
-    return _cached(("brief", profile, _match_version(events)), build)
+    return _cached(("brief", profile, _match_version(events), _meta_version()), build)
 
 
 @app.get("/overlay")
@@ -372,10 +408,10 @@ def audience_overlay(lang: str = "en", mode: str = "fan",
     profile = parse_profile(mode, club, player, metric, lang)
 
     def build():
-        resolved = resolve(profile, events, found)
+        resolved = resolve(profile, events, found, _match_metadata())
         return overlay_payload(events, found, resolved, lang)
 
-    return _cached(("overlay", lang, profile, _match_version(events)), build)
+    return _cached(("overlay", lang, profile, _match_version(events), _meta_version()), build)
 
 
 @app.get("/halftime")
@@ -546,6 +582,16 @@ def health():
         "source": _data_source(),
         "llm_configured": configured,
         "languages": LANGS,
+        "supported_languages": LANGUAGE_NAMES,
+        "features": {
+            "auto_eventing": True,
+            "tracking_feed": True,
+            "speed_metrics": True,
+            "distance_metrics": True,
+            "pass_difficulty": True,
+            "milestones": True,
+            "synthetic_generator": True,
+        },
         "model": MODEL,
         "narration": (
             "templates only" if not configured
@@ -564,7 +610,16 @@ def events():
 
 @app.get("/match")
 def match():
-    return {**match_info(_current_events()), "source": _data_source()}
+    return {**match_info(_current_events(), _match_metadata()), "source": _data_source()}
+
+
+@app.post("/match/metadata")
+def set_match_metadata(metadata: dict, x_ingest_token: str | None = Header(default=None)):
+    """Set match-level facts (teams, competition, venue, weather) for the live feed."""
+    _check_token(x_ingest_token)
+    live_match_meta.clear()
+    live_match_meta.update(metadata)
+    return {"status": "success", "metadata": live_match_meta}
 
 
 def _check_token(token: str | None) -> None:
@@ -602,6 +657,23 @@ def ingest_official(raw: dict, x_ingest_token: str | None = Header(default=None)
     return _accept(event)
 
 
+@app.post("/tracking")
+def ingest_tracking(batch: TrackingBatch, ingest: bool = False,
+                    x_ingest_token: str | None = Header(default=None)):
+    """Auto-event a tracking/video feed: frames in, events and physical metrics out.
+
+    Set `?ingest=true` to append the derived events to the live match as well as returning
+    them. The upstream vision model supplies player/ball positions and, when it has one,
+    an `event_hint`; this adapter measures speeds and turns the motion into events.
+    """
+    _check_token(x_ingest_token)
+    events, summary = frames_to_events(batch)
+    if ingest:
+        for event in events:
+            _accept(event)
+    return {"summary": summary, "events": [event.model_dump(mode="json") for event in events]}
+
+
 @app.post("/live/end")
 def live_end(x_ingest_token: str | None = Header(default=None)):
     """Tell the stream the live match is over (it then sends the `done` message)."""
@@ -615,6 +687,7 @@ def live_reset(x_ingest_token: str | None = Header(default=None)):
     """Forget the live match and go back to the match file."""
     _check_token(x_ingest_token)
     live_match_events.clear()
+    live_match_meta.clear()
     _live_ids.clear()
     _live_state["ended"] = False
     return {"status": "reset"}
@@ -746,7 +819,7 @@ async def _event_source(delay: float, seconds_per_minute: float | None, source: 
     async for event in feed:
         register_players([event.player])
         buffer.append(event)
-        payload = event.model_dump(mode="json")
+        payload = enrich_events(buffer)[-1].model_dump(mode="json")
         store.add_event(payload)
         yield f"event: tick\ndata: {json.dumps(payload)}\n\n"
         if event.type in (EventType.SHOT, EventType.GOAL) or len(buffer) == 1:

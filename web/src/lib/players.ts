@@ -3,7 +3,9 @@ import type { PlayerMoment } from "@/types/types";
 
 export type StatKey =
   | "touches" | "passes" | "carries" | "shots" | "goals" | "tackles" | "interceptions" | "fouls"
-  | "progressive" | "key_moments" | "chains_started" | "chains_finished" | "chains_involved" | "goals_created";
+  | "progressive" | "key_moments" | "chains_started" | "chains_finished" | "chains_involved" | "goals_created"
+  | "possessions" | "pressures" | "pass_distance_m" | "pass_accuracy" | "avg_pass_difficulty"
+  | "distance_m" | "top_speed_kph" | "sprints";
 
 export const STAT_LABELS: Record<StatKey, string> = {
   touches: "Touches",
@@ -20,7 +22,27 @@ export const STAT_LABELS: Record<StatKey, string> = {
   chains_finished: "Chains finished",
   chains_involved: "Chains involved",
   goals_created: "Goals created",
+  possessions: "Possessions",
+  pressures: "Pressures",
+  pass_distance_m: "Pass distance",
+  pass_accuracy: "Pass accuracy",
+  avg_pass_difficulty: "Pass difficulty",
+  distance_m: "Distance",
+  top_speed_kph: "Top speed",
+  sprints: "Sprints",
 };
+
+/** Format a stat with its unit; unknown or missing values stay honest. */
+export function formatStat(key: StatKey, value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+  const number = Number(value);
+  if (!Number.isFinite(number)) return String(value);
+  if (key === "distance_m" || key === "pass_distance_m") return `${Math.round(number)} m`;
+  if (key === "top_speed_kph") return `${number.toFixed(1)} km/h`;
+  if (key === "pass_accuracy") return `${Math.round(number)}%`;
+  if (key === "avg_pass_difficulty") return number.toFixed(2);
+  return String(value);
+}
 
 export const prettyKey = (key: string): string => {
   const s = key.replace(/_/g, " ");

@@ -50,7 +50,7 @@ def test_insights_say_who_did_it():
 
 def test_match_data_without_names_behaves_exactly_as_before():
     found = detect_all(SAMPLE)
-    assert len(found) == 4
+    assert len(found) == 5
     assert all("starter" not in i.facts and "players" not in i.facts for i in found)
     assert template_narration(found[0]).startswith("10' Reds win the ball and reach a shot in 12 seconds")
     assert player_table(SAMPLE) == []
@@ -63,7 +63,7 @@ def test_stats_add_up_to_the_match():
     assert sum(s["touches"] for s in stats.values()) == len(DEMO)
     assert sum(s["goals"] for s in stats.values()) == 3
     ashdown = stats[ASHDOWN]
-    assert (ashdown["goals"], ashdown["shots"], ashdown["key_moments"]) == (2, 3, 2)
+    assert (ashdown["goals"], ashdown["shots"], ashdown["key_moments"]) == (2, 3, 4)
 
 
 def test_the_rating_shows_its_working_and_stays_in_range():
@@ -179,7 +179,7 @@ def test_endpoints_on_the_demo_match():
         assert len(table) == 21 and table[0]["id"] == ASHDOWN
         detail = main.player_detail(ASHDOWN)
         assert detail["rating"] == table[0]["rating"] and len(detail["actions"]) == 4
-        assert detail["moments"][0]["kind"] == "goal_buildup" and detail["rating_breakdown"]
+        assert detail["moments"][0]["kind"] in {"goal_buildup", "first_goal"} and detail["rating_breakdown"]
         review = main.player_review(ASHDOWN, "sw")                # no model here: English, and it says so
         assert review["lang"] == "en" and review["text"].startswith("Felix Ashdown (Reds)")
         assert review["rating"] == detail["rating"] and review["evidence"]

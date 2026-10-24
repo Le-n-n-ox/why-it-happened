@@ -6,6 +6,7 @@ import unicodedata
 from app.causes import chain_for, explain_event
 from app.detectors import Insight
 from app.events import EventType, MatchEvent
+from app.metrics import SPRINT_KPH
 
 
 def _slug_part(value: str) -> str:
@@ -64,6 +65,13 @@ def player_stats(events: list[MatchEvent], insights: list[Insight]) -> dict[str,
     for name, records in by_name.items():
         counts = Counter(_event_kind(event) for event in records)
         goals = [event for event in records if event.type == EventType.GOAL]
+        passes = [event for event in records if event.type == EventType.PASS]
+        completed = sum(1 for event in passes
+                        if event.pass_accuracy is not None and float(event.pass_accuracy) >= 0.5)
+        difficulties = [float(event.pass_difficulty) for event in passes
+                        if event.pass_difficulty is not None]
+        speeds = [float(event.player_speed_kph) for event in records
+                  if event.player_speed_kph is not None]
         related = [insight for insight in insights
                    if name in (insight.facts or {}).get("players", [])]
         rows[slug(records[0].team, name)] = {
@@ -78,6 +86,15 @@ def player_stats(events: list[MatchEvent], insights: list[Insight]) -> dict[str,
             "tackles": counts["tackle"],
             "interceptions": counts["interception"],
             "fouls": counts["foul"],
+            "possessions": counts["possession"],
+            "pressures": counts["pressure"],
+            "pass_distance_m": round(sum(float(event.pass_distance_m or 0.0) for event in passes), 1),
+            "pass_accuracy": int(round(completed / len(passes) * 100)) if passes else 0,
+            "avg_pass_difficulty": (round(sum(difficulties) / len(difficulties), 2)
+                                    if difficulties else 0.0),
+            "distance_m": round(sum(float(event.distance_m or 0.0) for event in records), 1),
+            "top_speed_kph": round(max(speeds), 1) if speeds else 0.0,
+            "sprints": sum(1 for speed in speeds if speed >= SPRINT_KPH),
             "progressive": sum(e.x >= 60 for e in records
                                 if e.type in (EventType.PASS, EventType.CARRY)),
             "goal_minutes": [int(e.minute) for e in goals],
@@ -211,7 +228,9 @@ def review_insight(events: list[MatchEvent], player_id: str,
     facts = {key: stats[key] for key in (
         "name", "touches", "carries", "tackles", "interceptions", "fouls",
         "progressive", "goal_minutes", "key_moments", "goals", "shots",
-        "chains_started", "chains_finished", "chains_involved", "goals_created")}
+        "chains_started", "chains_finished", "chains_involved", "goals_created",
+        "pass_accuracy", "pass_distance_m", "avg_pass_difficulty", "distance_m",
+        "top_speed_kph", "sprints", "pressures")}
     facts["story"] = story
     first_goal = next((event for event in records if event.type == EventType.GOAL), None)
     minute = first_goal.minute if first_goal else (chains[0]["minute"] if chains else

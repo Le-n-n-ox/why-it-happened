@@ -15,6 +15,7 @@ import math
 from app.assessment import SHOTS, _other, _punishing_shot, team_metrics
 from app.detectors import Insight, detect_counter_attacks, detect_shot_pressure
 from app.events import EventType, MatchEvent
+from app.metrics import DIFFICULT_PASS, LONG_PASS_M, pass_metrics
 from app.xt import xt_value
 
 DEFENSIVE = (EventType.TACKLE, EventType.INTERCEPTION)
@@ -46,6 +47,9 @@ PRINCIPLES = {
     "discipline": "Fouling near your own goal gives the opponent set-piece chances.",
     "shift": "A team that changes how it plays at half-time has either fixed a problem or created one; the results show which.",
     "territory": "A team that controls the ball keeps the game in the opponent's half and limits their chances.",
+    "difficult_pass": "A long or angled pass under pressure is harder to complete, so completing it creates more than a simple square ball.",
+    "long_pass": "A long pass covers ground quickly but is harder to complete; the distance is part of the risk.",
+    "accurate_pass": "A completed pass keeps the attack alive; an incomplete one hands the ball to the opponent.",
 }
 
 # ---------------------------------------------------------------- chance value (own simple model)
@@ -100,14 +104,24 @@ def pass_quality(events: list[MatchEvent], index: int) -> dict | None:
     who = event.player or event.team
     evidence = [event.id]
     reasons: list[dict] = []
+    metrics = pass_metrics(events, index) or {}
+    distance = metrics.get("distance_m")
+    accuracy = metrics.get("accuracy")
+    difficulty = metrics.get("difficulty")
+    difficulty_label = metrics.get("difficulty_rating")
 
     def add(code: str, text: str):
         reasons.append({"code": code, "text": text, "principle": PRINCIPLES[code]})
 
+    def measured() -> dict:
+        return {"distance_m": distance, "accuracy": accuracy,
+                "difficulty": difficulty, "difficulty_rating": difficulty_label}
+
     nxt = events[index + 1] if index + 1 < len(events) else None
     if nxt is None:
         return {"rating": "routine", "reasons": [], "evidence": evidence,
-                "danger_before": ball_value(event.x, event.y), "danger_after": None}
+                "danger_before": ball_value(event.x, event.y), "danger_after": None,
+                **measured()}
 
     if nxt.team != event.team:                              # the pass did not reach a team-mate
         evidence.append(nxt.id)
@@ -124,7 +138,8 @@ def pass_quality(events: list[MatchEvent], index: int) -> dict | None:
                             "principle": PRINCIPLES["punished"]})
         rating = "poor" if (event.x < 33 or shot) else "unsuccessful"
         return {"rating": rating, "reasons": reasons, "evidence": evidence,
-                "danger_before": ball_value(event.x, event.y), "danger_after": None}
+                "danger_before": ball_value(event.x, event.y), "danger_after": None,
+                **measured()}
 
     before, after = ball_value(event.x, event.y), ball_value(nxt.x, nxt.y)
     receiver = nxt.player if nxt.player and nxt.player != event.player else None
@@ -165,9 +180,15 @@ def pass_quality(events: list[MatchEvent], index: int) -> dict | None:
     if not reasons and nxt.x < event.x - 5:
         add("recycle", f"{who} passed back{to_whom}, keeping possession in {_where(event.x)}.")
 
+    if difficulty is not None and difficulty >= DIFFICULT_PASS:
+        length = f" over {distance:.0f} metres" if distance else ""
+        add("difficult_pass", f"{who}'s pass was a {str(difficulty_label).replace('_', ' ')} one{length}.")
+    elif distance is not None and distance >= LONG_PASS_M:
+        add("long_pass", f"{who}'s pass travelled {distance:.0f} metres.")
+
     rating = "excellent" if points >= 5 else "good" if points >= 2 else "routine"
     return {"rating": rating, "reasons": reasons, "evidence": list(dict.fromkeys(evidence)),
-            "danger_before": before, "danger_after": after}
+            "danger_before": before, "danger_after": after, **measured()}
 
 
 def _where(x: float) -> str:

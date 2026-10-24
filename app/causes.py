@@ -59,7 +59,17 @@ def _consequence(events: list[MatchEvent], last: MatchEvent) -> dict:
     return {"kind": "goal", "text": text + ".", "score": f"{mine}-{other}", "evidence": [last.id]}
 
 
+# These are facts about a moment, not moves with a trigger and a payoff. A causal chain
+# would invent a story around them, so they keep their own template instead.
+NON_CAUSAL = {
+    "sprint", "ball_speed", "shot_speed", "distance_threshold",
+    "first_goal", "brace", "hat_trick", "comeback",
+}
+
+
 def chain_for(events: list[MatchEvent], insight: Insight) -> dict | None:
+    if insight.kind in NON_CAUSAL:
+        return None
     by_id = {e.id: e for e in events}
     steps = [by_id[i] for i in insight.evidence if i in by_id]
     if len(steps) < 2:

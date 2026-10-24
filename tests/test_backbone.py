@@ -19,13 +19,14 @@ def fresh_db():
     narrator._failures, narrator._pause_until = 0, 0.0    # breaker state must not leak between tests
 
 
-def test_detects_four_insights_in_the_sample():
+def test_detects_insights_in_the_sample():
     found = detect_all(EVENTS)
     assert [(i.kind, i.team) for i in found] == [
         ("counter_attack", "Reds"), ("counter_attack", "Reds"),
+        ("first_goal", "Reds"),
         ("turnover_shot", "Blues"), ("counter_attack", "Blues"),
     ]
-    assert found[2].evidence == ["e11", "e12"]
+    assert found[3].evidence == ["e11", "e12"]
 
 
 def test_ensure_citations():

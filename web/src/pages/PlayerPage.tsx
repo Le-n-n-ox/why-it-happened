@@ -11,7 +11,7 @@ import { useApi } from "@/hooks/useApi";
 import { useCompare } from "@/hooks/useCompare";
 import { getPlayer } from "@/lib/api";
 import { eventsByIds, formatMinute, teamColor } from "@/lib/match";
-import { formatRating, prettyKey, readMoment, STAT_LABELS, type StatKey } from "@/lib/players";
+import { formatRating, formatStat, prettyKey, readMoment, STAT_LABELS, type StatKey } from "@/lib/players";
 import { ui } from "@/lib/ui";
 import { useMatch } from "@/types/matchContext";
 
@@ -71,7 +71,7 @@ export function PlayerPage({ id }: { id: string }) {
             {STAT_ORDER.map((k) => (
               <div key={k} className="rounded-card border border-line bg-surface px-3.5 py-2">
                 <dt className="text-[.7rem] text-muted uppercase">{STAT_LABELS[k]}</dt>
-                <dd className="m-0 font-bold tabular-nums">{player[k]}</dd>
+                <dd className="m-0 font-bold tabular-nums">{formatStat(k, player[k])}</dd>
               </div>
             ))}
             {player.goal_minutes.length > 0 && (
