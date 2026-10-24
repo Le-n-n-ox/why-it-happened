@@ -9,6 +9,7 @@ import { Header } from "@/layout/Header";
 import { Sidebar } from "@/layout/Sidebar";
 import { pageTitle } from "@/lib/titles";
 import { useMatch } from "@/types/matchContext";
+import { LandingPage } from "@/pages/landing/LandingPage";
 
 const BANNER = "m-0 rounded-card bg-warn px-3.5 py-2.5 text-black";
 const BANNER_BUTTON = "border-black bg-white text-black hover:bg-white/90";
@@ -117,7 +118,18 @@ function Shell() {
   );
 }
 
+const LANDING_PATH = "/welcome";
+
 export default function App() {
+  const path = useHashRoute();
+
+  useEffect(() => {
+    if (path === LANDING_PATH) document.title = "Why It Happened";
+  }, [path]);
+
+  // The landing page renders without the shell and without the match feed.
+  if (path === LANDING_PATH) return <LandingPage />;
+
   return (
     <MatchProvider>
       <Shell />

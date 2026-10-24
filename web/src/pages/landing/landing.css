@@ -1,0 +1,9 @@
+/* Landing-only helpers. Colours still come from index.css tokens. */
+@layer components {
+  .anim-hold { animation-fill-mode: backwards; }
+  .dash-1 { stroke-dasharray: 1; }
+  .landing-flow {
+    background-image: linear-gradient(90deg, transparent, var(--accent), transparent);
+    background-size: 200% 100%;
+  }
+}
