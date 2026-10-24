@@ -12,7 +12,6 @@ import { pageTitle } from "@/lib/titles";
 import { useMatch } from "@/types/matchContext";
 import { LandingPage } from "@/pages/landing/LandingPage";
 
-// ... (Keep ALERT, ALERT_TEXT, readCollapsed, and Shell exactly as they are) ...
 const ALERT = "flex items-start gap-3 rounded-card border px-4 py-3";
 const ALERT_TEXT = "m-0 flex-1 text-sm font-medium leading-snug text-fg";
 
@@ -25,7 +24,6 @@ function readCollapsed(): boolean {
 }
 
 function Shell() {
-  // ... (Keep Shell component exactly as it is in your current file) ...
   const path = useHashRoute();
   const { theme, toggle: toggleTheme } = useTheme();
   const { status, restart, eventsFailed } = useMatch();
@@ -88,6 +86,7 @@ function Shell() {
 
       <div className="min-w-0">
         <Header menuButton={menuButton} open={open} onOpenMenu={() => setOpen(true)} />
+        
         <main id="main-content" tabIndex={-1} className="mx-auto grid w-full max-w-[1280px] gap-4 p-4 outline-none">
           {status === "error" && (
             <div role="alert" className={`${ALERT} border-live/40 bg-live/10`}>
@@ -101,7 +100,8 @@ function Shell() {
             <div role="alert" className={`${ALERT} border-warn/40 bg-warn/10`}>
               <AlertTriangle size={18} className="mt-0.5 shrink-0 text-warn" aria-hidden="true" />
               <p className={ALERT_TEXT}>Couldn't load match events, so the pitch is unavailable.</p>
-              <Button className="shrink-0 border-0 bg-warn text-black hover:brightness-95" onClick={() => window.location.reload()}>Reload</Button>
+              {/* FIX APPLIED HERE: Changed text-black to text-warn-ink */}
+              <Button className="shrink-0 border-0 bg-warn text-warn-ink hover:brightness-95" onClick={() => window.location.reload()}>Reload</Button>
             </div>
           )}
 
@@ -114,18 +114,9 @@ function Shell() {
   );
 }
 
-// ---------------------------------------------------------
-// THE FIX IS HERE
-// ---------------------------------------------------------
 export default function App() {
   const path = useHashRoute();
 
-  // Because we fixed useHashRoute.ts, `path` is now:
-  // "" for http://localhost:8001/
-  // "/" for http://localhost:8001/#/
-  // "/welcome" for http://localhost:8001/#/welcome
-  // "/live" for http://localhost:8001/#/live
-  
   const isLanding = path === "" || path === "/" || path === "/welcome";
 
   useEffect(() => {

@@ -13,7 +13,7 @@ const BADGE: Record<StreamStatus, string> = {
   connecting: "bg-surface-2 text-muted ring-1 ring-line",
   live: "bg-live text-white ring-1 ring-live/40 shadow-sm before:size-[7px] before:animate-pulse-dot before:rounded-full before:bg-white before:content-['']",
   ended: "bg-surface-2 text-muted ring-1 ring-line",
-  error: "bg-warn text-black ring-1 ring-warn/40 shadow-sm",
+  error: "bg-warn text-warn-ink ring-1 ring-warn/40 shadow-sm",
 };
 
 const GOALS = "font-heading text-[2.1rem] leading-none tabular-nums max-[900px]:text-[1.7rem]";
@@ -28,13 +28,21 @@ interface HeaderProps {
 export function Header({ menuButton, open, onOpenMenu }: HeaderProps) {
   const {
     teams, score, clock, ended, status, lang, languages, changeLang,
-    follow, toggleFollow, restart, match, health,
+    follow, toggleFollow, restart, match, health, predictions,
   } = useMatch();
+  
   const [home, away] = teams;
   const source = match?.source ?? health?.source;
 
+  // Extract the latest live win probability safely
+  const latestPrediction = predictions && predictions.length > 0 ? predictions[predictions.length - 1] : null;
+  const probs = latestPrediction?.probabilities ?? {};
+  const homeProb = probs[home] ?? 0;
+  const awayProb = probs[away] ?? 0;
+  const drawProb = probs["draw"] ?? 0;
+
   return (
-    <header className="sticky top-0 z-20 flex flex-wrap items-center gap-x-3.5 gap-y-2.5 border-b border-line bg-surface px-4 py-2.5 supports-[backdrop-filter]:bg-surface/85 supports-[backdrop-filter]:backdrop-blur-md">
+    <header className="sticky top-0 z-20 flex flex-wrap items-center gap-x-3.5 gap-y-2.5 border-b border-line/70 bg-bg/90 px-4 py-2.5 supports-[backdrop-filter]:bg-bg/75 supports-[backdrop-filter]:backdrop-blur-xl">
       <button
         ref={menuButton}
         type="button"
@@ -103,6 +111,34 @@ export function Header({ menuButton, open, onOpenMenu }: HeaderProps) {
         </span>
       )}
 
+      {/* 3-Segment Win Probability Bar */}
+      {latestPrediction && !ended && (
+        <div className="hidden min-w-[120px] max-w-[200px] flex-1 flex-col gap-1 sm:flex ml-2">
+          <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-surface-2 ring-1 ring-line/50">
+            <div
+              className="h-full transition-all duration-500"
+              style={{ width: `${homeProb}%`, backgroundColor: teamColor(home, teams) }}
+              title={`${home}: ${homeProb}%`}
+            />
+            <div
+              className="h-full bg-muted/30 transition-all duration-500"
+              style={{ width: `${drawProb}%` }}
+              title={`Draw: ${drawProb}%`}
+            />
+            <div
+              className="h-full transition-all duration-500"
+              style={{ width: `${awayProb}%`, backgroundColor: teamColor(away, teams) }}
+              title={`${away}: ${awayProb}%`}
+            />
+          </div>
+          <div className="flex justify-between text-[0.6rem] font-semibold tabular-nums text-muted/80">
+            <span style={{ color: teamColor(home, teams) }}>{homeProb}%</span>
+            <span>Draw {drawProb}%</span>
+            <span style={{ color: teamColor(away, teams) }}>{awayProb}%</span>
+          </div>
+        </div>
+      )}
+
       <div className="ml-auto flex flex-wrap items-center gap-2 max-[900px]:ml-0 max-[900px]:w-full">
         <select
           value={lang}
@@ -117,9 +153,15 @@ export function Header({ menuButton, open, onOpenMenu }: HeaderProps) {
           ))}
         </select>
 
-        <Button aria-pressed={follow} onClick={toggleFollow}>
-          Follow live: {follow ? "on" : "off"}
-        </Button>
+        {ended ? (
+          <span className="inline-flex h-9 items-center rounded-lg bg-surface-2 px-3 text-sm font-medium text-muted">
+            Match ended
+          </span>
+        ) : (
+          <Button aria-pressed={follow} onClick={toggleFollow}>
+            Follow live: {follow ? "on" : "off"}
+          </Button>
+        )}
 
         <Button onClick={restart} className="gap-1.5">
           <RotateCcw size={16} aria-hidden="true" />

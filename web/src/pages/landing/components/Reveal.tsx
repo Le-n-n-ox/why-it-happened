@@ -14,6 +14,10 @@ export function Reveal({ children, delay = 0, className = "" }: Props) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setShown(true); // very old browsers: just show it
+      return;
+    }
     const io = new IntersectionObserver(
       ([e]) => {
         if (e.isIntersecting) {
@@ -21,7 +25,7 @@ export function Reveal({ children, delay = 0, className = "" }: Props) {
           io.disconnect();
         }
       },
-      { threshold: 0.15 },
+      { threshold: 0.15, rootMargin: "0px 0px -6% 0px" },
     );
     io.observe(el);
     return () => io.disconnect();
@@ -31,7 +35,8 @@ export function Reveal({ children, delay = 0, className = "" }: Props) {
     <div
       ref={ref}
       style={{ transitionDelay: `${delay}ms` }}
-      className={`transition-[opacity,transform] duration-700 ease-out motion-reduce:transition-none motion-reduce:translate-y-0 motion-reduce:opacity-100 ${
+      // Tailwind v4 moves elements with the `translate` property, so transition that, not `transform`.
+      className={`transition-[opacity,translate] duration-700 ease-out motion-reduce:translate-y-0 motion-reduce:opacity-100 motion-reduce:transition-none ${
         shown ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
       } ${className}`}
     >

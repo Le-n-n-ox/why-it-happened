@@ -53,7 +53,11 @@ export function Chain({ steps, onShow }: ChainProps) {
                   <span key={e} className={`${ui.chip} font-mono`}>{e}</span>
                 ))}
                 {onShow && (
-                  <Button className="px-2.5 py-0.5 text-xs" onClick={() => onShow(s.evidence)}>
+                  <Button
+                    className="px-2.5 py-0.5 text-xs"
+                    onClick={() => onShow(s.evidence)}
+                    aria-label={`Show step ${i + 1} on pitch`}
+                  >
                     Show on pitch
                   </Button>
                 )}

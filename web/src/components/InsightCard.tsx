@@ -17,7 +17,7 @@ export const InsightCard = memo(function InsightCard({ insight, lang, color, sel
   const fallback = lacksLang(insight, lang);
   return (
     <li
-      className="animate-slide-in rounded-card border border-l-4 border-line bg-surface transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-card"
+      className="animate-slide-in rounded-card border border-l-4 border-line bg-surface shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-lifted motion-reduce:hover:translate-y-0"
       style={{ borderLeftColor: color }}
     >
       <button

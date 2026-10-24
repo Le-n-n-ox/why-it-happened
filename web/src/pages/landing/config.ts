@@ -2,6 +2,7 @@
 // "/" now renders the landing page, so the app lives at "/live".
 export const APP_HREF = "#/live";
 export const ABOUT_HREF = "#/about";
+export const LANDING_HREF = "#/";
 // Required credit when the feed is StatsBomb Open Data. Set to "" to hide it.
 export const DATA_SOURCE = "StatsBomb Open Data";
 

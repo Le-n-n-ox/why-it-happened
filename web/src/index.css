@@ -2,47 +2,71 @@
 @import "tailwindcss";
 /* TEMPORARY: delete this line, then src/styles/components.css, when every file is converted. */
 
-
 /* ---------- Colour and design variables (the only place colours are defined) ---------- */
 :root {
-  --bg: #12031a; --surface: #1d0a2b; --surface-2: #2a1140; --surface-3: #371758;
-  --border: rgba(255, 255, 255, .09);
-  --text: #f4eefa; --muted: #b9a7c9;
-  --accent: #00ff85; --accent-ink: #06210f; --accent-2: #ff2d87; --live: #e0126f; --warn: #ffb300;
+  --bg: #0c130f; --surface: #131c16; --surface-2: #1a261e; --surface-3: #223228; --surface-raised: #101912;
+  --border: rgba(255, 255, 255, .09); --border-strong: rgba(255, 255, 255, .22);
+  --text: #eaf1ec; --muted: #9fb2a5;
+  --accent: #6fcf8b; --accent-ink: #06210f;
+  --accent-2: #ff2d87; --live: #e0126f;
+  --warn: #ffb300; --warn-ink: #1a1200; --ok: #5fd17f;
   --grass: #14532d;
+  /* Chart and team colours: first team green, second pink. Kept fixed on purpose. */
   --c1: #00ff85; --c2: #ff2d87; --c3: #4cc9f0; --c4: #ffb300; --c5: #b388ff;
-  --radius: 14px; --gap: 16px;
-  --shadow: 0 8px 30px rgba(0, 0, 0, .35);
+  /* Pipeline stage colours, used on the landing page */
+  --status-1: #1d3557; --status-1-ink: #9cc4ff;
+  --status-2: #4a3a10; --status-2-ink: #ffd479;
+  --status-3: #3b2a5e; --status-3-ink: #d2b6ff;
+  --status-4: #123f3a; --status-4-ink: #7de3d3;
+  --status-5: #17432a; --status-5-ink: #7fe3a1;
+  --radius: 16px; --gap: 16px;
+  --sh-soft: 0 1px 2px rgb(0 0 0 / .3), 0 2px 10px rgb(0 0 0 / .18);
+  --sh-lifted: 0 12px 32px -12px rgb(0 0 0 / .55);
+  --sh-floating: 0 32px 80px -28px rgb(0 0 0 / .65);
+  --shadow: var(--sh-soft);
   --font-body: "Inter Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --font-display: "Space Grotesk Variable", "Segoe UI", system-ui, sans-serif;
-
-  /* Hue of --accent (142° for #00ff85). Consumed by PowerSwitch so the switch
-     follows the theme accent without re-deriving HSL. */
-  --accent-hue: 142deg;
-
+  --font-display: var(--font-body);
   color-scheme: dark;
 }
 :root[data-theme="light"] {
-  --bg: #f6f2fa; --surface: #ffffff; --surface-2: #efe8f7; --surface-3: #e2d6f0;
-  --border: rgba(30, 10, 50, .12);
-  --text: #1e0a2e; --muted: #5d4a72;
-  --accent: #007a42; --accent-ink: #ffffff; --accent-2: #c8105f; --live: #c8105f;
+  --bg: #f6f8f4; --surface: #ffffff; --surface-2: #eef2ea; --surface-3: #e2e8dc; --surface-raised: #f0f3ec;
+  --border: rgba(20, 40, 28, .12); --border-strong: rgba(20, 40, 28, .3);
+  --text: #14201a; --muted: #566559;
+  --accent: #2f6b3f; --accent-ink: #ffffff;
+  --accent-2: #c8105f; --live: #c8105f;
+  --warn: #9c6200; --warn-ink: #ffffff; --ok: #1f7a3a;
   --c1: #007a42; --c2: #c8105f; --c3: #0077a8; --c4: #a86a00; --c5: #6a3fd6;
-  --shadow: 0 8px 30px rgba(60, 20, 100, .12);
-
-  /* #007a42 is hue 148° — close enough to the dark theme that one hue covers both. */
-  --accent-hue: 148deg;
-
+  --status-1: #dbeafe; --status-1-ink: #1e40af;
+  --status-2: #fef3c7; --status-2-ink: #92400e;
+  --status-3: #ede9fe; --status-3-ink: #5b21b6;
+  --status-4: #ccfbf1; --status-4-ink: #115e59;
+  --status-5: #dcfce7; --status-5-ink: #166534;
+  --sh-soft: 0 1px 2px rgb(20 40 28 / .06), 0 2px 8px rgb(20 40 28 / .05);
+  --sh-lifted: 0 12px 30px -12px rgb(20 40 28 / .22);
+  --sh-floating: 0 30px 70px -28px rgb(20 40 28 / .3);
   color-scheme: light;
 }
 
-/* ---------- Tailwind tokens: bg-surface, text-muted, border-line, rounded-card, font-heading ... ---------- */
+/* ---------- Accent themes (data-accent on <html>; moss is the default above) ---------- */
+:root[data-accent="ocean"]  { --accent: #5cc4f0; --accent-ink: #04202e; }
+:root[data-accent="ember"]  { --accent: #ff9a62; --accent-ink: #2a1005; }
+:root[data-accent="plum"]   { --accent: #d59bff; --accent-ink: #20082e; }
+:root[data-accent="indigo"] { --accent: #9aa6ff; --accent-ink: #0c1038; }
+:root[data-theme="light"][data-accent="moss"]   { --accent: #2f6b3f; --accent-ink: #fff; }
+:root[data-theme="light"][data-accent="ocean"]  { --accent: #0b6fa4; --accent-ink: #fff; }
+:root[data-theme="light"][data-accent="ember"]  { --accent: #c4501a; --accent-ink: #fff; }
+:root[data-theme="light"][data-accent="plum"]   { --accent: #7e3fb8; --accent-ink: #fff; }
+:root[data-theme="light"][data-accent="indigo"] { --accent: #4452c8; --accent-ink: #fff; }
+
+/* ---------- Tailwind tokens: bg-surface, text-muted, border-line, rounded-card, shadow-soft ... ---------- */
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
+  --color-surface-raised: var(--surface-raised);
   --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
   --color-fg: var(--text);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
@@ -50,6 +74,8 @@
   --color-accent-2: var(--accent-2);
   --color-live: var(--live);
   --color-warn: var(--warn);
+  --color-warn-ink: var(--warn-ink);
+  --color-ok: var(--ok);
   --color-grass: var(--grass);
   --color-c1: var(--c1);
   --color-c2: var(--c2);
@@ -60,6 +86,9 @@
   --font-heading: var(--font-display);
   --radius-card: var(--radius);
   --shadow-card: var(--shadow);
+  --shadow-soft: var(--sh-soft);
+  --shadow-lifted: var(--sh-lifted);
+  --shadow-floating: var(--sh-floating);
 }
 
 /* ---------- Motion tokens: animate-slide-in, animate-ring, ... ---------- */
@@ -72,6 +101,7 @@
   --animate-grow: grow .6s cubic-bezier(.2, .8, .2, 1);
   --animate-draw: draw .9s ease-out;
   --animate-meter-in: meter-in .8s cubic-bezier(.2, .8, .2, 1);
+  --animate-breathe: breathe 3.2s ease-in-out infinite;
 
   @keyframes page-in { from { opacity: 0; transform: translateY(8px); } }
   @keyframes slide-in { from { opacity: 0; transform: translateY(-8px); } }
@@ -81,6 +111,7 @@
   @keyframes grow { from { transform: scaleY(0); } }
   @keyframes draw { from { stroke-dashoffset: 1; } }
   @keyframes meter-in { from { width: 0; } }
+  @keyframes breathe { 50% { transform: scale(1.3); } }
 
   --animate-loader-rotate-ball: loader-rotate-ball 25s linear infinite;
   --animate-loader-bounce-ball: loader-bounce-ball 1.2s cubic-bezier(.42, 0, .58, 1) infinite;
@@ -107,36 +138,19 @@
 /* ---------- Base ---------- */
 @layer base {
   * { scrollbar-width: thin; scrollbar-color: var(--surface-3) transparent; }
-  html {
-    /* Was 90px, but the app header is h-16 (64px) — 90px left a 26px dead zone.
-       Set to header height so scrollTo targets and #anchor jumps land below it. */
-    scroll-padding-top: 64px;
-  }
+  html { scroll-padding-top: 90px; }
   body {
     margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body);
     line-height: 1.5; -webkit-font-smoothing: antialiased;
-    background-image:
-      radial-gradient(1100px 480px at 90% -10%, color-mix(in srgb, var(--accent-2) 14%, transparent), transparent),
-      radial-gradient(900px 480px at -10% 0%, color-mix(in srgb, var(--accent) 9%, transparent), transparent);
+    background-image: radial-gradient(1000px 440px at 88% -10%, color-mix(in srgb, var(--accent) 9%, transparent), transparent);
     background-attachment: fixed;
   }
   h1, h2, h3 { font-family: var(--font-display); letter-spacing: -.01em; }
   ::selection { background: var(--accent); color: var(--accent-ink); }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   button:not(:disabled), select, summary { cursor: pointer; }
-  select {
-    font: inherit; color: inherit; background: var(--surface-2);
-    border: 1px solid var(--border); border-radius: 10px; padding: 7px 14px;
-    /* Native dropdown arrow gets a themed accent caret instead of the OS default */
-    appearance: none;
-    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
-                      linear-gradient(135deg, currentColor 50%, transparent 50%);
-    background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
-    background-size: 5px 5px, 5px 5px;
-    background-repeat: no-repeat;
-    padding-right: 32px;
-  }
-  select:hover { background-color: var(--surface-3); }
+  select { font: inherit; color: inherit; background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 7px 14px; }
   /* Lock page scroll while the mobile drawer is open (an ancestor carries data-open="true"). */
   @media (max-width: 900px) { body:has([data-open="true"]) { overflow: hidden; } }
 }

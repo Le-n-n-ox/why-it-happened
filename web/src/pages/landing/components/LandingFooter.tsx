@@ -1,25 +1,60 @@
-import { ABOUT_HREF, DATA_SOURCE, wrap } from "../config";
+import { Eye } from "lucide-react";
+import type { ReactNode } from "react";
+import { ABOUT_HREF, APP_HREF, DATA_SOURCE, wrap } from "../config";
+
+const STATSBOMB_URL = "https://github.com/statsbomb/open-data";
+
+function FooterLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <a
+      href={href}
+      className="group relative inline-flex min-h-8 w-fit items-center rounded-sm text-sm font-medium text-muted transition-colors hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+    >
+      {children}
+      <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0.5 h-px origin-left scale-x-0 bg-accent transition-transform duration-300 group-hover:scale-x-100" />
+    </a>
+  );
+}
 
 export function LandingFooter() {
   return (
-    <footer className="border-t border-line">
-      <div
-        className={`${wrap} flex flex-wrap items-center justify-between gap-x-6 gap-y-3 py-10 text-sm text-muted`}
-      >
-        <span>
-          © 2026 Why It Happened{DATA_SOURCE && <> · Data: {DATA_SOURCE}</>}
-        </span>
+    <footer className="border-t border-line/60 bg-surface-2/30">
+      <div className={`${wrap} flex flex-col gap-8 py-10 md:flex-row md:items-start md:justify-between`}>
+        <div className="max-w-sm">
+          <a href="#/welcome" className="flex items-center gap-2.5">
+            <span className="grid size-9 place-items-center rounded-xl bg-accent text-accent-ink shadow-card">
+              <Eye size={18} strokeWidth={2.5} aria-hidden="true" />
+            </span>
+            <span className="font-heading text-base font-bold tracking-tight">Why It Happened</span>
+          </a>
+          <p className="mt-4 text-sm leading-relaxed text-muted">
+            Explains a football match from its events: the chain of causes behind each goal, card and swing, with the evidence attached.
+          </p>
+        </div>
 
-        <a
-          href={ABOUT_HREF}
-          className="group relative inline-flex min-h-11 items-center rounded-sm font-medium transition-colors hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
-        >
-          About
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 bottom-2.5 h-px origin-left scale-x-0 bg-accent transition-transform duration-300 group-hover:scale-x-100"
-          />
-        </a>
+        <nav aria-label="Footer" className="flex flex-col gap-1.5">
+          <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.16em] text-muted">Explore</p>
+          <FooterLink href={APP_HREF}>Open the app</FooterLink>
+          <FooterLink href={ABOUT_HREF}>About</FooterLink>
+        </nav>
+      </div>
+
+      <div className="border-t border-line/60">
+        <div className={`${wrap} flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-5 text-xs text-muted`}>
+          <span>© {new Date().getFullYear()} Why It Happened</span>
+          {DATA_SOURCE && (
+            <span>
+              Event data:{" "}
+              {/statsbomb/i.test(DATA_SOURCE) ? (
+                <a href={STATSBOMB_URL} target="_blank" rel="noreferrer noopener" className="font-medium underline-offset-2 hover:text-fg hover:underline">
+                  {DATA_SOURCE}
+                </a>
+              ) : (
+                DATA_SOURCE
+              )}
+            </span>
+          )}
+        </div>
       </div>
     </footer>
   );
