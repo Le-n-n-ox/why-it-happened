@@ -26,8 +26,11 @@ export function GoalHypotheses({ goalId, teams }: Props) {
   const { data, loading, error, notFound, retry } = useApi(load, mode);
 
   return (
-    <section className="grid gap-2.5 rounded-card border border-line bg-surface-2 p-3.5" aria-label="Tested claims">
-      <p className="m-0 text-[.88rem] leading-snug">
+    <section
+      className="grid gap-3 rounded-card border border-line bg-surface-2 p-4"
+      aria-label="Tested claims"
+    >
+      <p className="m-0 text-[.88rem] leading-relaxed">
         The model proposes a claim, the rules count the events and decide, so a claim the data does
         not support is shown as not supported.
       </p>
@@ -40,6 +43,7 @@ export function GoalHypotheses({ goalId, teams }: Props) {
           </Button>
         ))}
       </div>
+
       <p className="m-0 text-[.82rem] text-muted">{MODES.find((m) => m.id === mode)?.note}</p>
 
       {loading && <Loader label="Testing the claims" />}
@@ -66,7 +70,11 @@ export function GoalHypotheses({ goalId, teams }: Props) {
             )}
           </div>
 
-          {data.summary && <p className="m-0 text-[.88rem]">{data.summary}</p>}
+          {data.summary && (
+            <p className="m-0 rounded-md border-l-2 border-accent/40 bg-surface px-3 py-2 text-[.88rem] leading-relaxed">
+              {data.summary}
+            </p>
+          )}
 
           {data.hypotheses.length === 0 ? (
             <p className={ui.empty}>

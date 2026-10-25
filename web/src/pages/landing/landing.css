@@ -1,0 +1,40 @@
+/* Landing-only helpers. Colours still come from index.css tokens. */
+@layer components {
+  /* Hold the 0% keyframe through any animation-delay so nothing flashes early. */
+  .anim-hold { animation-fill-mode: backwards; }
+
+  /* Normalise paths to length 1 so one dasharray works for any curve.
+     Pairs with `animate-draw` (stroke-dashoffset 1 -> 0). */
+  .dash-1 { stroke-dasharray: 1; stroke-dashoffset: 0; }
+
+  /* Shimmer connector. Pair with `animate-shimmer`. Kept for any file still using it. */
+  .landing-flow {
+    background-image: linear-gradient(90deg, transparent, var(--accent), transparent);
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+  }
+
+  /* Hero and CTA backdrop: a faint grid plus two drifting glows. */
+  .lp-grid {
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+  .lp-orb { animation: lp-drift 16s ease-in-out infinite alternate; }
+  .lp-orb-slow { animation: lp-drift 22s ease-in-out infinite alternate-reverse; }
+
+  @keyframes lp-drift { to { transform: translate3d(36px, 24px, 0) scale(1.07); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    /* Delays must go too, or backwards-filled elements stay hidden. */
+    .anim-hold { animation-delay: 0s !important; }
+    .animate-draw,
+    .animate-shimmer {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+    }
+    .animate-ring { display: none; }
+    .lp-orb, .lp-orb-slow { animation: none; }
+  }
+}

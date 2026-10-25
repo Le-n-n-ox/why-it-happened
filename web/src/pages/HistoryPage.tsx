@@ -20,15 +20,20 @@ export function HistoryPage() {
   return (
     <section className={ui.pageWide}>
       <h2 className={ui.h2}>History</h2>
-      <p className={ui.empty}>
+      <p className={`${ui.empty} max-w-prose`}>
         The insights this service has saved, newest minute first. Each row opens the full insight.
       </p>
 
-      <div className="flex flex-wrap items-center gap-2.5">
+      <div className="flex flex-wrap items-center gap-2.5 rounded-card border border-line bg-surface px-3.5 py-2.5">
         <label htmlFor="history-team" className="text-sm font-semibold">
           Team
         </label>
-        <select id="history-team" value={team} onChange={(e) => setTeam(e.target.value)}>
+        <select
+          id="history-team"
+          value={team}
+          onChange={(e) => setTeam(e.target.value)}
+          className="h-9 rounded-lg border border-line bg-surface-2 px-3 text-sm font-medium text-fg outline-none transition-colors hover:bg-surface-3 focus-visible:ring-2 focus-visible:ring-accent"
+        >
           <option value="all">All teams</option>
           {teams.map((t) => (
             <option key={t} value={t}>{t}</option>
@@ -63,7 +68,7 @@ export function HistoryPage() {
             </thead>
             <tbody>
               {records.map((r) => (
-                <tr key={r.id} className="hover:bg-surface-2">
+                <tr key={r.id} className="transition-colors hover:bg-surface-2/40">
                   <td className={`${ui.td} tabular-nums`}>{formatMinute(r.minute)}</td>
                   <td className={ui.td} style={{ color: teamColor(r.team, teams) }}>{r.team}</td>
                   <td className={ui.td}>{kindLabel(r.kind)}</td>

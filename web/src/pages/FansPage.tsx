@@ -25,11 +25,17 @@ function Goals() {
   if (loading) return <p className={ui.empty}>Loading goals...</p>;
   if (reasons.length === 0) return <p className={ui.empty}>No goals.</p>;
   return (
-    <ul className="grid list-disc gap-1.5 pl-5">
+    <ul className="grid gap-1.5">
       {reasons.map((r, i) => (
-        <li key={`${i}-${r.minute}`}>
-          <span className={ui.minute}>{formatMinute(r.minute)}</span>{" "}
-          <span style={{ color: teamColor(r.team, teams) }}>{r.team}</span> goal
+        <li key={`${i}-${r.minute}`} className="flex items-center gap-2.5">
+          <span
+            aria-hidden="true"
+            className="size-2 shrink-0 rounded-full"
+            style={{ backgroundColor: teamColor(r.team, teams) }}
+          />
+          <span className={`${ui.minute} tabular-nums`}>{formatMinute(r.minute)}</span>
+          <span className="font-semibold" style={{ color: teamColor(r.team, teams) }}>{r.team}</span>
+          <span className="text-muted">goal</span>
         </li>
       ))}
     </ul>
@@ -72,7 +78,7 @@ export function FansPage() {
       <h2 className={ui.h2}>Fans</h2>
       <p>Pick your team and see the moments that explain the match, with the proof one tap away.</p>
 
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Favourite teams">
+      <div className="flex flex-wrap gap-2.5" role="group" aria-label="Favourite teams">
         <Button className={FAV} aria-pressed={active.length === 0} onClick={() => chooseFav("all")}>Both teams</Button>
         {teams.map((t) => (
           <Button
@@ -90,10 +96,14 @@ export function FansPage() {
       <ProfileBar showClubs={false} />
       <PersonalizedBrief compactFan title="Your match" />
 
-      <div className="grid gap-2 rounded-card border border-line bg-surface px-[18px] py-3.5">
-        <p className="m-0 font-heading text-[1.6rem] font-bold tabular-nums">
+      <div className="grid gap-2 rounded-card border border-line bg-surface px-5 py-4">
+        <p className="m-0 font-heading text-[2rem] font-bold leading-tight tabular-nums">
           <ScoreLine />
-          {ended && " · Full time"}
+          {ended && (
+            <span className="ml-2 align-middle text-sm font-semibold uppercase tracking-wider text-muted">
+              Full time
+            </span>
+          )}
         </p>
         {ended ? <Goals /> : <p className={ui.empty}>The goals are listed at full time.</p>}
       </div>
@@ -116,10 +126,10 @@ export function FansPage() {
             return (
               <li
                 key={i.id}
-                className="flex gap-3.5 rounded-card border border-l-4 border-line bg-surface px-4 py-3.5"
+                className="flex gap-3.5 rounded-card border border-l-4 border-line bg-surface px-4 py-3.5 transition-colors hover:bg-surface-2/40"
                 style={{ borderLeftColor: teamColor(i.team, teams) }}
               >
-                <div className="min-w-[3.2ch] font-heading text-[2rem] font-bold text-accent tabular-nums">
+                <div className="min-w-[3.6ch] pt-0.5 text-right font-heading text-[2rem] font-bold leading-none text-accent tabular-nums">
                   {formatMinute(i.minute)}
                 </div>
                 <div className="grid min-w-0 gap-2">

@@ -45,13 +45,23 @@ export function PositionsPitch({ data, teams }: Props) {
                 />
               )}
               {/* The hollow ring is where the player usually operates, not where they are. */}
-              <circle cx={average.px} cy={average.py} r="1.4" className="fill-none [stroke-width:.25]"
-                style={{ stroke: color, opacity: 0.45 }}>
+              <circle
+                cx={average.px}
+                cy={average.py}
+                r="1.4"
+                className="fill-none [stroke-width:.25]"
+                style={{ stroke: color, opacity: 0.45 }}
+              >
                 <title>{`${p.player} usually operates here`}</title>
               </circle>
               {p.on_ball && (
-                <circle cx={at.px} cy={at.py} r="2.2" className="fill-none stroke-white [stroke-width:.3]"
-                  style={{ opacity }}>
+                <circle
+                  cx={at.px}
+                  cy={at.py}
+                  r="2.2"
+                  className="fill-none stroke-white [stroke-width:.3]"
+                  style={{ opacity }}
+                >
                   <title>{`${p.player} has the ball here`}</title>
                 </circle>
               )}
@@ -64,12 +74,22 @@ export function PositionsPitch({ data, teams }: Props) {
 
         {ballAt && (
           <g className="pointer-events-none">
-            <circle cx={ballAt.px} cy={ballAt.py} r="1" className="fill-white stroke-black/60 [stroke-width:.25]" />
+            <circle
+              cx={ballAt.px}
+              cy={ballAt.py}
+              r="1"
+              className="fill-white stroke-black/60 [stroke-width:.25]"
+            />
           </g>
         )}
 
         {data.players.length === 0 && (
-          <text x={PITCH_W / 2} y={PITCH_H / 2} textAnchor="middle" className="fill-white/75 text-[2.6px]">
+          <text
+            x={PITCH_W / 2}
+            y={PITCH_H / 2}
+            textAnchor="middle"
+            className="fill-white/75 text-[2.6px]"
+          >
             No player has acted yet at this minute
           </text>
         )}

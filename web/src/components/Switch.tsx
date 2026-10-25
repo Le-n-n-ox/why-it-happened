@@ -1,3 +1,5 @@
+import { motion } from "framer-motion";
+
 interface Props {
   checked: boolean;
   onChange: () => void;
@@ -14,8 +16,37 @@ export function Switch({ checked, onChange, label }: Props) {
         onChange={onChange}
         aria-label={label}
       />
-      <span
-        className="absolute inset-0 rounded-full border-2 border-line bg-surface-2 transition-[background,border-color] duration-200 before:absolute before:left-[3px] before:top-[3px] before:size-3.5 before:rounded-full before:bg-muted before:transition before:duration-200 before:content-[''] before:[box-shadow:inset_6px_-2px_0_var(--surface-2)] peer-checked:border-accent peer-checked:bg-accent peer-checked:before:translate-x-[22px] peer-checked:before:bg-accent-ink peer-checked:before:[box-shadow:none] peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent"
+      
+      {/* Track */}
+      <motion.div
+        initial={false}
+        animate={{
+          backgroundColor: checked ? "var(--accent)" : "var(--surface-2)",
+          borderColor: checked ? "var(--accent)" : "var(--border)",
+        }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="absolute inset-0 rounded-full border-2 transition-shadow peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent"
+        aria-hidden="true"
+      />
+      
+      {/* Knob */}
+      <motion.div
+        initial={false}
+        animate={{
+          x: checked ? 22 : 0,
+          backgroundColor: checked ? "var(--accent-ink)" : "var(--muted)",
+          // Creates the crescent moon effect when unchecked
+          boxShadow: checked ? "none" : "inset 4.5px -1.5px 0 var(--surface-2)",
+        }}
+        transition={{
+          type: "spring",
+          stiffness: 500,
+          damping: 35,
+          mass: 0.8,
+          // Fade the shadow slightly faster than the movement for a clean shape morph
+          boxShadow: { duration: 0.15 } 
+        }}
+        className="absolute left-[3px] top-[3px] size-3.5 rounded-full"
         aria-hidden="true"
       />
     </label>

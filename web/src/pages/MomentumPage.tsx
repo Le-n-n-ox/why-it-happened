@@ -25,7 +25,7 @@ export function MomentumPage() {
   return (
     <section className={ui.pageWide}>
       <h2 className={ui.h2}>Momentum</h2>
-      <p className={ui.empty}>
+      <p className={`${ui.empty} max-w-prose`}>
         The win-probability line: the score so far plus the quality of each team's chances. A swing is
         a jump in it. The model may propose why the match turned; the rules count the events and decide,
         so a claim the data does not support is shown as not supported.
@@ -39,6 +39,7 @@ export function MomentumPage() {
           </Button>
         ))}
       </div>
+
       <p className="m-0 text-[.82rem] text-muted">{MODES.find((m) => m.id === mode)?.note}</p>
 
       {loading && <Loader label="Reading the win-probability line" />}
@@ -50,7 +51,7 @@ export function MomentumPage() {
 
       {data && !loading && (
         <>
-          <p className="m-0 rounded-card border border-line bg-surface-2 px-3.5 py-2.5 text-[.88rem]">
+          <p className="m-0 rounded-card border border-line bg-surface-2 px-3.5 py-2.5 text-[.88rem] leading-relaxed">
             {data.note}
           </p>
 
@@ -59,13 +60,17 @@ export function MomentumPage() {
           ) : (
             <ol className="m-0 grid list-none gap-4 p-0">
               {swings.map((swing) => (
-                <li key={`${swing.team}-${swing.minute}`}
-                  className="grid gap-2.5 rounded-card border border-line bg-surface p-4">
+                <li
+                  key={`${swing.team}-${swing.minute}`}
+                  className="grid gap-2.5 rounded-card border border-line bg-surface p-4 transition-colors hover:border-accent/20"
+                >
                   <div className="flex flex-wrap items-center gap-2.5">
                     <span className={ui.minute}>{formatMinute(swing.minute)}</span>
-                    <span className="font-bold" style={{ color: teamColor(swing.team, teams) }}>{swing.team}</span>
+                    <span className="font-bold" style={{ color: teamColor(swing.team, teams) }}>
+                      {swing.team}
+                    </span>
                     <Badge tone="accent">+{swing.delta} points</Badge>
-                    <span className="text-[.9rem] tabular-nums">
+                    <span className="rounded-md bg-surface-2 px-2 py-0.5 text-[.9rem] font-semibold tabular-nums text-fg">
                       {swing.from}% → {swing.to}%
                     </span>
                     <Badge tone={swing.source === "model" ? "accent" : "quiet"}>
@@ -73,9 +78,9 @@ export function MomentumPage() {
                     </Badge>
                   </div>
 
-                  <p className="m-0 leading-snug">{swing.summary}</p>
+                  <p className="m-0 leading-relaxed">{swing.summary}</p>
 
-                  <p className="m-0 text-[.85rem] text-muted">
+                  <p className="m-0 rounded-md border-l-2 border-warn/40 bg-warn/5 px-2.5 py-1.5 text-[.85rem] leading-relaxed text-muted">
                     The turn came at {swing.cause.team}'s {swing.cause.type}
                     {swing.cause.player ? ` by ${swing.cause.player}` : ""} at {formatMinute(swing.cause.minute)}.
                   </p>

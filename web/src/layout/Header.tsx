@@ -1,8 +1,8 @@
 // web/src/layout/Header.tsx - sticky top bar: menu (mobile), score from /match, clock, status, narration, language, follow, replay.
 import type { RefObject } from "react";
+import { Menu, RotateCcw } from "lucide-react";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { Button } from "@/components/Button";
-import { Icon } from "@/components/icons";
 import { NarrationBadge } from "@/components/NarrationBadge";
 import type { StreamStatus } from "@/hooks/useMatchStream";
 import { formatMinute, languageName, teamColor } from "@/lib/match";
@@ -10,10 +10,10 @@ import { cn } from "@/lib/utils";
 import { useMatch } from "@/types/matchContext";
 
 const BADGE: Record<StreamStatus, string> = {
-  connecting: "bg-surface-2 text-muted",
-  live: "bg-live text-white before:size-[7px] before:animate-pulse-dot before:rounded-full before:bg-white before:content-['']",
-  ended: "bg-surface-2 text-muted",
-  error: "bg-warn text-black",
+  connecting: "bg-surface-2 text-muted ring-1 ring-line",
+  live: "bg-live text-white ring-1 ring-live/40 shadow-sm before:size-[7px] before:animate-pulse-dot before:rounded-full before:bg-white before:content-['']",
+  ended: "bg-surface-2 text-muted ring-1 ring-line",
+  error: "bg-warn text-warn-ink ring-1 ring-warn/40 shadow-sm",
 };
 
 const GOALS = "font-heading text-[2.1rem] leading-none tabular-nums max-[900px]:text-[1.7rem]";
@@ -26,13 +26,23 @@ interface HeaderProps {
 }
 
 export function Header({ menuButton, open, onOpenMenu }: HeaderProps) {
-  const { teams, score, clock, ended, status, lang, languages, changeLang, follow, toggleFollow, restart,
-    match, health } = useMatch();
+  const {
+    teams, score, clock, ended, status, lang, languages, changeLang,
+    follow, toggleFollow, restart, match, health, predictions,
+  } = useMatch();
+  
   const [home, away] = teams;
   const source = match?.source ?? health?.source;
 
+  // Extract the latest live win probability safely
+  const latestPrediction = predictions && predictions.length > 0 ? predictions[predictions.length - 1] : null;
+  const probs = latestPrediction?.probabilities ?? {};
+  const homeProb = probs[home] ?? 0;
+  const awayProb = probs[away] ?? 0;
+  const drawProb = probs["draw"] ?? 0;
+
   return (
-    <header className="sticky top-0 z-20 flex flex-wrap items-center gap-x-3.5 gap-y-2.5 border-b border-line bg-bg px-4 py-2.5 supports-[backdrop-filter]:bg-bg/80 supports-[backdrop-filter]:backdrop-blur-[14px]">
+    <header className="sticky top-0 z-20 flex flex-wrap items-center gap-x-3.5 gap-y-2.5 border-b border-line/70 bg-bg/90 px-4 py-2.5 supports-[backdrop-filter]:bg-bg/75 supports-[backdrop-filter]:backdrop-blur-xl">
       <button
         ref={menuButton}
         type="button"
@@ -40,55 +50,122 @@ export function Header({ menuButton, open, onOpenMenu }: HeaderProps) {
         aria-expanded={open}
         aria-controls="sidebar"
         aria-label="Open menu"
-        className="hidden size-10 place-items-center rounded-[10px] border border-line bg-surface-2 hover:bg-surface-3 max-[900px]:grid"
+        className="hidden size-10 place-items-center rounded-[10px] border border-line bg-surface-2 text-muted transition-colors hover:bg-surface-3 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface max-[900px]:grid"
       >
-        <Icon name="menu" />
+        <Menu size={20} aria-hidden="true" />
       </button>
 
-      <h1 className="m-0 font-heading text-lg font-bold sr-only max-[900px]:not-sr-only">Why It Happened</h1>
+      <h1 className="m-0 font-heading text-lg font-bold sr-only max-[900px]:not-sr-only">
+        Why It Happened
+      </h1>
 
       {away !== undefined && (
         <p className="m-0 flex items-baseline gap-2.5 font-bold">
-          <a href={teamHref(home)} className="text-[1.05rem] hover:underline" style={{ color: teamColor(home, teams) }}>
+          <a
+            href={teamHref(home)}
+            className="text-[1.05rem] hover:underline hover:underline-offset-2"
+            style={{ color: teamColor(home, teams) }}
+          >
             {home}
           </a>
-          <span className={GOALS}>{score ? <AnimatedNumber value={score[home] ?? 0} /> : "–"}</span>
+          <span className={GOALS}>
+            {score ? <AnimatedNumber value={score[home] ?? 0} /> : "–"}
+          </span>
           <span className="text-muted">-</span>
-          <span className={GOALS}>{score ? <AnimatedNumber value={score[away] ?? 0} /> : "–"}</span>
-          <a href={teamHref(away)} className="text-[1.05rem] hover:underline" style={{ color: teamColor(away, teams) }}>
+          <span className={GOALS}>
+            {score ? <AnimatedNumber value={score[away] ?? 0} /> : "–"}
+          </span>
+          <a
+            href={teamHref(away)}
+            className="text-[1.05rem] hover:underline hover:underline-offset-2"
+            style={{ color: teamColor(away, teams) }}
+          >
             {away}
           </a>
           <span className="sr-only">
-            {score ? `Score: ${home} ${score[home] ?? 0}, ${away} ${score[away] ?? 0}` : "Score shown at full time"}
+            {score
+              ? `Score: ${home} ${score[home] ?? 0}, ${away} ${score[away] ?? 0}`
+              : "Score shown at full time"}
           </span>
         </p>
       )}
 
-      <span className="font-heading text-xl font-bold tabular-nums text-accent">
+      <span className="inline-flex items-center gap-1.5 rounded-lg bg-accent/10 px-2.5 py-1 font-heading text-lg font-bold tabular-nums text-accent ring-1 ring-accent/20">
         {ended ? "FT" : formatMinute(clock)}
       </span>
+
       <span
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase",
+          "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider",
           BADGE[status],
         )}
       >
         {status}
       </span>
+
       <NarrationBadge />
-      {source && <span className="text-xs text-muted">Data: {source}</span>}
+
+      {source && (
+        <span className="hidden text-[0.7rem] font-medium uppercase tracking-wider text-muted/80 sm:inline">
+          Data: {source}
+        </span>
+      )}
+
+      {/* 3-Segment Win Probability Bar */}
+      {latestPrediction && !ended && (
+        <div className="hidden min-w-[120px] max-w-[200px] flex-1 flex-col gap-1 sm:flex ml-2">
+          <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-surface-2 ring-1 ring-line/50">
+            <div
+              className="h-full transition-all duration-500"
+              style={{ width: `${homeProb}%`, backgroundColor: teamColor(home, teams) }}
+              title={`${home}: ${homeProb}%`}
+            />
+            <div
+              className="h-full bg-muted/30 transition-all duration-500"
+              style={{ width: `${drawProb}%` }}
+              title={`Draw: ${drawProb}%`}
+            />
+            <div
+              className="h-full transition-all duration-500"
+              style={{ width: `${awayProb}%`, backgroundColor: teamColor(away, teams) }}
+              title={`${away}: ${awayProb}%`}
+            />
+          </div>
+          <div className="flex justify-between text-[0.6rem] font-semibold tabular-nums text-muted/80">
+            <span style={{ color: teamColor(home, teams) }}>{homeProb}%</span>
+            <span>Draw {drawProb}%</span>
+            <span style={{ color: teamColor(away, teams) }}>{awayProb}%</span>
+          </div>
+        </div>
+      )}
 
       <div className="ml-auto flex flex-wrap items-center gap-2 max-[900px]:ml-0 max-[900px]:w-full">
-        <select value={lang} onChange={(e) => changeLang(e.target.value)} aria-label="Language">
+        <select
+          value={lang}
+          onChange={(e) => changeLang(e.target.value)}
+          aria-label="Language"
+          className="h-9 rounded-lg border border-line bg-surface-2 px-3 text-sm font-medium text-fg outline-none transition-colors hover:bg-surface-3 focus-visible:ring-2 focus-visible:ring-accent"
+        >
           {languages.map((code) => (
-            <option key={code} value={code}>{languageName(code)}</option>
+            <option key={code} value={code}>
+              {languageName(code)}
+            </option>
           ))}
         </select>
-        <Button aria-pressed={follow} onClick={toggleFollow}>
-          Follow live: {follow ? "on" : "off"}
-        </Button>
-        <Button onClick={restart}>
-          <Icon name="replay" /> Replay
+
+        {ended ? (
+          <span className="inline-flex h-9 items-center rounded-lg bg-surface-2 px-3 text-sm font-medium text-muted">
+            Match ended
+          </span>
+        ) : (
+          <Button aria-pressed={follow} onClick={toggleFollow}>
+            Follow live: {follow ? "on" : "off"}
+          </Button>
+        )}
+
+        <Button onClick={restart} className="gap-1.5">
+          <RotateCcw size={16} aria-hidden="true" />
+          Replay
         </Button>
       </div>
     </header>

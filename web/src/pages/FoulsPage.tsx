@@ -30,7 +30,7 @@ export function FoulsPage() {
         {fouls.map((f, i) => (
           <li
             key={`${i}-${f.event_id}`}
-            className="grid gap-2 rounded-card border border-l-4 border-line bg-surface p-3.5"
+            className="grid gap-2 rounded-card border border-l-4 border-line bg-surface p-3.5 transition-colors hover:bg-surface-2/40"
             style={{ borderLeftColor: teamColor(f.team, teams) }}
           >
             <p className={`m-0 ${ui.meta}`}>
