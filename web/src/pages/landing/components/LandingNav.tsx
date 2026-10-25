@@ -1,7 +1,7 @@
 import { ArrowRight, Eye, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTheme } from "@/hooks/useTheme";
-import { APP_HREF, scrollTo, wrap } from "../config";
+import { APP_HREF, LANDING_HREF, scrollTo, wrap } from "../config";
 
 // Same order as the page, and ids must match each <section id>.
 const links = [
@@ -33,7 +33,7 @@ export function LandingNav() {
     >
       <div className={`${wrap} flex h-16 items-center justify-between gap-4`}>
         <a
-          href="#/welcome"
+          href={LANDING_HREF}
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           className="group flex min-w-0 items-center gap-2.5 text-fg"
         >

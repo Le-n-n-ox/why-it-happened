@@ -7,10 +7,14 @@
      Pairs with `animate-draw` (stroke-dashoffset 1 -> 0). */
   .dash-1 { stroke-dasharray: 1; stroke-dashoffset: 0; }
 
-  /* Needed on any SVG element that scales or rotates (animate-ring, animate-breathe). */
-  .lp-origin { transform-box: fill-box; transform-origin: center; }
+  /* Shimmer connector. Pair with `animate-shimmer`. Kept for any file still using it. */
+  .landing-flow {
+    background-image: linear-gradient(90deg, transparent, var(--accent), transparent);
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+  }
 
-  /* Hero backdrop: faint grid plus two drifting glows. */
+  /* Hero and CTA backdrop: a faint grid plus two drifting glows. */
   .lp-grid {
     background-image:
       linear-gradient(var(--border) 1px, transparent 1px),
@@ -20,32 +24,17 @@
   .lp-orb { animation: lp-drift 16s ease-in-out infinite alternate; }
   .lp-orb-slow { animation: lp-drift 22s ease-in-out infinite alternate-reverse; }
 
-  /* Travelling glow for the "How it works" connector. Replaces landing-flow + animate-shimmer. */
-  .lp-flow {
-    background-image: linear-gradient(90deg, transparent, var(--accent), transparent);
-    background-size: 40% 100%;
-    background-repeat: no-repeat;
-    animation: lp-flow 2.8s linear infinite;
-  }
-
-  /* Kept for any file still using it. */
-  .landing-flow {
-    background-image: linear-gradient(90deg, transparent, var(--accent), transparent);
-    background-size: 200% 100%;
-  }
-
   @keyframes lp-drift { to { transform: translate3d(36px, 24px, 0) scale(1.07); } }
-  @keyframes lp-flow { from { background-position: -67% 0; } to { background-position: 167% 0; } }
 
   @media (prefers-reduced-motion: reduce) {
     /* Delays must go too, or backwards-filled elements stay hidden. */
     .anim-hold { animation-delay: 0s !important; }
-    .animate-draw, .animate-shimmer {
+    .animate-draw,
+    .animate-shimmer {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
     }
     .animate-ring { display: none; }
     .lp-orb, .lp-orb-slow { animation: none; }
-    .lp-flow { animation: none; background-position: 50% 0; }
   }
 }

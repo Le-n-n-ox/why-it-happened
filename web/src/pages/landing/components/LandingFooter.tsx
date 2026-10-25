@@ -1,6 +1,9 @@
 import { Eye } from "lucide-react";
 import type { ReactNode } from "react";
-import { ABOUT_HREF, APP_HREF, DATA_SOURCE, wrap } from "../config";
+import { cn } from "@/lib/utils";
+import { ABOUT_HREF, APP_HREF, DATA_SOURCE, LANDING_HREF, wrap } from "../config";
+import { FADE_UP, GROW_X, at } from "../motion";
+import { Sequence } from "./Sequence";
 
 const STATSBOMB_URL = "https://github.com/statsbomb/open-data";
 
@@ -19,43 +22,48 @@ function FooterLink({ href, children }: { href: string; children: ReactNode }) {
 export function LandingFooter() {
   return (
     <footer className="border-t border-line/60 bg-surface-2/30">
-      <div className={`${wrap} flex flex-col gap-8 py-10 md:flex-row md:items-start md:justify-between`}>
-        <div className="max-w-sm">
-          <a href="#/welcome" className="flex items-center gap-2.5">
-            <span className="grid size-9 place-items-center rounded-xl bg-accent text-accent-ink shadow-card">
-              <Eye size={18} strokeWidth={2.5} aria-hidden="true" />
-            </span>
-            <span className="font-heading text-base font-bold tracking-tight">Why It Happened</span>
-          </a>
-          <p className="mt-4 text-sm leading-relaxed text-muted">
-            Explains a football match from its events: the chain of causes behind each goal, card and swing, with the evidence attached.
-          </p>
+      <Sequence threshold={0.1} className="relative">
+        {/* An accent hairline draws across the top edge once the footer is in view */}
+        <div aria-hidden="true" className={cn("absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-accent to-transparent duration-[1400ms]", GROW_X)} />
+
+        <div className={`${wrap} flex flex-col gap-8 py-10 md:flex-row md:items-start md:justify-between`}>
+          <div className={cn("max-w-sm", FADE_UP)}>
+            <a href={LANDING_HREF} className="flex items-center gap-2.5">
+              <span className="grid size-9 place-items-center rounded-xl bg-accent text-accent-ink shadow-card">
+                <Eye size={18} strokeWidth={2.5} aria-hidden="true" />
+              </span>
+              <span className="font-heading text-base font-bold tracking-tight">Why It Happened</span>
+            </a>
+            <p className="mt-4 text-sm leading-relaxed text-muted">
+              Explains a football match from its events: the chain of causes behind each goal, card and swing, with the evidence attached.
+            </p>
+          </div>
+
+          <nav aria-label="Footer" className={cn("flex flex-col gap-1.5", FADE_UP)} style={at(150)}>
+            <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.16em] text-muted">Explore</p>
+            <FooterLink href={APP_HREF}>Open the app</FooterLink>
+            <FooterLink href={ABOUT_HREF}>About</FooterLink>
+          </nav>
         </div>
 
-        <nav aria-label="Footer" className="flex flex-col gap-1.5">
-          <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.16em] text-muted">Explore</p>
-          <FooterLink href={APP_HREF}>Open the app</FooterLink>
-          <FooterLink href={ABOUT_HREF}>About</FooterLink>
-        </nav>
-      </div>
-
-      <div className="border-t border-line/60">
-        <div className={`${wrap} flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-5 text-xs text-muted`}>
-          <span>© {new Date().getFullYear()} Why It Happened</span>
-          {DATA_SOURCE && (
-            <span>
-              Event data:{" "}
-              {/statsbomb/i.test(DATA_SOURCE) ? (
-                <a href={STATSBOMB_URL} target="_blank" rel="noreferrer noopener" className="font-medium underline-offset-2 hover:text-fg hover:underline">
-                  {DATA_SOURCE}
-                </a>
-              ) : (
-                DATA_SOURCE
-              )}
-            </span>
-          )}
+        <div className={cn("border-t border-line/60", FADE_UP)} style={at(300)}>
+          <div className={`${wrap} flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-5 text-xs text-muted`}>
+            <span>© {new Date().getFullYear()} Why It Happened</span>
+            {DATA_SOURCE && (
+              <span>
+                Event data:{" "}
+                {/statsbomb/i.test(DATA_SOURCE) ? (
+                  <a href={STATSBOMB_URL} target="_blank" rel="noreferrer noopener" className="font-medium underline-offset-2 hover:text-fg hover:underline">
+                    {DATA_SOURCE}
+                  </a>
+                ) : (
+                  DATA_SOURCE
+                )}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      </Sequence>
     </footer>
   );
 }

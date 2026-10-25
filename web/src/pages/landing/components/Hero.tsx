@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ArrowRight, Eye } from "lucide-react";
 import { APP_HREF, scrollTo, wrap } from "../config";
 import { PitchGraphic } from "../graphics/PitchGraphic";
@@ -9,6 +10,8 @@ const chain = [
   "A cut-back found a runner at the edge of the box",
   "Finished first time",
 ];
+
+const ids = ["d17", "d18", "d19", "d20"]; // same ids the pitch shows
 
 const stats = [
   ["5", "Steps from event to sentence"],
@@ -22,6 +25,8 @@ const rise = "animate-page-in anim-hold";
 const at = (ms: number) => ({ animationDelay: `${ms}ms` });
 
 export function Hero() {
+  const [step, setStep] = useState(0); // how many "Why?" steps the pitch animation has reached
+
   return (
     <section className="relative isolate overflow-hidden pb-16 pt-10 sm:pt-16 lg:pb-24 lg:pt-20">
       {/* Full-width backdrop: two soft glows and a faded grid */}
@@ -62,7 +67,6 @@ export function Hero() {
           </p>
 
           <div style={at(300)} className={`${rise} mt-9 flex flex-wrap gap-3`}>
-            {/* Give ActionLink's base classes `group` if you want the arrow to nudge on hover */}
             <ActionLink href={APP_HREF}>
               Open the app{" "}
               <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" aria-hidden="true" />
@@ -84,24 +88,26 @@ export function Hero() {
         </div>
 
         <div className="relative animate-page-in">
-          <PitchGraphic />
+          <PitchGraphic onStep={setStep} />
           <div className="relative -mt-10 ml-4 mr-4 rounded-card border border-line bg-surface/90 p-4 shadow-card backdrop-blur sm:ml-8 sm:mr-0">
             <div className="mb-3 flex items-center justify-between text-sm">
               <span className="font-medium text-muted">Sample goal. Why?</span>
               <span className="inline-flex items-center gap-2 rounded-full bg-live/10 px-2.5 py-1 text-xs font-semibold text-live">
                 <span className="size-2 rounded-full bg-live animate-pulse-dot" aria-hidden="true" />
-                67&apos;
+                9&apos;
               </span>
             </div>
             <ol>
               {chain.map((s, i) => (
                 <li
                   key={s}
-                  style={at(1700 + i * 250)}
-                  className="relative ml-1.5 animate-page-in anim-hold border-l border-line pb-3 pl-5 text-sm last:pb-0"
+                  className={`relative ml-1.5 border-l border-line pb-3 pl-5 text-sm transition duration-500 last:pb-0 motion-reduce:translate-y-0 motion-reduce:opacity-100 ${
+                    i < step ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"
+                  }`}
                 >
                   <span className="absolute -left-[5px] top-1.5 size-2.5 rounded-full bg-accent" aria-hidden="true" />
                   {s}
+                  <span className="ml-2 rounded-full bg-bg px-2 py-px font-mono text-[11px] text-muted ring-1 ring-line">{ids[i]}</span>
                 </li>
               ))}
             </ol>

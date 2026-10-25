@@ -1,15 +1,17 @@
 import { Check, Flag, MessageSquare, Radio, Search, Target, TrendingUp, Users } from "lucide-react";
+import type { ComponentType } from "react";
+import { AskArt, FoulsArt, GoalArt, LiveArt, PlayersArt, TacticsArt } from "../graphics/FeatureArt";
 import { WinChartGraphic } from "../graphics/WinChartGraphic";
 import { Reveal } from "./Reveal";
 import { Section, SectionHead } from "./Section";
 
-const features = [
-  { icon: Radio, t: "Live pitch", d: "The last 60 seconds of play, faded by age, with a time scrubber and a Players layer." },
-  { icon: Target, t: "Tactics", d: "Did a high press or a deep block work? A verdict and the half-time change, side by side." },
-  { icon: Users, t: "Players", d: "A rating with its breakdown, so the number always explains itself." },
-  { icon: Flag, t: "Fouls", d: "Flagged fouls first, routine ones folded into one line." },
-  { icon: MessageSquare, t: "Ask the match", d: "Ask in plain language. If the data cannot answer, it says so." },
-  { icon: Search, t: "Why this goal", d: "The model proposes up to three ideas. The rules test each one." },
+const features: { icon: typeof Radio; t: string; d: string; Art: ComponentType }[] = [
+  { icon: Radio, t: "Live pitch", d: "The last 60 seconds of play, faded by age, with a time scrubber and a Players layer.", Art: LiveArt },
+  { icon: Target, t: "Tactics", d: "Did a high press or a deep block work? A verdict and the half-time change, side by side.", Art: TacticsArt },
+  { icon: Users, t: "Players", d: "A rating with its breakdown, so the number always explains itself.", Art: PlayersArt },
+  { icon: Flag, t: "Fouls", d: "Flagged fouls first, routine ones folded into one line.", Art: FoulsArt },
+  { icon: MessageSquare, t: "Ask the match", d: "Ask in plain language. If the data cannot answer, it says so.", Art: AskArt },
+  { icon: Search, t: "Why this goal", d: "The model proposes up to three ideas. The rules test each one.", Art: GoalArt },
 ];
 
 const guarantees = [
@@ -22,11 +24,10 @@ export function WhatSection() {
   return (
     <Section id="features">
       <SectionHead kicker="Features" title="What you can do">
-        Six ways into the match, each one anchored to evidence you can see.
+        Six ways into the match, each one anchored to evidence you can see. The small diagrams are illustrations.
       </SectionHead>
 
       <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {/* Featured: win probability. One Reveal drives both the fade and the chart. */}
         <Reveal className="relative overflow-hidden rounded-card border border-line bg-surface p-6 sm:col-span-2">
           {(on) => (
             <>
@@ -61,17 +62,20 @@ export function WhatSection() {
           </ul>
         </Reveal>
 
-        {features.map(({ icon: Icon, t, d }, i) => (
+        {features.map(({ icon: Icon, t, d, Art }, i) => (
           <Reveal
             key={t}
             delay={(i % 3) * 100}
-            className="group rounded-card border border-line bg-surface p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/50 hover:shadow-card"
+            className="group rounded-card border border-line bg-surface p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/50 hover:shadow-lifted motion-reduce:hover:translate-y-0"
           >
-            <span className="grid size-11 place-items-center rounded-xl bg-surface-2 text-accent transition-all duration-300 group-hover:-translate-y-0.5 group-hover:bg-accent/10">
-              <Icon size={22} aria-hidden="true" />
-            </span>
-            <h3 className="mt-4 font-heading text-xl font-semibold text-fg">{t}</h3>
-            <p className="mt-1.5 text-[0.95rem] leading-relaxed text-muted">{d}</p>
+            <Art />
+            <div className="mt-5 flex items-center gap-2.5">
+              <span className="grid size-8 place-items-center rounded-lg bg-surface-2 text-accent transition-colors duration-300 group-hover:bg-accent group-hover:text-accent-ink">
+                <Icon size={17} aria-hidden="true" />
+              </span>
+              <h3 className="font-heading text-xl font-semibold text-fg">{t}</h3>
+            </div>
+            <p className="mt-2 text-[0.95rem] leading-relaxed text-muted">{d}</p>
           </Reveal>
         ))}
       </div>
