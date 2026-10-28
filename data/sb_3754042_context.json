@@ -1,0 +1,50 @@
+{
+ "teams": [
+  "West Bromwich Albion",
+  "Liverpool"
+ ],
+ "score": {
+  "West Bromwich Albion": 1,
+  "Liverpool": 1
+ },
+ "formations": {
+  "West Bromwich Albion": "4-2-3-1",
+  "Liverpool": "4-3-3"
+ },
+ "shifts": [
+  {
+   "team": "West Bromwich Albion",
+   "minute": 51.8,
+   "formation": "4-2-3-1"
+  },
+  {
+   "team": "Liverpool",
+   "minute": 67.2,
+   "formation": "4-3-3"
+  }
+ ],
+ "xg": {
+  "s450": 0.025211615,
+  "s602": 0.13778277,
+  "s693": 0.096089765,
+  "s941": 0.08262946,
+  "s969": 0.20754081,
+  "s1313": 0.019666217,
+  "s1655": 0.029434314,
+  "s1771": 0.08450238,
+  "s1913": 0.068982005,
+  "s1916": 0.14797515,
+  "s2260": 0.015983043,
+  "s2340": 0.0096945865,
+  "s2434": 0.034083907,
+  "s2485": 0.105419256,
+  "s2512": 0.01739929,
+  "s2632": 0.12251449,
+  "s2640": 0.2599237,
+  "s3264": 0.01600528,
+  "s3267": 0.6280385,
+  "s3561": 0.024775233
+ },
+ "second_half_start": 45.0,
+ "source": "StatsBomb Open Data (credit StatsBomb when you show it)"
+}

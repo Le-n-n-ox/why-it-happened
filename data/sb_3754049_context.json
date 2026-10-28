@@ -1,0 +1,58 @@
+{
+ "teams": [
+  "Norwich City",
+  "Leicester City"
+ ],
+ "score": {
+  "Norwich City": 0,
+  "Leicester City": 1
+ },
+ "formations": {
+  "Leicester City": "4-4-2",
+  "Norwich City": "3-4-3"
+ },
+ "shifts": [
+  {
+   "team": "Leicester City",
+   "minute": 72.2,
+   "formation": "4-2-3-1"
+  },
+  {
+   "team": "Leicester City",
+   "minute": 80.7,
+   "formation": "4-4-2"
+  },
+  {
+   "team": "Norwich City",
+   "minute": 91.7,
+   "formation": "4-4-2"
+  }
+ ],
+ "xg": {
+  "s438": 0.030650567,
+  "s459": 0.19259411,
+  "s577": 0.115912385,
+  "s716": 0.04421121,
+  "s746": 0.0074018682,
+  "s921": 0.068024226,
+  "s929": 0.045924082,
+  "s956": 0.013744136,
+  "s1259": 0.031556964,
+  "s1373": 0.23813231,
+  "s1559": 0.012792621,
+  "s1622": 0.11538963,
+  "s1635": 0.018802254,
+  "s1748": 0.038918957,
+  "s2058": 0.027553573,
+  "s2401": 0.07102514,
+  "s2415": 0.029767418,
+  "s2600": 0.049608648,
+  "s2723": 0.103965074,
+  "s2904": 0.02110057,
+  "s3155": 0.46081012,
+  "s3157": 0.8401158,
+  "s3205": 0.058616545
+ },
+ "second_half_start": 45.0,
+ "source": "StatsBomb Open Data (credit StatsBomb when you show it)"
+}

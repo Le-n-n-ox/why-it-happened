@@ -25,13 +25,21 @@ def test_events():
     assert len(r.json()) == 15
 
 
+def test_players():
+    r = client.get("/players")
+    assert r.status_code == 200
+    assert r.json() == []
+
+
 def test_stream_emits_insights_then_done():
     with client.stream("GET", "/stream?delay=0") as r:
         body = "".join(r.iter_text())
-    data_lines = [ln[6:] for ln in body.splitlines() if ln.startswith("data: ") and ln != "data: {}"]
-    insights = [json.loads(ln) for ln in data_lines]
-    assert len(insights) == 3
+    insight_blocks = [block for block in body.split("\n\n")
+                      if block.startswith("data: ") and "event: tick" not in block]
+    insights = [json.loads(block[6:]) for block in insight_blocks if block != "data: {}"]
+    assert len(insights) == 5
+    assert {i["kind"] for i in insights} >= {"counter_attack", "turnover_shot", "first_goal"}
     assert "event: done" in body
     assert all(i["narration"]["en"] for i in insights)
     # and they were stored
-    assert len(client.get("/insights").json()) == 3
+    assert len(client.get("/insights").json()) == 5

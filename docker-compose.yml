@@ -1,0 +1,13 @@
+services:
+  app:
+    build: .
+    container_name: why-it-happened-app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - insights_data:/data
+
+volumes:
+  insights_data:

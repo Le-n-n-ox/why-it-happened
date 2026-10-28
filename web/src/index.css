@@ -1,111 +1,170 @@
+@layer theme, base, legacy, components, utilities;
+@import "tailwindcss";
+/* TEMPORARY: delete this line, then src/styles/components.css, when every file is converted. */
+
+/* ---------- Colour and design variables (the only place colours are defined) ---------- */
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  --bg: #0c130f; --surface: #131c16; --surface-2: #1a261e; --surface-3: #223228; --surface-raised: #101912;
+  --border: rgba(255, 255, 255, .09); --border-strong: rgba(255, 255, 255, .22);
+  --text: #eaf1ec; --muted: #9fb2a5;
+  --accent: #6fcf8b; --accent-ink: #06210f;
+  --accent-2: #ff2d87; --live: #e0126f;
+  --warn: #ffb300; --warn-ink: #1a1200; --ok: #5fd17f;
+  --grass: #14532d;
+  /* Chart and team colours: first team green, second pink. Kept fixed on purpose. */
+  --c1: #00ff85; --c2: #ff2d87; --c3: #4cc9f0; --c4: #ffb300; --c5: #b388ff;
+  /* Pipeline stage colours, used on the landing page */
+  --status-1: #1d3557; --status-1-ink: #9cc4ff;
+  --status-2: #4a3a10; --status-2-ink: #ffd479;
+  --status-3: #3b2a5e; --status-3-ink: #d2b6ff;
+  --status-4: #123f3a; --status-4-ink: #7de3d3;
+  --status-5: #17432a; --status-5-ink: #7fe3a1;
+  --radius: 16px; --gap: 16px;
+  --sh-soft: 0 1px 2px rgb(0 0 0 / .3), 0 2px 10px rgb(0 0 0 / .18);
+  --sh-lifted: 0 12px 32px -12px rgb(0 0 0 / .55);
+  --sh-floating: 0 32px 80px -28px rgb(0 0 0 / .65);
+  --shadow: var(--sh-soft);
+  --font-body: "Inter Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-body);
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --bg: #f6f8f4; --surface: #ffffff; --surface-2: #eef2ea; --surface-3: #e2e8dc; --surface-raised: #f0f3ec;
+  --border: rgba(20, 40, 28, .12); --border-strong: rgba(20, 40, 28, .3);
+  --text: #14201a; --muted: #566559;
+  --accent: #2f6b3f; --accent-ink: #ffffff;
+  --accent-2: #c8105f; --live: #c8105f;
+  --warn: #9c6200; --warn-ink: #ffffff; --ok: #1f7a3a;
+  --c1: #007a42; --c2: #c8105f; --c3: #0077a8; --c4: #a86a00; --c5: #6a3fd6;
+  --status-1: #dbeafe; --status-1-ink: #1e40af;
+  --status-2: #fef3c7; --status-2-ink: #92400e;
+  --status-3: #ede9fe; --status-3-ink: #5b21b6;
+  --status-4: #ccfbf1; --status-4-ink: #115e59;
+  --status-5: #dcfce7; --status-5-ink: #166534;
+  --sh-soft: 0 1px 2px rgb(20 40 28 / .06), 0 2px 8px rgb(20 40 28 / .05);
+  --sh-lifted: 0 12px 30px -12px rgb(20 40 28 / .22);
+  --sh-floating: 0 30px 70px -28px rgb(20 40 28 / .3);
+  color-scheme: light;
+}
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+/* ---------- Accent themes (data-accent on <html>; moss is the default above) ---------- */
+:root[data-accent="ocean"]  { --accent: #5cc4f0; --accent-ink: #04202e; }
+:root[data-accent="ember"]  { --accent: #ff9a62; --accent-ink: #2a1005; }
+:root[data-accent="plum"]   { --accent: #d59bff; --accent-ink: #20082e; }
+:root[data-accent="indigo"] { --accent: #9aa6ff; --accent-ink: #0c1038; }
+:root[data-theme="light"][data-accent="moss"]   { --accent: #2f6b3f; --accent-ink: #fff; }
+:root[data-theme="light"][data-accent="ocean"]  { --accent: #0b6fa4; --accent-ink: #fff; }
+:root[data-theme="light"][data-accent="ember"]  { --accent: #c4501a; --accent-ink: #fff; }
+:root[data-theme="light"][data-accent="plum"]   { --accent: #7e3fb8; --accent-ink: #fff; }
+:root[data-theme="light"][data-accent="indigo"] { --accent: #4452c8; --accent-ink: #fff; }
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* ---------- Tailwind tokens: bg-surface, text-muted, border-line, rounded-card, shadow-soft ... ---------- */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-surface-raised: var(--surface-raised);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-fg: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-2: var(--accent-2);
+  --color-live: var(--live);
+  --color-warn: var(--warn);
+  --color-warn-ink: var(--warn-ink);
+  --color-ok: var(--ok);
+  --color-grass: var(--grass);
+  --color-c1: var(--c1);
+  --color-c2: var(--c2);
+  --color-c3: var(--c3);
+  --color-c4: var(--c4);
+  --color-c5: var(--c5);
+  --font-sans: var(--font-body);
+  --font-heading: var(--font-display);
+  --radius-card: var(--radius);
+  --shadow-card: var(--shadow);
+  --shadow-soft: var(--sh-soft);
+  --shadow-lifted: var(--sh-lifted);
+  --shadow-floating: var(--sh-floating);
+}
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
+/* ---------- Motion tokens: animate-slide-in, animate-ring, ... ---------- */
+@theme {
+  --animate-page-in: page-in .35s cubic-bezier(.2, .8, .2, 1);
+  --animate-slide-in: slide-in .35s ease-out;
+  --animate-pulse-dot: pulse-dot 1.4s ease-in-out infinite;
+  --animate-ring: ring 1.8s ease-out infinite;
+  --animate-shimmer: shimmer 1.4s ease infinite;
+  --animate-grow: grow .6s cubic-bezier(.2, .8, .2, 1);
+  --animate-draw: draw .9s ease-out;
+  --animate-meter-in: meter-in .8s cubic-bezier(.2, .8, .2, 1);
+  --animate-breathe: breathe 3.2s ease-in-out infinite;
+  --animate-scan: scan 3.4s ease-in-out infinite;
+  --animate-scan: scan 3s ease-in-out infinite;
+
+
+
+  @keyframes scan { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+  @keyframes scan { from { transform: translateX(-120%); } to { transform: translateX(320%); } }
+  @keyframes page-in { from { opacity: 0; transform: translateY(8px); } }
+  @keyframes slide-in { from { opacity: 0; transform: translateY(-8px); } }
+  @keyframes pulse-dot { 50% { opacity: .35; transform: scale(.8); } }
+  @keyframes ring { from { transform: scale(1); opacity: .9; } to { transform: scale(2.6); opacity: 0; } }
+  @keyframes shimmer { to { background-position: -100% 0; } }
+  @keyframes grow { from { transform: scaleY(0); } }
+  @keyframes draw { from { stroke-dashoffset: 1; } }
+  @keyframes meter-in { from { width: 0; } }
+  @keyframes breathe { 50% { transform: scale(1.3); } }
+
+  --animate-loader-rotate-ball: loader-rotate-ball 25s linear infinite;
+  --animate-loader-bounce-ball: loader-bounce-ball 1.2s cubic-bezier(.42, 0, .58, 1) infinite;
+  --animate-loader-bounce-shadow: loader-bounce-shadow 1.2s cubic-bezier(.42, 0, .58, 1) infinite;
+
+  @keyframes loader-rotate-ball {
+    0% { transform: rotateY(0deg) rotateX(0deg) rotateZ(0deg); }
+    50% { transform: rotateY(360deg) rotateX(360deg) rotateZ(0deg); }
+    100% { transform: rotateY(720deg) rotateX(720deg) rotateZ(360deg); }
+  }
+  @keyframes loader-bounce-ball {
+    0%, 95%, 100% { transform: translateY(-70px) scale(1, 1); }
+    15%, 85% { transform: translateY(-56px) scale(1, 1); }
+    45% { transform: translateY(70px) scale(1, 1); }
+    50% { transform: translateY(73.5px) scale(1, .92); }
+    55% { transform: translateY(70px) scale(1, .95); }
+  }
+  @keyframes loader-bounce-shadow {
+    0%, 100% { filter: blur(3px); opacity: .6; transform: translateY(73px) scale(.5, .5); }
+    45%, 55% { filter: blur(1px); opacity: .9; transform: translateY(73px) scale(1, 1); }
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+/* ---------- Base ---------- */
+@layer base {
+  * { scrollbar-width: thin; scrollbar-color: var(--surface-3) transparent; }
+  html { scroll-padding-top: 90px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body);
+    line-height: 1.5; -webkit-font-smoothing: antialiased;
+    background-image: radial-gradient(1000px 440px at 88% -10%, color-mix(in srgb, var(--accent) 9%, transparent), transparent);
+    background-attachment: fixed;
   }
+  h1, h2, h3 { font-family: var(--font-display); letter-spacing: -.01em; }
+  ::selection { background: var(--accent); color: var(--accent-ink); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button:not(:disabled), select, summary { cursor: pointer; }
+  select { font: inherit; color: inherit; background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 7px 14px; }
+  /* Lock page scroll while the mobile drawer is open (an ancestor carries data-open="true"). */
+  @media (max-width: 900px) { body:has([data-open="true"]) { overflow: hidden; } }
+}
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
+/* Reduced motion switches every animation and transition off. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important; animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important; scroll-behavior: auto !important;
   }
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-}
-
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
 }

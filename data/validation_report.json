@@ -1,0 +1,551 @@
+{
+  "available": true,
+  "source": "StatsBomb Open Data",
+  "matches": 20,
+  "shots": 511,
+  "xg": {
+    "mean_correlation": 0.658,
+    "correlation_matches": 20,
+    "mean_shot_x": 86.7,
+    "our_total": 67.65,
+    "statsbomb_total": 51.24
+  },
+  "formation": {
+    "matched": 0,
+    "compared": 0
+  },
+  "win_probability": {
+    "30": {
+      "matches": 20,
+      "ours": 0.589,
+      "base_rate": 0.739
+    },
+    "60": {
+      "matches": 20,
+      "ours": 0.448,
+      "base_rate": 0.739
+    }
+  },
+  "per_match": [
+    {
+      "match": "sb_3753983.json",
+      "xg": {
+        "shots": 20,
+        "correlation": 0.6287876730274653,
+        "mean_shot_x": 87.7125,
+        "our_total": 2.7,
+        "statsbomb_total": 1.98
+      },
+      "formations": [
+        {
+          "team": "Arsenal",
+          "truth": "4-2-3-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        },
+        {
+          "team": "Swansea City",
+          "truth": "4-2-3-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        }
+      ]
+    },
+    {
+      "match": "sb_3754037.json",
+      "xg": {
+        "shots": 27,
+        "correlation": 0.6565443796138184,
+        "mean_shot_x": 86.44444444444444,
+        "our_total": 2.98,
+        "statsbomb_total": 2.32
+      },
+      "formations": [
+        {
+          "team": "AFC Bournemouth",
+          "truth": "4-4-2",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        },
+        {
+          "team": "Everton",
+          "truth": "4-2-3-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        }
+      ]
+    },
+    {
+      "match": "sb_3754039.json",
+      "xg": {
+        "shots": 26,
+        "correlation": 0.6369173234556437,
+        "mean_shot_x": 84.8301282051282,
+        "our_total": 3.05,
+        "statsbomb_total": 2.85
+      },
+      "formations": [
+        {
+          "team": "Watford",
+          "truth": "4-3-3",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        },
+        {
+          "team": "Crystal Palace",
+          "truth": "4-1-4-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        }
+      ]
+    },
+    {
+      "match": "sb_3754041.json",
+      "xg": {
+        "shots": 23,
+        "correlation": 0.5813664825954818,
+        "mean_shot_x": 88.57971014492755,
+        "our_total": 3.77,
+        "statsbomb_total": 3.22
+      },
+      "formations": [
+        {
+          "team": "Arsenal",
+          "truth": "4-2-3-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        },
+        {
+          "team": "Aston Villa",
+          "truth": "3-5-2",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        }
+      ]
+    },
+    {
+      "match": "sb_3754042.json",
+      "xg": {
+        "shots": 20,
+        "correlation": 0.7662598062757083,
+        "mean_shot_x": 87.02083333333334,
+        "our_total": 2.77,
+        "statsbomb_total": 2.13
+      },
+      "formations": [
+        {
+          "team": "West Bromwich Albion",
+          "truth": "4-2-3-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        },
+        {
+          "team": "Liverpool",
+          "truth": "4-3-3",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        }
+      ]
+    },
+    {
+      "match": "sb_3754043.json",
+      "xg": {
+        "shots": 20,
+        "correlation": 0.6502439168040844,
+        "mean_shot_x": 85.87916666666666,
+        "our_total": 2.41,
+        "statsbomb_total": 1.79
+      },
+      "formations": [
+        {
+          "team": "Tottenham Hotspur",
+          "truth": "4-2-3-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        },
+        {
+          "team": "AFC Bournemouth",
+          "truth": "4-4-2",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        }
+      ]
+    },
+    {
+      "match": "sb_3754045.json",
+      "xg": {
+        "shots": 32,
+        "correlation": 0.6101488783776237,
+        "mean_shot_x": 86.90625,
+        "our_total": 4.07,
+        "statsbomb_total": 2.58
+      },
+      "formations": [
+        {
+          "team": "Leicester City",
+          "truth": "4-5-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        },
+        {
+          "team": "Manchester City",
+          "truth": "4-2-3-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        }
+      ]
+    },
+    {
+      "match": "sb_3754047.json",
+      "xg": {
+        "shots": 19,
+        "correlation": 0.4379251390307053,
+        "mean_shot_x": 86.30263157894737,
+        "our_total": 2.42,
+        "statsbomb_total": 1.93
+      },
+      "formations": [
+        {
+          "team": "Liverpool",
+          "truth": "4-3-3",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        },
+        {
+          "team": "Swansea City",
+          "truth": "4-4-1-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        }
+      ]
+    },
+    {
+      "match": "sb_3754048.json",
+      "xg": {
+        "shots": 29,
+        "correlation": 0.7943536116450713,
+        "mean_shot_x": 86.66666666666667,
+        "our_total": 4.36,
+        "statsbomb_total": 3.26
+      },
+      "formations": [
+        {
+          "team": "Crystal Palace",
+          "truth": "4-4-2",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        },
+        {
+          "team": "Everton",
+          "truth": "4-2-3-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        }
+      ]
+    },
+    {
+      "match": "sb_3754049.json",
+      "xg": {
+        "shots": 23,
+        "correlation": 0.6536665072784726,
+        "mean_shot_x": 86.98913043478261,
+        "our_total": 3.54,
+        "statsbomb_total": 2.64
+      },
+      "formations": [
+        {
+          "team": "Norwich City",
+          "truth": "3-4-3",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        },
+        {
+          "team": "Leicester City",
+          "truth": "4-4-2",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        }
+      ]
+    },
+    {
+      "match": "sb_3754050.json",
+      "xg": {
+        "shots": 33,
+        "correlation": 0.8221612796348234,
+        "mean_shot_x": 87.35353535353535,
+        "our_total": 4.21,
+        "statsbomb_total": 2.17
+      },
+      "formations": [
+        {
+          "team": "Sunderland",
+          "truth": "4-1-4-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        },
+        {
+          "team": "Crystal Palace",
+          "truth": "4-2-3-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        }
+      ]
+    },
+    {
+      "match": "sb_3754058.json",
+      "xg": {
+        "shots": 27,
+        "correlation": 0.7824228406837629,
+        "mean_shot_x": 87.57407407407408,
+        "our_total": 3.52,
+        "statsbomb_total": 3.76
+      },
+      "formations": [
+        {
+          "team": "AFC Bournemouth",
+          "truth": "4-1-4-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        },
+        {
+          "team": "Leicester City",
+          "truth": "4-4-2",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        }
+      ]
+    },
+    {
+      "match": "sb_3754117.json",
+      "xg": {
+        "shots": 28,
+        "correlation": 0.39635841288130286,
+        "mean_shot_x": 86.01785714285714,
+        "our_total": 3.2,
+        "statsbomb_total": 2.93
+      },
+      "formations": [
+        {
+          "team": "Arsenal",
+          "truth": "4-2-3-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        },
+        {
+          "team": "Aston Villa",
+          "truth": "4-3-3",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        }
+      ]
+    },
+    {
+      "match": "sb_3754129.json",
+      "xg": {
+        "shots": 39,
+        "correlation": 0.6998924823245758,
+        "mean_shot_x": 87.50641025641026,
+        "our_total": 5.61,
+        "statsbomb_total": 3.56
+      },
+      "formations": [
+        {
+          "team": "Arsenal",
+          "truth": "4-2-3-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        },
+        {
+          "team": "Liverpool",
+          "truth": "4-3-3",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        }
+      ]
+    },
+    {
+      "match": "sb_3754136.json",
+      "xg": {
+        "shots": 18,
+        "correlation": 0.6064796731665175,
+        "mean_shot_x": 87.25,
+        "our_total": 2.85,
+        "statsbomb_total": 1.47
+      },
+      "formations": [
+        {
+          "team": "Newcastle United",
+          "truth": "4-2-3-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        },
+        {
+          "team": "Aston Villa",
+          "truth": "4-1-2-1-2",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        }
+      ]
+    },
+    {
+      "match": "sb_3754160.json",
+      "xg": {
+        "shots": 26,
+        "correlation": 0.6912054783662454,
+        "mean_shot_x": 86.28205128205128,
+        "our_total": 3.36,
+        "statsbomb_total": 2.72
+      },
+      "formations": [
+        {
+          "team": "Sunderland",
+          "truth": "3-4-3",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        },
+        {
+          "team": "Arsenal",
+          "truth": "4-2-3-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        }
+      ]
+    },
+    {
+      "match": "sb_3754217.json",
+      "xg": {
+        "shots": 33,
+        "correlation": 0.8579384908279443,
+        "mean_shot_x": 83.4469696969697,
+        "our_total": 3.27,
+        "statsbomb_total": 2.48
+      },
+      "formations": [
+        {
+          "team": "Arsenal",
+          "truth": "4-2-3-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        },
+        {
+          "team": "Chelsea",
+          "truth": "4-2-3-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        }
+      ]
+    },
+    {
+      "match": "sb_3754245.json",
+      "xg": {
+        "shots": 19,
+        "correlation": 0.7587773190973632,
+        "mean_shot_x": 88.12280701754385,
+        "our_total": 3.06,
+        "statsbomb_total": 2.15
+      },
+      "formations": [
+        {
+          "team": "West Bromwich Albion",
+          "truth": "4-4-2",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        },
+        {
+          "team": "Sunderland",
+          "truth": "4-2-3-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        }
+      ]
+    },
+    {
+      "match": "sb_3754296.json",
+      "xg": {
+        "shots": 27,
+        "correlation": 0.5512779532874476,
+        "mean_shot_x": 86.69444444444444,
+        "our_total": 3.14,
+        "statsbomb_total": 2.6
+      },
+      "formations": [
+        {
+          "team": "Arsenal",
+          "truth": "4-2-3-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        },
+        {
+          "team": "Manchester City",
+          "truth": "4-4-1-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        }
+      ]
+    },
+    {
+      "match": "sb_3754309.json",
+      "xg": {
+        "shots": 22,
+        "correlation": 0.5677088886807632,
+        "mean_shot_x": 87.74621212121211,
+        "our_total": 3.36,
+        "statsbomb_total": 2.7
+      },
+      "formations": [
+        {
+          "team": "Arsenal",
+          "truth": "4-2-3-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        },
+        {
+          "team": "Southampton",
+          "truth": "4-2-3-1",
+          "ours": null,
+          "match": null,
+          "why": "The players do not fall into clear lines."
+        }
+      ]
+    }
+  ]
+}

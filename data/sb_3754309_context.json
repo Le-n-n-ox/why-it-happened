@@ -1,0 +1,67 @@
+{
+ "teams": [
+  "Arsenal",
+  "Southampton"
+ ],
+ "score": {
+  "Arsenal": 0,
+  "Southampton": 4
+ },
+ "formations": {
+  "Southampton": "4-2-3-1",
+  "Arsenal": "4-2-3-1"
+ },
+ "shifts": [
+  {
+   "team": "Southampton",
+   "minute": 35.0,
+   "formation": "4-2-3-1"
+  },
+  {
+   "team": "Southampton",
+   "minute": 44.1,
+   "formation": "4-2-3-1"
+  },
+  {
+   "team": "Southampton",
+   "minute": 47.9,
+   "formation": "4-4-1-1"
+  },
+  {
+   "team": "Southampton",
+   "minute": 73.4,
+   "formation": "4-4-1-1"
+  },
+  {
+   "team": "Southampton",
+   "minute": 87.5,
+   "formation": "4-4-1-1"
+  }
+ ],
+ "xg": {
+  "s38": 0.037150692,
+  "s469": 0.023512686,
+  "s682": 0.054492332,
+  "s687": 0.090159394,
+  "s751": 0.01503056,
+  "s928": 0.09693866,
+  "s1000": 0.03744624,
+  "s1042": 0.11463291,
+  "s1387": 0.09061787,
+  "s1455": 0.05124816,
+  "s1609": 0.27497175,
+  "s2021": 0.57729316,
+  "s2249": 0.033079468,
+  "s2490": 0.20671774,
+  "s2622": 0.026508348,
+  "s2791": 0.38586125,
+  "s2994": 0.04935862,
+  "s3136": 0.10938502,
+  "s3143": 0.06438182,
+  "s3208": 0.04350822,
+  "s3279": 0.20478666,
+  "s3317": 0.113582335
+ },
+ "second_half_start": 45.0,
+ "source": "StatsBomb Open Data (credit StatsBomb when you show it)"
+}

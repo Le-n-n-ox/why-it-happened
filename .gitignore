@@ -16,3 +16,26 @@ web/dist/
 .DS_Store
 .vscode/
 .idea/
+.insights.db-shm
+.insights.db-wal
+insights.db
+
+*.db
+*.db-shm
+*.db-wal
+
+# ai tooling
+.kilo/
+.opencode/
+
+# graphify (generated locally)
+graphify-out/
+
+!REAL_DATA_WORKFLOW.md
+!API_REFERENCE.md
+
+# Temporary AI scripts
+edit*.py
+refactor*.py
+update*.*
+labels.txt
